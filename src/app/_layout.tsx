@@ -1,18 +1,84 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { ClerkProvider, useAuth } from '@clerk/expo';
+import { tokenCache } from '@clerk/expo/token-cache';
+import { ConvexReactClient, useConvexAuth } from 'convex/react';
+import { ConvexProviderWithClerk } from 'convex/react-clerk';
+import { useFonts } from 'expo-font';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
+import { wisdomFontFamily } from '@/constants/custom-fonts';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function TabLayout() {
+// These have to be static property reads: Expo inlines `process.env.EXPO_PUBLIC_*`
+// at build time, so a computed key would be undefined in a bundle.
+const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? '';
+const convexUrl = process.env.EXPO_PUBLIC_CONVEX_URL ?? '';
+
+if (!publishableKey) {
+  throw new Error(
+    'Missing EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY in .env.local — copy it from the Clerk dashboard API keys page',
+  );
+}
+
+if (!convexUrl) {
+  throw new Error('Missing EXPO_PUBLIC_CONVEX_URL in .env.local — run `bunx convex dev`');
+}
+
+const convex = new ConvexReactClient(convexUrl, { unsavedChangesWarning: false });
+
+export default function RootLayout() {
   const colorScheme = useColorScheme();
+
+  const [fontsLoaded, fontError] = useFonts({
+    [wisdomFontFamily]: require('@/assets/fonts/Comico-Regular.otf'),
+  });
+
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
+
+  // Clerk has to be the outer provider so Convex can read its auth context.
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+      <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <RootNavigator />
+        </ThemeProvider>
+      </ConvexProviderWithClerk>
+    </ClerkProvider>
+  );
+}
+
+function RootNavigator() {
+  // `useConvexAuth` rather than Clerk's `useAuth`: it only reports authenticated
+  // once Convex itself has validated the token, so authenticated screens never
+  // mount before their queries can resolve.
+  const { isAuthenticated, isLoading } = useConvexAuth();
+
+  useEffect(() => {
+    if (!isLoading) {
+      void SplashScreen.hideAsync();
+    }
+  }, [isLoading]);
+
+  // Hold the splash screen rather than flashing sign-in at someone whose
+  // session is still being restored from SecureStore.
+  if (isLoading) {
+    return null;
+  }
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Protected guard={isAuthenticated}>
+        <Stack.Screen name="(app)" />
+      </Stack.Protected>
+
+      <Stack.Protected guard={!isAuthenticated}>
+        <Stack.Screen name="(auth)" />
+      </Stack.Protected>
+    </Stack>
   );
 }

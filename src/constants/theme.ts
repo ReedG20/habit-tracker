@@ -7,6 +7,8 @@ import '@/global.css';
 
 import { Platform } from 'react-native';
 
+import { wisdomFontFamily } from '@/constants/custom-fonts';
+
 export const Colors = {
   light: {
     text: '#000000',
@@ -14,6 +16,9 @@ export const Colors = {
     backgroundElement: '#F0F0F3',
     backgroundSelected: '#E0E1E6',
     textSecondary: '#60646C',
+    border: '#DDDDE3',
+    accent: '#E8590C',
+    accentElement: '#FFF0E6',
   },
   dark: {
     text: '#ffffff',
@@ -21,12 +26,15 @@ export const Colors = {
     backgroundElement: '#212225',
     backgroundSelected: '#2E3135',
     textSecondary: '#B0B4BA',
+    border: '#2E3135',
+    accent: '#FF8A3D',
+    accentElement: '#2C1C11',
   },
 } as const;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
-export const Fonts = Platform.select({
+const systemFonts = Platform.select({
   ios: {
     /** iOS `UIFontDescriptorSystemDesignDefault` */
     sans: 'system-ui',
@@ -50,6 +58,12 @@ export const Fonts = Platform.select({
     mono: 'var(--font-mono)',
   },
 });
+
+/** Loaded via expo-font in the root layout; same family name on iOS, Android, and web. */
+export const Fonts = {
+  ...systemFonts,
+  wisdom: wisdomFontFamily,
+};
 
 export const Spacing = {
   half: 2,
