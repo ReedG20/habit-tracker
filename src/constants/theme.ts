@@ -7,7 +7,7 @@ import '@/global.css';
 
 import { Platform } from 'react-native';
 
-import { wisdomFontFamily } from '@/constants/custom-fonts';
+import { sectionHeadingFontFamily, wisdomFontFamily } from '@/constants/custom-fonts';
 
 export const Colors = {
   light: {
@@ -19,6 +19,8 @@ export const Colors = {
     border: '#DDDDE3',
     accent: '#E8590C',
     accentElement: '#FFF0E6',
+    primary: '#4121FF',
+    onPrimary: '#ffffff',
   },
   dark: {
     text: '#ffffff',
@@ -29,8 +31,13 @@ export const Colors = {
     border: '#2E3135',
     accent: '#FF8A3D',
     accentElement: '#2C1C11',
+    primary: '#4121FF',
+    onPrimary: '#ffffff',
   },
 } as const;
+
+/** Subtle corners app-wide (2px). */
+export const BorderRadius = 2;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
@@ -63,7 +70,15 @@ const systemFonts = Platform.select({
 export const Fonts = {
   ...systemFonts,
   wisdom: wisdomFontFamily,
+  sectionHeading: sectionHeadingFontFamily,
 };
+
+/** Top-of-screen title on Habits, Projects, and Me (Comico). */
+export const ScreenHeadingTypography = {
+  fontFamily: Fonts.wisdom,
+  fontSize: 32,
+  lineHeight: 40,
+} as const;
 
 export const Spacing = {
   half: 2,

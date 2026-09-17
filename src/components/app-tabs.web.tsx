@@ -11,7 +11,7 @@ import { Pressable, View, StyleSheet } from 'react-native';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
-import { Spacing } from '@/constants/theme';
+import { BorderRadius, Spacing } from '@/constants/theme';
 
 export default function AppTabs() {
   return (
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
   innerContainer: {
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.two,
-    borderRadius: Spacing.five,
+    borderRadius: BorderRadius,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -82,6 +82,6 @@ const styles = StyleSheet.create({
   tabButtonView: {
     paddingVertical: Spacing.one,
     paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.three,
+    borderRadius: BorderRadius,
   },
 });

@@ -2,13 +2,14 @@ import { ClerkProvider, useAuth } from '@clerk/expo';
 import { tokenCache } from '@clerk/expo/token-cache';
 import { ConvexReactClient, useConvexAuth } from 'convex/react';
 import { ConvexProviderWithClerk } from 'convex/react-clerk';
+import { YujiBoku_400Regular } from '@expo-google-fonts/yuji-boku';
 import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 
-import { wisdomFontFamily } from '@/constants/custom-fonts';
+import { sectionHeadingFontFamily, wisdomFontFamily } from '@/constants/custom-fonts';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -34,6 +35,7 @@ export default function RootLayout() {
 
   const [fontsLoaded, fontError] = useFonts({
     [wisdomFontFamily]: require('@/assets/fonts/Comico-Regular.otf'),
+    [sectionHeadingFontFamily]: YujiBoku_400Regular,
   });
 
   if (!fontsLoaded && !fontError) {

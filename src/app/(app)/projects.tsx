@@ -6,7 +6,7 @@ import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { FolderLibraryIcon, Rocket01Icon, Target01Icon } from '@/constants/icons';
-import { Spacing } from '@/constants/theme';
+import { BorderRadius, ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 type Project = {
@@ -37,7 +37,7 @@ export default function ProjectsScreen() {
   return (
     <ScreenScrollView>
       <View style={styles.header}>
-        <ThemedText type="subtitle">Projects</ThemedText>
+        <ThemedText style={styles.title} themeColor="text">Projects</ThemedText>
         <ThemedText themeColor="textSecondary">
           Longer arcs that your habits are feeding into.
         </ThemedText>
@@ -74,6 +74,7 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.five,
     gap: Spacing.one,
   },
+  title: ScreenHeadingTypography,
   list: {
     gap: Spacing.three,
   },
@@ -81,13 +82,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
-    borderRadius: Spacing.four,
+    borderRadius: BorderRadius,
     padding: Spacing.three,
   },
   projectIcon: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: BorderRadius,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -6,7 +6,7 @@ import { Icon } from './icon';
 import { ThemedText } from './themed-text';
 
 import { AppleIcon } from '@/constants/icons';
-import { Spacing } from '@/constants/theme';
+import { BorderRadius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export function AppleSignInButton() {
@@ -67,7 +67,7 @@ function describe(error: unknown): string {
 const styles = StyleSheet.create({
   button: {
     paddingVertical: Spacing.three,
-    borderRadius: Spacing.three,
+    borderRadius: BorderRadius,
   },
   content: {
     flexDirection: 'row',

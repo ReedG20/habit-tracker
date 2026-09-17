@@ -6,12 +6,11 @@
 
 /* eslint-disable import/no-unresolved -- the ESLint resolver does not read the package's subpath exports map; Metro and TypeScript both resolve these */
 
+import AiCameraIcon from '@hugeicons/core-free-icons/AiCameraIcon';
 import AppleIcon from '@hugeicons/core-free-icons/AppleIcon';
 import ArrowRight01Icon from '@hugeicons/core-free-icons/ArrowRight01Icon';
-import Camera01Icon from '@hugeicons/core-free-icons/Camera01Icon';
-import CheckmarkCircle02Icon from '@hugeicons/core-free-icons/CheckmarkCircle02Icon';
 import Dumbbell01Icon from '@hugeicons/core-free-icons/Dumbbell01Icon';
-import Fire02Icon from '@hugeicons/core-free-icons/Fire02Icon';
+import FlameIcon from '@hugeicons/core-free-icons/FlameIcon';
 import FolderLibraryIcon from '@hugeicons/core-free-icons/FolderLibraryIcon';
 import GoogleIcon from '@hugeicons/core-free-icons/GoogleIcon';
 import Location01Icon from '@hugeicons/core-free-icons/Location01Icon';
@@ -26,12 +25,11 @@ import UserCircleIcon from '@hugeicons/core-free-icons/UserCircleIcon';
 import Yoga01Icon from '@hugeicons/core-free-icons/Yoga01Icon';
 
 export {
+  AiCameraIcon,
   AppleIcon,
   ArrowRight01Icon,
-  Camera01Icon,
-  CheckmarkCircle02Icon,
   Dumbbell01Icon,
-  Fire02Icon,
+  FlameIcon,
   FolderLibraryIcon,
   GoogleIcon,
   Location01Icon,

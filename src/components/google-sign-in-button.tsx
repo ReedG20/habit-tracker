@@ -6,7 +6,7 @@ import { Icon } from './icon';
 import { ThemedText } from './themed-text';
 
 import { GoogleIcon } from '@/constants/icons';
-import { Spacing } from '@/constants/theme';
+import { BorderRadius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 /** Google's native SDK only ships for iOS and Android. */
@@ -68,7 +68,7 @@ function describe(error: unknown): string {
 const styles = StyleSheet.create({
   button: {
     paddingVertical: Spacing.three,
-    borderRadius: Spacing.three,
+    borderRadius: BorderRadius,
     borderWidth: 1,
   },
   content: {

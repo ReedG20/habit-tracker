@@ -14,7 +14,7 @@ import {
   Settings02Icon,
   UserCircleIcon,
 } from '@/constants/icons';
-import { Spacing } from '@/constants/theme';
+import { BorderRadius, ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -44,7 +44,7 @@ export default function MeScreen() {
           <Icon icon={UserCircleIcon} size={32} themeColor="textSecondary" />
         </View>
         <View style={styles.identityText}>
-          <ThemedText type="subtitle">{displayName}</ThemedText>
+          <ThemedText style={styles.displayName} themeColor="text">{displayName}</ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
             {habits === undefined
               ? ' '
@@ -56,7 +56,7 @@ export default function MeScreen() {
       <View style={styles.statRow}>
         {stats.map((stat) => (
           <ThemedView key={stat.id} type="backgroundElement" style={styles.statTile}>
-            <ThemedText type="subtitle">{stat.value}</ThemedText>
+            <ThemedText style={styles.statValue} themeColor="text">{stat.value}</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
               {stat.label}
             </ThemedText>
@@ -107,25 +107,27 @@ const styles = StyleSheet.create({
   avatar: {
     width: 64,
     height: 64,
-    borderRadius: 32,
+    borderRadius: BorderRadius,
     alignItems: 'center',
     justifyContent: 'center',
   },
   identityText: {
     gap: Spacing.half,
   },
+  displayName: ScreenHeadingTypography,
+  statValue: ScreenHeadingTypography,
   statRow: {
     flexDirection: 'row',
     gap: Spacing.three,
   },
   statTile: {
     flex: 1,
-    borderRadius: Spacing.four,
+    borderRadius: BorderRadius,
     padding: Spacing.three,
     gap: Spacing.half,
   },
   settingsGroup: {
-    borderRadius: Spacing.four,
+    borderRadius: BorderRadius,
     overflow: 'hidden',
   },
   settingRow: {
