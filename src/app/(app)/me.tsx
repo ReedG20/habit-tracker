@@ -17,25 +17,31 @@ import {
 import { BorderRadius, ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { useTheme } from '@/hooks/use-theme';
-
-const stats = [
-  { id: 'longest', label: 'Longest streak', value: '23 days' },
-  { id: 'logged', label: 'Habits logged', value: '148' },
-];
+import { todayKey } from '@/lib/dates';
 
 const settings: { id: string; label: string; icon: IconSvgElement }[] = [
   { id: 'reminders', label: 'Reminders', icon: Notification01Icon },
   { id: 'preferences', label: 'Preferences', icon: Settings02Icon },
 ];
 
+function formatStreak(days: number): string {
+  return days === 1 ? '1 day' : `${days} days`;
+}
+
 export default function MeScreen() {
   const theme = useTheme();
   const { user } = useUser();
   const { signOut } = useClerk();
-  const habits = useQuery(api.habits.list);
+  const habits = useQuery(api.habits.list, { today: todayKey() });
+  const loggedCount = useQuery(api.habits.loggedCount);
 
   const displayName =
     user?.firstName ?? user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? 'You';
+
+  const currentStreak =
+    habits === undefined
+      ? undefined
+      : habits.reduce((max, habit) => Math.max(max, habit.streak), 0);
 
   return (
     <ScreenScrollView>
@@ -44,7 +50,9 @@ export default function MeScreen() {
           <Icon icon={UserCircleIcon} size={32} themeColor="textSecondary" />
         </View>
         <View style={styles.identityText}>
-          <ThemedText style={styles.displayName} themeColor="text">{displayName}</ThemedText>
+          <ThemedText style={styles.displayName} themeColor="text">
+            {displayName}
+          </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
             {habits === undefined
               ? ' '
@@ -54,14 +62,22 @@ export default function MeScreen() {
       </View>
 
       <View style={styles.statRow}>
-        {stats.map((stat) => (
-          <ThemedView key={stat.id} type="backgroundElement" style={styles.statTile}>
-            <ThemedText style={styles.statValue} themeColor="text">{stat.value}</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {stat.label}
-            </ThemedText>
-          </ThemedView>
-        ))}
+        <ThemedView type="backgroundElement" style={styles.statTile}>
+          <ThemedText style={styles.statValue} themeColor="text">
+            {currentStreak === undefined ? ' ' : formatStreak(currentStreak)}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            Current streak
+          </ThemedText>
+        </ThemedView>
+        <ThemedView type="backgroundElement" style={styles.statTile}>
+          <ThemedText style={styles.statValue} themeColor="text">
+            {loggedCount === undefined ? ' ' : String(loggedCount)}
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            Habits logged
+          </ThemedText>
+        </ThemedView>
       </View>
 
       <ThemedView type="backgroundElement" style={styles.settingsGroup}>

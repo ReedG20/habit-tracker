@@ -2,7 +2,6 @@ import { v } from 'convex/values';
 
 import type { Id } from './_generated/dataModel';
 import { mutation } from './_generated/server';
-import { DEFAULT_HABITS } from './lib/defaultHabits';
 
 /**
  * Upserts the signed-in Clerk identity into the `users` table. Called on every
@@ -43,20 +42,12 @@ export const storeUser = mutation({
       return existing._id;
     }
 
-    const userId = await ctx.db.insert('users', {
+    return await ctx.db.insert('users', {
       tokenIdentifier: identity.tokenIdentifier,
       name,
       email,
       pictureUrl: identity.pictureUrl,
       createdAt: Date.now(),
     });
-
-    await Promise.all(
-      DEFAULT_HABITS.map((habit, index) =>
-        ctx.db.insert('habits', { ...habit, userId, order: index }),
-      ),
-    );
-
-    return userId;
   },
 });

@@ -11,7 +11,8 @@
 import type * as habits from "../habits.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_customFunctions from "../lib/customFunctions.js";
-import type * as lib_defaultHabits from "../lib/defaultHabits.js";
+import type * as lib_days from "../lib/days.js";
+import type * as projects from "../projects.js";
 import type * as users from "../users.js";
 
 import type {
@@ -24,7 +25,8 @@ declare const fullApi: ApiFromModules<{
   habits: typeof habits;
   "lib/auth": typeof lib_auth;
   "lib/customFunctions": typeof lib_customFunctions;
-  "lib/defaultHabits": typeof lib_defaultHabits;
+  "lib/days": typeof lib_days;
+  projects: typeof projects;
   users: typeof users;
 }>;
 
