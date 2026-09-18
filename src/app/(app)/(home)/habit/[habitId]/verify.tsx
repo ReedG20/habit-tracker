@@ -1,13 +1,13 @@
-import type { IconSvgElement } from '@hugeicons/react-native';
 import { useMutation, useQuery } from 'convex/react';
 import * as Device from 'expo-device';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, StyleSheet, View } from 'react-native';
 
 import { FormSheet } from '@/components/form-sheet';
+import { ActionButton } from '@/components/action-button';
 import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
 import { Camera01Icon, Image01Icon } from '@/constants/icons';
@@ -158,54 +158,25 @@ function VerifyHabitForm({ habit }: { habit: Habit }) {
 
       <View style={styles.sources}>
         {CAN_TAKE_PHOTO ? (
-          <SourceButton
+          <ActionButton
             icon={Camera01Icon}
             label={photo ? 'Retake photo' : 'Take photo'}
             disabled={submitting}
             onPress={() => void takePhoto()}
+            style={styles.source}
           />
         ) : null}
         {CAN_PICK_FROM_LIBRARY ? (
-          <SourceButton
+          <ActionButton
             icon={Image01Icon}
             label="Choose from library"
             disabled={submitting}
             onPress={() => void pickFromLibrary()}
+            style={styles.source}
           />
         ) : null}
       </View>
     </FormSheet>
-  );
-}
-
-function SourceButton({
-  icon,
-  label,
-  disabled,
-  onPress,
-}: {
-  icon: IconSvgElement;
-  label: string;
-  disabled: boolean;
-  onPress: () => void;
-}) {
-  const theme = useTheme();
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled }}
-      disabled={disabled}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.sourceButton,
-        { borderColor: theme.border },
-        (pressed || disabled) && styles.pressed,
-      ]}>
-      <Icon icon={icon} size={18} />
-      <ThemedText type="smallBold">{label}</ThemedText>
-    </Pressable>
   );
 }
 
@@ -234,18 +205,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.two,
   },
-  sourceButton: {
+  source: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.two,
-    paddingVertical: Spacing.three,
-    paddingHorizontal: Spacing.three,
-    borderWidth: 1,
-    borderRadius: BorderRadius,
-  },
-  pressed: {
-    opacity: 0.7,
   },
 });

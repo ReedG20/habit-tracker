@@ -5,35 +5,44 @@ import { StyleSheet, View } from 'react-native';
 import { EmptyState } from '@/components/empty-state';
 import { HabitCard } from '@/components/habit-card';
 import { HeaderAddButton } from '@/components/header-add-button';
+import { ProjectCard } from '@/components/project-card';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
+import { StakesBanner } from '@/components/stakes-banner';
 import { ThemedText } from '@/components/themed-text';
 import { HabitIcon } from '@/constants/icons';
-import { Fonts, ScreenHeadingTypography, Spacing } from '@/constants/theme';
+import { Fonts, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
-import { groupHabitsIntoSections } from '@/data/habit-sections';
+import { currentStreak } from '@/data/habits';
+import { groupIntoHomeSections } from '@/data/home-sections';
+import { useVerificationToasts } from '@/hooks/use-verification-toasts';
 import { todayKey } from '@/lib/dates';
 
-const WISDOM = 'Little by little, a little becomes a lot';
+/** Placeholder until stakes live in the backend. */
+const PLACEHOLDER_UNFREEZE_FEE = '$24.62';
 
-export default function HabitsScreen() {
+export default function HomeScreen() {
   // Recomputed every render, so the day rolls over on the next interaction
   // without a timer. The value is compared by content, so this does not refetch.
   const today = todayKey();
   const habits = useQuery(api.habits.list, { today });
-  const sections = habits ? groupHabitsIntoSections(habits) : undefined;
+  const projects = useQuery(api.projects.list);
+  const sections = habits && projects ? groupIntoHomeSections(habits, projects, today) : undefined;
+
+  useVerificationToasts(habits);
 
   return (
     <ScreenScrollView>
       <View style={styles.header}>
-        <ThemedText style={styles.wisdom} themeColor="text">
-          {WISDOM}
-        </ThemedText>
-        <HeaderAddButton label="New habit" onPress={() => router.push('/habit/new')} />
+        <StakesBanner
+          fee={PLACEHOLDER_UNFREEZE_FEE}
+          streak={habits === undefined ? undefined : currentStreak(habits)}
+        />
+        <HeaderAddButton label="New" onPress={() => router.push('/new')} />
       </View>
 
       <View style={styles.sections}>
         {sections?.length === 0 ? (
-          <EmptyState icon={HabitIcon} message="No habits yet. Add one to get started." />
+          <EmptyState icon={HabitIcon} message="Nothing yet. Tap New to add a habit or project." />
         ) : null}
 
         {sections?.map((section) => (
@@ -41,10 +50,19 @@ export default function HabitsScreen() {
             <ThemedText style={styles.sectionTitle} themeColor="text">
               {section.title}
             </ThemedText>
-            <View style={styles.habitList}>
-              {section.habits.map((habit) => (
-                <HabitCard key={habit._id} habit={habit} />
-              ))}
+            <View style={styles.list}>
+              {section.items.map((item) =>
+                item.kind === 'habit' ? (
+                  <HabitCard key={item.habit._id} habit={item.habit} deadlineAt={item.deadlineAt} />
+                ) : (
+                  <ProjectCard
+                    key={item.project._id}
+                    project={item.project}
+                    today={today}
+                    deadlineAt={item.deadlineAt}
+                  />
+                ),
+              )}
             </View>
           </View>
         ))}
@@ -58,9 +76,9 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.five,
     paddingBottom: Spacing.two,
     paddingHorizontal: Spacing.one,
-    gap: Spacing.two,
+    gap: Spacing.four,
+    alignItems: 'center',
   },
-  wisdom: ScreenHeadingTypography,
   sections: {
     gap: Spacing.four,
   },
@@ -73,7 +91,7 @@ const styles = StyleSheet.create({
     lineHeight: 28,
     paddingHorizontal: Spacing.one,
   },
-  habitList: {
+  list: {
     gap: Spacing.three,
   },
 });

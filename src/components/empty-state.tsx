@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { Icon } from './icon';
 import { ThemedText } from './themed-text';
 
-import { BorderRadius, Spacing } from '@/constants/theme';
+import { CardRadius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type EmptyStateProps = {
@@ -30,7 +30,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
-    borderRadius: BorderRadius,
+    borderRadius: CardRadius,
     borderStyle: 'dashed',
     borderWidth: 1,
     padding: Spacing.three,

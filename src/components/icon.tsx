@@ -8,7 +8,7 @@ export type IconProps = Omit<HugeiconsProps, 'color'> & {
   themeColor?: ThemeColor;
 };
 
-export function Icon({ size = 20, strokeWidth = 1.5, color, themeColor, ...rest }: IconProps) {
+export function Icon({ size = 20, strokeWidth = 1.75, color, themeColor, ...rest }: IconProps) {
   const theme = useTheme();
 
   return (

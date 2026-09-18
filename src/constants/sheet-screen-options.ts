@@ -9,7 +9,7 @@
  */
 export const sheetScreenOptions = {
   presentation: 'formSheet' as const,
-  sheetAllowedDetents: [0.58],
+  sheetAllowedDetents: [0.66],
   sheetGrabberVisible: true,
   sheetCornerRadius: 24,
   headerShown: false,

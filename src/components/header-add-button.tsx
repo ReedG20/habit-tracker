@@ -1,39 +1,29 @@
-import { Pressable, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 
-import { Icon } from './icon';
-import { ThemedText } from './themed-text';
+import { ActionButton } from './action-button';
 
 import { Add01Icon } from '@/constants/icons';
-import { Spacing } from '@/constants/theme';
 
 export type HeaderAddButtonProps = {
   label: string;
   onPress: () => void;
 };
 
-/** Compact text+icon control that sits under a screen heading. */
+/** Compact control that sits under a screen heading. */
 export function HeaderAddButton({ label, onPress }: HeaderAddButtonProps) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      hitSlop={Spacing.two}
+    <ActionButton
+      label={label}
+      icon={Add01Icon}
+      size="small"
       onPress={onPress}
-      style={({ pressed }) => [styles.button, pressed && styles.pressed]}>
-      <Icon icon={Add01Icon} size={16} />
-      <ThemedText type="smallBold">{label}</ThemedText>
-    </Pressable>
+      style={styles.button}
+    />
   );
 }
 
 const styles = StyleSheet.create({
   button: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    paddingTop: Spacing.two,
-  },
-  pressed: {
-    opacity: 0.7,
+    alignSelf: 'flex-start',
   },
 });
