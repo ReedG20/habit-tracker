@@ -18,7 +18,7 @@ import { authedMutation } from './lib/customFunctions';
  * reports back, so a card cannot sit on "verifying" for the rest of the day.
  */
 
-const VERIFICATION_MODEL = 'inclusionai/ling-3.0-flash-vl';
+const VERIFICATION_MODEL = 'google/gemini-2.5-flash-lite';
 
 /** Long enough for a slow model response, short enough that a stuck card is a nuisance rather than a lockout. */
 const EXPIRE_AFTER_MS = 2 * 60 * 1000;
