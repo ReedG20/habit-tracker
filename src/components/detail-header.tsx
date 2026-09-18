@@ -1,12 +1,12 @@
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { ActionButton } from './action-button';
 import { Icon } from './icon';
 import { ThemedText } from './themed-text';
 
 import { ArrowLeft01Icon, Delete02Icon, Edit02Icon } from '@/constants/icons';
-import { BorderRadius, ScreenHeadingTypography, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { ScreenHeadingTypography, Spacing } from '@/constants/theme';
 
 export type DetailHeaderProps = {
   title: string;
@@ -24,8 +24,6 @@ export function DetailHeader({
   onDelete,
   deleteLabel,
 }: DetailHeaderProps) {
-  const theme = useTheme();
-
   return (
     <View style={styles.header}>
       <Pressable
@@ -47,34 +45,21 @@ export function DetailHeader({
       {description ? <ThemedText themeColor="textSecondary">{description}</ThemedText> : null}
 
       <View style={styles.actions}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={onEdit}
-          style={({ pressed }) => [
-            styles.action,
-            { borderColor: theme.border },
-            pressed && styles.pressed,
-          ]}>
-          <Icon icon={Edit02Icon} size={16} themeColor="textSecondary" />
-          <ThemedText type="smallBold" themeColor="textSecondary">
-            Edit
-          </ThemedText>
-        </Pressable>
+        <ActionButton
+          label="Edit"
 
-        <Pressable
-          accessibilityRole="button"
+          icon={Edit02Icon}
+          size="small"
+          onPress={onEdit}
+        />
+        <ActionButton
+          label="Delete"
           accessibilityLabel={deleteLabel}
+          icon={Delete02Icon}
+          variant="destructive"
+          size="small"
           onPress={onDelete}
-          style={({ pressed }) => [
-            styles.action,
-            { borderColor: theme.border },
-            pressed && styles.pressed,
-          ]}>
-          <Icon icon={Delete02Icon} size={16} color={theme.accent} />
-          <ThemedText type="smallBold" style={{ color: theme.accent }}>
-            Delete
-          </ThemedText>
-        </Pressable>
+        />
       </View>
     </View>
   );
@@ -96,15 +81,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.two,
     paddingTop: Spacing.two,
-  },
-  action: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-    borderWidth: 1,
-    borderRadius: BorderRadius,
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.three,
   },
   pressed: {
     opacity: 0.7,

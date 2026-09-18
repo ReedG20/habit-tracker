@@ -11,7 +11,7 @@ import { Pressable, View, StyleSheet } from 'react-native';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
-import { BorderRadius, Spacing } from '@/constants/theme';
+import { PillRadius, Spacing } from '@/constants/theme';
 
 export default function AppTabs() {
   return (
@@ -19,11 +19,8 @@ export default function AppTabs() {
       <TabSlot style={{ height: '100%' }} />
       <TabList asChild>
         <CustomTabList>
-          <TabTrigger name="habits" href="/" asChild>
-            <TabButton>Habits</TabButton>
-          </TabTrigger>
-          <TabTrigger name="projects" href="/projects" asChild>
-            <TabButton>Projects</TabButton>
+          <TabTrigger name="home" href="/" asChild>
+            <TabButton>Home</TabButton>
           </TabTrigger>
           <TabTrigger name="me" href="/me" asChild>
             <TabButton>Me</TabButton>
@@ -70,7 +67,7 @@ const styles = StyleSheet.create({
   innerContainer: {
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.two,
-    borderRadius: BorderRadius,
+    borderRadius: PillRadius,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -82,6 +79,6 @@ const styles = StyleSheet.create({
   tabButtonView: {
     paddingVertical: Spacing.one,
     paddingHorizontal: Spacing.three,
-    borderRadius: BorderRadius,
+    borderRadius: PillRadius,
   },
 });

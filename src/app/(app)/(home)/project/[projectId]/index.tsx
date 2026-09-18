@@ -6,7 +6,7 @@ import { DetailHeader } from '@/components/detail-header';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BorderRadius, ScreenHeadingTypography, Spacing } from '@/constants/theme';
+import { CardRadius, CardShadow, ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
@@ -123,8 +123,9 @@ const styles = StyleSheet.create({
   },
   missingTitle: ScreenHeadingTypography,
   meta: {
-    borderRadius: BorderRadius,
+    borderRadius: CardRadius,
     overflow: 'hidden',
+    ...CardShadow,
   },
   metaRow: {
     flexDirection: 'row',
@@ -136,7 +137,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: Spacing.three,
-    borderRadius: BorderRadius,
+    borderRadius: CardRadius,
   },
   pressed: {
     opacity: 0.7,

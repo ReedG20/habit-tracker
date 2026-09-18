@@ -64,3 +64,27 @@ export function describeDueDay(dueDay: string, today: string): string {
 export function isOverdue(dueDay: string, today: string): boolean {
   return dueDay < today;
 }
+
+/** The first instant of the following day, i.e. the deadline for anything due on `day`. */
+export function endOfDay(day: string): number {
+  const [year, month, date] = day.split('-').map(Number);
+
+  return new Date(year, month - 1, date + 1).getTime();
+}
+
+const MINUTE = 60_000;
+const HOUR = 60 * MINUTE;
+
+/** "in 4 hours" / "in 12 minutes" until `deadlineAt`; `null` once it has passed. */
+export function describeCountdown(deadlineAt: number, now: number): string | null {
+  const remaining = deadlineAt - now;
+  if (remaining <= 0) return null;
+
+  if (remaining < HOUR) {
+    const minutes = Math.max(1, Math.round(remaining / MINUTE));
+    return `in ${minutes} minute${minutes === 1 ? '' : 's'}`;
+  }
+
+  const hours = Math.floor(remaining / HOUR);
+  return `in ${hours} hour${hours === 1 ? '' : 's'}`;
+}

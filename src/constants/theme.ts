@@ -17,7 +17,7 @@ export const Colors = {
     backgroundSelected: '#E0E1E6',
     textSecondary: '#60646C',
     border: '#DDDDE3',
-    accent: '#E8590C',
+    accent: '#FF391F',
     accentElement: '#FFF0E6',
     primary: '#4121FF',
     onPrimary: '#ffffff',
@@ -29,15 +29,26 @@ export const Colors = {
     backgroundSelected: '#2E3135',
     textSecondary: '#B0B4BA',
     border: '#2E3135',
-    accent: '#FF8A3D',
+    accent: '#FF391F',
     accentElement: '#2C1C11',
     primary: '#4121FF',
     onPrimary: '#ffffff',
   },
 } as const;
 
-/** Subtle corners app-wide (2px). */
-export const BorderRadius = 2;
+/** Inputs, icon tiles, and other small surfaces. */
+export const BorderRadius = 16;
+
+/** Cards, stat tiles, and grouped lists. */
+export const CardRadius = 24;
+
+/** A whisper of lift under every card; invisible on the dark background, which is fine. */
+export const CardShadow = {
+  boxShadow: '0 1px 6px rgba(0, 0, 0, 0.06)',
+} as const;
+
+/** Buttons and pills are capsules; liquid glass reads best that way. */
+export const PillRadius = 999;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
 
@@ -73,7 +84,7 @@ export const Fonts = {
   sectionHeading: sectionHeadingFontFamily,
 };
 
-/** Top-of-screen title on Habits, Projects, and Me (Comico). */
+/** Top-of-screen title on Home and Me (Comico). */
 export const ScreenHeadingTypography = {
   fontFamily: Fonts.wisdom,
   fontSize: 32,

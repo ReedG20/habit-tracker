@@ -16,3 +16,8 @@ export type HabitWithProgress = Habit & {
   streak: number;
   verification: HabitVerificationSummary | null;
 };
+
+/** The streak the home and Me screens headline: the longest current run across habits. */
+export function currentStreak(habits: HabitWithProgress[]): number {
+  return habits.reduce((max, habit) => Math.max(max, habit.streak), 0);
+}

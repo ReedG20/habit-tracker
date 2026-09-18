@@ -1,7 +1,9 @@
 import { useMutation } from 'convex/react';
 import { useEffect } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import AppTabs from '@/components/app-tabs';
+import { ToastHost } from '@/components/toast';
 import { api } from '@/convex/_generated/api';
 
 export default function AppLayout() {
@@ -16,5 +18,17 @@ export default function AppLayout() {
     });
   }, [storeUser]);
 
-  return <AppTabs />;
+  return (
+    <View style={styles.root}>
+      <AppTabs />
+      {/* Above every tab and screen, so a verdict shows wherever the user is. */}
+      <ToastHost />
+    </View>
+  );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});

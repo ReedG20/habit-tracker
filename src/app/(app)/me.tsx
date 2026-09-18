@@ -14,8 +14,15 @@ import {
   Settings02Icon,
   UserCircleIcon,
 } from '@/constants/icons';
-import { BorderRadius, ScreenHeadingTypography, Spacing } from '@/constants/theme';
+import {
+  CardRadius,
+  CardShadow,
+  PillRadius,
+  ScreenHeadingTypography,
+  Spacing,
+} from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
+import { currentStreak } from '@/data/habits';
 import { useTheme } from '@/hooks/use-theme';
 import { todayKey } from '@/lib/dates';
 
@@ -38,10 +45,7 @@ export default function MeScreen() {
   const displayName =
     user?.firstName ?? user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? 'You';
 
-  const currentStreak =
-    habits === undefined
-      ? undefined
-      : habits.reduce((max, habit) => Math.max(max, habit.streak), 0);
+  const streak = habits === undefined ? undefined : currentStreak(habits);
 
   return (
     <ScreenScrollView>
@@ -64,7 +68,7 @@ export default function MeScreen() {
       <View style={styles.statRow}>
         <ThemedView type="backgroundElement" style={styles.statTile}>
           <ThemedText style={styles.statValue} themeColor="text">
-            {currentStreak === undefined ? ' ' : formatStreak(currentStreak)}
+            {streak === undefined ? ' ' : formatStreak(streak)}
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
             Current streak
@@ -90,7 +94,7 @@ export default function MeScreen() {
               index > 0 && { borderTopWidth: 1, borderTopColor: theme.border },
               pressed && styles.pressed,
             ]}>
-            <Icon icon={setting.icon} size={20} themeColor="textSecondary" />
+            <Icon icon={setting.icon} size={22} themeColor="textSecondary" />
             <ThemedText style={styles.settingLabel}>{setting.label}</ThemedText>
             <Icon icon={ArrowRight01Icon} size={18} themeColor="textSecondary" />
           </Pressable>
@@ -105,7 +109,7 @@ export default function MeScreen() {
             { borderTopWidth: 1, borderTopColor: theme.border },
             pressed && styles.pressed,
           ]}>
-          <Icon icon={Logout01Icon} size={20} themeColor="textSecondary" />
+          <Icon icon={Logout01Icon} size={22} themeColor="textSecondary" />
           <ThemedText style={styles.settingLabel}>Sign out</ThemedText>
         </Pressable>
       </ThemedView>
@@ -123,7 +127,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: 64,
     height: 64,
-    borderRadius: BorderRadius,
+    borderRadius: PillRadius,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -138,13 +142,15 @@ const styles = StyleSheet.create({
   },
   statTile: {
     flex: 1,
-    borderRadius: BorderRadius,
+    borderRadius: CardRadius,
     padding: Spacing.three,
     gap: Spacing.half,
+    ...CardShadow,
   },
   settingsGroup: {
-    borderRadius: BorderRadius,
+    borderRadius: CardRadius,
     overflow: 'hidden',
+    ...CardShadow,
   },
   settingRow: {
     flexDirection: 'row',
