@@ -14,7 +14,11 @@ export type FormSheetActionsProps = {
 };
 
 /** Fallback actions for Android and web. */
-export function FormSheetActions({ submitLabel, onSubmit, disabled = false }: FormSheetActionsProps) {
+export function FormSheetActions({
+  submitLabel,
+  onSubmit,
+  disabled = false,
+}: FormSheetActionsProps) {
   const theme = useTheme();
 
   return (

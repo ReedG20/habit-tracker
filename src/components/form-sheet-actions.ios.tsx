@@ -20,7 +20,11 @@ export type FormSheetActionsProps = {
  * SwiftUI host in the same sheet as RN `TextInput` steals first responder —
  * one keystroke, or a tap that never focuses the field.
  */
-export function FormSheetActions({ submitLabel, onSubmit, disabled = false }: FormSheetActionsProps) {
+export function FormSheetActions({
+  submitLabel,
+  onSubmit,
+  disabled = false,
+}: FormSheetActionsProps) {
   const theme = useTheme();
   const glass = isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
 

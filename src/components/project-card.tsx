@@ -22,8 +22,7 @@ export function ProjectCard({ project, today }: ProjectCardProps) {
   const theme = useTheme();
   const toggleDone = useMutation(api.projects.toggleDone);
   const done = project.completedAt !== undefined;
-  const overdue =
-    !done && project.dueDay !== undefined && isOverdue(project.dueDay, today);
+  const overdue = !done && project.dueDay !== undefined && isOverdue(project.dueDay, today);
 
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
@@ -33,11 +32,7 @@ export function ProjectCard({ project, today }: ProjectCardProps) {
         onPress={() => router.push(`/project/${project._id}`)}
         style={({ pressed }) => [styles.main, pressed && styles.pressed]}>
         <View style={[styles.projectIcon, { backgroundColor: theme.background }]}>
-          <Icon
-            icon={ProjectIcon}
-            size={22}
-            themeColor={done ? 'textSecondary' : 'text'}
-          />
+          <Icon icon={ProjectIcon} size={22} themeColor={done ? 'textSecondary' : 'text'} />
         </View>
 
         <View style={styles.body}>
@@ -48,11 +43,7 @@ export function ProjectCard({ project, today }: ProjectCardProps) {
             type="small"
             themeColor={overdue ? 'accent' : 'textSecondary'}
             numberOfLines={1}>
-            {done
-              ? 'Done'
-              : project.dueDay
-                ? describeDueDay(project.dueDay, today)
-                : 'No due date'}
+            {done ? 'Done' : project.dueDay ? describeDueDay(project.dueDay, today) : 'No due date'}
           </ThemedText>
         </View>
       </Pressable>
@@ -67,9 +58,7 @@ export function ProjectCard({ project, today }: ProjectCardProps) {
         }}
         style={({ pressed }) => [
           styles.doneButton,
-          done
-            ? { borderColor: theme.border, borderWidth: 1 }
-            : { backgroundColor: theme.primary },
+          done ? { borderColor: theme.border, borderWidth: 1 } : { backgroundColor: theme.primary },
           pressed && styles.pressed,
         ]}>
         <ThemedText

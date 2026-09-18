@@ -37,11 +37,7 @@ export function HabitCard({ habit }: HabitCardProps) {
         onPress={() => router.push(`/habit/${habit._id}`)}
         style={({ pressed }) => [styles.main, pressed && styles.pressed]}>
         <View style={[styles.habitIcon, { backgroundColor: theme.background }]}>
-          <Icon
-            icon={HabitIcon}
-            size={22}
-            themeColor={logged ? 'textSecondary' : 'text'}
-          />
+          <Icon icon={HabitIcon} size={22} themeColor={logged ? 'textSecondary' : 'text'} />
         </View>
 
         <View style={styles.body}>
@@ -80,7 +76,11 @@ export function HabitCard({ habit }: HabitCardProps) {
       ) : verifying ? (
         <View
           accessibilityLabel={`Verifying ${habit.title}`}
-          style={[styles.logButton, styles.verifying, { borderColor: theme.border, borderWidth: 1 }]}>
+          style={[
+            styles.logButton,
+            styles.verifying,
+            { borderColor: theme.border, borderWidth: 1 },
+          ]}>
           <ActivityIndicator size="small" color={theme.textSecondary} />
           <ThemedText type="smallBold" style={{ color: theme.textSecondary }}>
             Verifying

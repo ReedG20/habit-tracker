@@ -58,10 +58,14 @@ function VerifyHabitForm({ habit }: { habit: Habit }) {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
       if (!permission.canAskAgain) {
-        Alert.alert('Camera access is off', 'Turn it on in Settings to verify habits with a photo.', [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Open Settings', onPress: () => void Linking.openSettings() },
-        ]);
+        Alert.alert(
+          'Camera access is off',
+          'Turn it on in Settings to verify habits with a photo.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => void Linking.openSettings() },
+          ],
+        );
       }
       return;
     }

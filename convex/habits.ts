@@ -195,7 +195,9 @@ export const listCompletions = authedQuery({
     isDone: v.boolean(),
     continueCursor: v.string(),
     splitCursor: v.optional(v.union(v.string(), v.null())),
-    pageStatus: v.optional(v.union(v.literal('SplitRecommended'), v.literal('SplitRequired'), v.null())),
+    pageStatus: v.optional(
+      v.union(v.literal('SplitRecommended'), v.literal('SplitRequired'), v.null()),
+    ),
   }),
   handler: async (ctx, args) => {
     const habit = await getOwnedHabitOrNull(ctx, args.habitId);

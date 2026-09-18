@@ -1,0 +1,14 @@
+node_modules
+ios
+android
+.expo
+dist
+convex/_generated
+bun.lock
+
+# Vendored Convex skill packs, rewritten by `npx convex ai-files install`.
+.agents
+.claude/skills
+
+# Written by Xcode's Icon Composer in its own style.
+assets/expo.icon

@@ -89,9 +89,7 @@ export default function ProjectDetailScreen() {
             <ThemedText type="small" themeColor="textSecondary">
               Completed
             </ThemedText>
-            <ThemedText type="smallBold">
-              {formatCompletedAt(project.completedAt).date}
-            </ThemedText>
+            <ThemedText type="smallBold">{formatCompletedAt(project.completedAt).date}</ThemedText>
           </View>
         ) : null}
       </ThemedView>
@@ -105,9 +103,7 @@ export default function ProjectDetailScreen() {
         }}
         style={({ pressed }) => [
           styles.toggle,
-          done
-            ? { borderColor: theme.border, borderWidth: 1 }
-            : { backgroundColor: theme.primary },
+          done ? { borderColor: theme.border, borderWidth: 1 } : { backgroundColor: theme.primary },
           pressed && styles.pressed,
         ]}>
         <ThemedText
