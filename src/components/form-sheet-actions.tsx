@@ -9,10 +9,12 @@ import { useTheme } from '@/hooks/use-theme';
 export type FormSheetActionsProps = {
   submitLabel: string;
   onSubmit: () => void;
+  /** Greys out and ignores presses on the submit button; Cancel keeps working. */
+  disabled?: boolean;
 };
 
 /** Fallback actions for Android and web. */
-export function FormSheetActions({ submitLabel, onSubmit }: FormSheetActionsProps) {
+export function FormSheetActions({ submitLabel, onSubmit, disabled = false }: FormSheetActionsProps) {
   const theme = useTheme();
 
   return (
@@ -32,12 +34,14 @@ export function FormSheetActions({ submitLabel, onSubmit }: FormSheetActionsProp
 
       <Pressable
         accessibilityRole="button"
+        accessibilityState={{ disabled }}
+        disabled={disabled}
         onPress={onSubmit}
         style={({ pressed }) => [
           styles.button,
           styles.submit,
           { backgroundColor: theme.primary },
-          pressed && styles.pressed,
+          (pressed || disabled) && styles.pressed,
         ]}>
         <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
           {submitLabel}

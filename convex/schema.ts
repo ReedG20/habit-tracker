@@ -35,6 +35,30 @@ export default defineSchema({
     .index('by_habit_and_day', ['habitId', 'day'])
     .index('by_user_and_day', ['userId', 'day']),
 
+  /**
+   * One row per photo submitted as proof. `pending` rows drive the card's
+   * "verifying" state; a resolved row is kept as the audit trail for the day.
+   * `failed` means we never got a verdict (API error, timeout), as opposed to
+   * `rejected`, where the model said no.
+   */
+  habitVerifications: defineTable({
+    userId: v.id('users'),
+    habitId: v.id('habits'),
+    day: v.string(),
+    photoId: v.id('_storage'),
+    status: v.union(
+      v.literal('pending'),
+      v.literal('approved'),
+      v.literal('rejected'),
+      v.literal('failed'),
+    ),
+    reason: v.optional(v.string()),
+    createdAt: v.number(),
+    resolvedAt: v.optional(v.number()),
+  })
+    .index('by_habit_and_day', ['habitId', 'day'])
+    .index('by_user_and_day', ['userId', 'day']),
+
   projects: defineTable({
     userId: v.id('users'),
     title: v.string(),

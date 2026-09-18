@@ -16,11 +16,27 @@ const habitValidator = v.object({
   order: v.number(),
 });
 
+/**
+ * Today's latest verification, only while the habit is still incomplete. That is
+ * all the card needs: a `pending` row means "verifying", a `rejected` or
+ * `failed` row carries the message to show under the title.
+ */
+const verificationSummaryValidator = v.object({
+  status: v.union(
+    v.literal('pending'),
+    v.literal('approved'),
+    v.literal('rejected'),
+    v.literal('failed'),
+  ),
+  reason: v.optional(v.string()),
+});
+
 /** A habit plus the per-day state the list screen renders. */
 const habitWithProgressValidator = v.object({
   ...habitValidator.fields,
   completedToday: v.boolean(),
   streak: v.number(),
+  verification: v.union(verificationSummaryValidator, v.null()),
 });
 
 const completionValidator = v.object({
@@ -32,12 +48,18 @@ const completionValidator = v.object({
   completedAt: v.number(),
 });
 
+export type HabitVerificationSummary = {
+  status: Doc<'habitVerifications'>['status'];
+  reason?: string;
+};
+
 export type HabitWithProgress = Doc<'habits'> & {
   completedToday: boolean;
   streak: number;
+  verification: HabitVerificationSummary | null;
 };
 
-type AuthedCtx<T> = T & { user: Doc<'users'> };
+export type AuthedCtx<T> = T & { user: Doc<'users'> };
 
 async function getOwnedHabitOrNull(
   ctx: AuthedCtx<QueryCtx | MutationCtx>,
@@ -51,7 +73,7 @@ async function getOwnedHabitOrNull(
   return habit;
 }
 
-async function requireOwnedHabit(
+export async function requireOwnedHabit(
   ctx: AuthedCtx<QueryCtx | MutationCtx>,
   habitId: Id<'habits'>,
 ): Promise<Doc<'habits'>> {
@@ -103,15 +125,35 @@ export const list = query({
       daysByHabit.set(completion.habitId, days);
     }
 
+    // Only today's rows matter for the card, and only the newest one per habit.
+    const todaysVerifications = await ctx.db
+      .query('habitVerifications')
+      .withIndex('by_user_and_day', (q) => q.eq('userId', user._id).eq('day', args.today))
+      .collect();
+
+    const latestVerificationByHabit = new Map<Id<'habits'>, Doc<'habitVerifications'>>();
+    for (const verification of todaysVerifications) {
+      const current = latestVerificationByHabit.get(verification.habitId);
+      if (current === undefined || verification.createdAt > current.createdAt) {
+        latestVerificationByHabit.set(verification.habitId, verification);
+      }
+    }
+
     return habits
       .sort((a, b) => a.order - b.order)
       .map((habit) => {
         const days = daysByHabit.get(habit._id) ?? new Set<string>();
+        const completedToday = days.has(args.today);
+        const latest = latestVerificationByHabit.get(habit._id);
 
         return {
           ...habit,
-          completedToday: days.has(args.today),
+          completedToday,
           streak: streakLength(days, args.today),
+          verification:
+            completedToday || latest === undefined
+              ? null
+              : { status: latest.status, reason: latest.reason },
         };
       });
   },
@@ -230,37 +272,19 @@ export const remove = authedMutation({
       await ctx.db.delete('habitCompletions', completion._id);
     }
 
+    const verifications = await ctx.db
+      .query('habitVerifications')
+      .withIndex('by_habit_and_day', (q) => q.eq('habitId', args.habitId))
+      .collect();
+
+    for (const verification of verifications) {
+      await ctx.storage.delete(verification.photoId);
+      await ctx.db.delete('habitVerifications', verification._id);
+    }
+
     await ctx.db.delete('habits', args.habitId);
 
     return null;
-  },
-});
-
-/** Logs the habit for `day`, or un-logs it if it is already logged. */
-export const toggleCompletion = authedMutation({
-  args: { habitId: v.id('habits'), day: v.string() },
-  returns: v.boolean(),
-  handler: async (ctx, args): Promise<boolean> => {
-    await requireOwnedHabit(ctx, args.habitId);
-
-    const existing = await ctx.db
-      .query('habitCompletions')
-      .withIndex('by_habit_and_day', (q) => q.eq('habitId', args.habitId).eq('day', args.day))
-      .unique();
-
-    if (existing !== null) {
-      await ctx.db.delete('habitCompletions', existing._id);
-      return false;
-    }
-
-    await ctx.db.insert('habitCompletions', {
-      userId: ctx.user._id,
-      habitId: args.habitId,
-      day: args.day,
-      completedAt: Date.now(),
-    });
-
-    return true;
   },
 });
 

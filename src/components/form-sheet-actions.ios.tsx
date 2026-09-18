@@ -11,6 +11,8 @@ import { useTheme } from '@/hooks/use-theme';
 export type FormSheetActionsProps = {
   submitLabel: string;
   onSubmit: () => void;
+  /** Greys out and ignores presses on the submit button; Cancel keeps working. */
+  disabled?: boolean;
 };
 
 /**
@@ -18,7 +20,7 @@ export type FormSheetActionsProps = {
  * SwiftUI host in the same sheet as RN `TextInput` steals first responder —
  * one keystroke, or a tap that never focuses the field.
  */
-export function FormSheetActions({ submitLabel, onSubmit }: FormSheetActionsProps) {
+export function FormSheetActions({ submitLabel, onSubmit, disabled = false }: FormSheetActionsProps) {
   const theme = useTheme();
   const glass = isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
 
@@ -34,8 +36,10 @@ export function FormSheetActions({ submitLabel, onSubmit }: FormSheetActionsProp
       </Pressable>
       <Pressable
         accessibilityRole="button"
+        accessibilityState={{ disabled }}
+        disabled={disabled}
         onPress={onSubmit}
-        style={({ pressed }) => [styles.main, pressed && styles.pressed]}>
+        style={({ pressed }) => [styles.main, (pressed || disabled) && styles.pressed]}>
         <Chrome glass={glass} backgroundColor={theme.primary} tint={theme.primary}>
           <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
             {submitLabel}

@@ -1,6 +1,5 @@
-import { useMutation } from 'convex/react';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { Icon } from './icon';
 import { ThemedText } from './themed-text';
@@ -8,7 +7,6 @@ import { ThemedView } from './themed-view';
 
 import { FlameIcon, HabitIcon } from '@/constants/icons';
 import { BorderRadius, Spacing } from '@/constants/theme';
-import { api } from '@/convex/_generated/api';
 import type { HabitWithProgress } from '@/data/habits';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -17,15 +15,19 @@ const STREAK_ON_RED = '#ffffff';
 
 export type HabitCardProps = {
   habit: HabitWithProgress;
-  /** Passed down rather than recomputed so the card and the query agree on the day. */
-  today: string;
 };
 
-export function HabitCard({ habit, today }: HabitCardProps) {
+export function HabitCard({ habit }: HabitCardProps) {
   const theme = useTheme();
-  const toggleCompletion = useMutation(api.habits.toggleCompletion);
 
   const logged = habit.completedToday;
+  const verifying = !logged && habit.verification?.status === 'pending';
+  // A verdict the user still needs to act on; `list` already drops it once logged.
+  const setback =
+    !logged &&
+    (habit.verification?.status === 'rejected' || habit.verification?.status === 'failed')
+      ? habit.verification
+      : null;
 
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
@@ -60,30 +62,46 @@ export function HabitCard({ habit, today }: HabitCardProps) {
               Daily
             </ThemedText>
           </View>
+
+          {setback ? (
+            <ThemedText type="small" numberOfLines={2} style={{ color: theme.accent }}>
+              {setback.reason ?? 'Not verified. Try another photo.'}
+            </ThemedText>
+          ) : null}
         </View>
       </Pressable>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={logged ? `Un-log ${habit.title}` : `Log ${habit.title}`}
-        onPress={() => {
-          void toggleCompletion({ habitId: habit._id, day: today }).catch((error: unknown) => {
-            console.error('Failed to toggle the habit completion', error);
-          });
-        }}
-        style={({ pressed }) => [
-          styles.logButton,
-          logged
-            ? { borderColor: theme.border, borderWidth: 1 }
-            : { backgroundColor: theme.primary },
-          pressed && styles.pressed,
-        ]}>
-        <ThemedText
-          type="smallBold"
-          style={logged ? { color: theme.textSecondary } : { color: theme.onPrimary }}>
-          {logged ? 'Logged' : 'Log'}
-        </ThemedText>
-      </Pressable>
+      {logged ? (
+        <View style={[styles.logButton, { borderColor: theme.border, borderWidth: 1 }]}>
+          <ThemedText type="smallBold" style={{ color: theme.textSecondary }}>
+            Logged
+          </ThemedText>
+        </View>
+      ) : verifying ? (
+        <View
+          accessibilityLabel={`Verifying ${habit.title}`}
+          style={[styles.logButton, styles.verifying, { borderColor: theme.border, borderWidth: 1 }]}>
+          <ActivityIndicator size="small" color={theme.textSecondary} />
+          <ThemedText type="smallBold" style={{ color: theme.textSecondary }}>
+            Verifying
+          </ThemedText>
+        </View>
+      ) : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Log ${habit.title}`}
+          // `navigate` rather than `push`: a double tap must not stack two sheets.
+          onPress={() => router.navigate(`/habit/${habit._id}/verify`)}
+          style={({ pressed }) => [
+            styles.logButton,
+            { backgroundColor: theme.primary },
+            pressed && styles.pressed,
+          ]}>
+          <ThemedText type="smallBold" style={{ color: theme.onPrimary }}>
+            Log
+          </ThemedText>
+        </Pressable>
+      )}
     </ThemedView>
   );
 }
@@ -136,6 +154,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     minWidth: 72,
     borderRadius: BorderRadius,
+  },
+  verifying: {
+    gap: Spacing.one,
   },
   pressed: {
     opacity: 0.7,

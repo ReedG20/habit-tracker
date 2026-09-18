@@ -15,6 +15,11 @@ export default function HabitsLayout() {
       <Stack.Screen name="habit/[habitId]/index" />
       <Stack.Screen name="habit/new" options={sheetScreenOptions} />
       <Stack.Screen name="habit/[habitId]/edit" options={sheetScreenOptions} />
+      <Stack.Screen
+        name="habit/[habitId]/verify"
+        // Taller than the form sheets: a photo preview sits above the buttons.
+        options={{ ...sheetScreenOptions, sheetAllowedDetents: [0.72] }}
+      />
     </Stack>
   );
 }

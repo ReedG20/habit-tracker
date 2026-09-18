@@ -14,6 +14,7 @@ import type * as lib_customFunctions from "../lib/customFunctions.js";
 import type * as lib_days from "../lib/days.js";
 import type * as projects from "../projects.js";
 import type * as users from "../users.js";
+import type * as verifications from "../verifications.js";
 
 import type {
   ApiFromModules,
@@ -28,6 +29,7 @@ declare const fullApi: ApiFromModules<{
   "lib/days": typeof lib_days;
   projects: typeof projects;
   users: typeof users;
+  verifications: typeof verifications;
 }>;
 
 /**

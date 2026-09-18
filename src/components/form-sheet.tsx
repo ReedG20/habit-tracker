@@ -10,17 +10,24 @@ export type FormSheetProps = {
   title: string;
   submitLabel: string;
   onSubmit: () => void;
+  submitDisabled?: boolean;
   children: ReactNode;
 };
 
-export function FormSheet({ title, submitLabel, onSubmit, children }: FormSheetProps) {
+export function FormSheet({
+  title,
+  submitLabel,
+  onSubmit,
+  submitDisabled = false,
+  children,
+}: FormSheetProps) {
   return (
     <View style={styles.sheet}>
       <ThemedText style={styles.title} themeColor="text">
         {title}
       </ThemedText>
       <View style={styles.fields}>{children}</View>
-      <FormSheetActions submitLabel={submitLabel} onSubmit={onSubmit} />
+      <FormSheetActions submitLabel={submitLabel} onSubmit={onSubmit} disabled={submitDisabled} />
     </View>
   );
 }

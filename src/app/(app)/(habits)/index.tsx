@@ -43,7 +43,7 @@ export default function HabitsScreen() {
             </ThemedText>
             <View style={styles.habitList}>
               {section.habits.map((habit) => (
-                <HabitCard key={habit._id} habit={habit} today={today} />
+                <HabitCard key={habit._id} habit={habit} />
               ))}
             </View>
           </View>

@@ -45,6 +45,15 @@ const config: ExpoConfig = {
     ],
     '@clerk/expo',
     'expo-secure-store',
+    [
+      'expo-image-picker',
+      {
+        cameraPermission: 'Allow $(PRODUCT_NAME) to use the camera to verify your habits.',
+        photosPermission: 'Allow $(PRODUCT_NAME) to access your photos.',
+        // Images only; keeps NSMicrophoneUsageDescription out of the plist.
+        microphonePermission: false,
+      },
+    ],
     '@clerk/expo-google-signin',
     'expo-apple-authentication',
   ],

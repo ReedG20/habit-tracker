@@ -31,6 +31,7 @@ type Env = {
   readonly CONVEX_CLOUD_URL: string;
   readonly CONVEX_SITE_URL: string;
   readonly CLERK_JWT_ISSUER_DOMAIN: string;
+  readonly OPENROUTER_API_KEY: string;
 };
 
 /**
