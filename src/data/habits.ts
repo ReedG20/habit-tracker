@@ -1,14 +1,18 @@
-import type { IconSvgElement } from '@hugeicons/react-native';
-
-import { AiCameraIcon, Location01Icon, Timer01Icon } from '@/constants/icons';
 import type { Doc } from '@/convex/_generated/dataModel';
 
 export type Habit = Doc<'habits'>;
-export type VerificationMethod = Habit['verification'];
+export type HabitCompletion = Doc<'habitCompletions'>;
+export type HabitVerification = Doc<'habitVerifications'>;
 
-/** Presentation only — the stored value is the key. */
-export const Verifications: Record<VerificationMethod, { label: string; icon: IconSvgElement }> = {
-  camera: { label: 'Photo', icon: AiCameraIcon },
-  location: { label: 'Check in', icon: Location01Icon },
-  timer: { label: 'Timed', icon: Timer01Icon },
+/** Today's latest verification while the habit is still incomplete; see `habits.list`. */
+export type HabitVerificationSummary = {
+  status: HabitVerification['status'];
+  reason?: string;
+};
+
+/** What `api.habits.list` returns: a habit plus today's state and its streak. */
+export type HabitWithProgress = Habit & {
+  completedToday: boolean;
+  streak: number;
+  verification: HabitVerificationSummary | null;
 };

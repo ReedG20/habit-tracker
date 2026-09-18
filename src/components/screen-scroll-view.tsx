@@ -30,11 +30,7 @@ export function ScreenScrollView({ contentContainerStyle, ...rest }: ScrollViewP
     <ScrollView
       style={[styles.scrollView, { backgroundColor: theme.background }]}
       contentInset={insets}
-      contentContainerStyle={[
-        styles.contentContainer,
-        contentPlatformStyle,
-        contentContainerStyle,
-      ]}
+      contentContainerStyle={[styles.contentContainer, contentPlatformStyle, contentContainerStyle]}
       {...rest}
     />
   );
