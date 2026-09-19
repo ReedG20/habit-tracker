@@ -66,6 +66,9 @@ const config: ExpoConfig = {
   // by package name and signing fingerprint, and the token audience stays the
   // web client ID.
   extra: {
+    eas: {
+      projectId: 'd5f78f95-028f-41ed-bbe2-777ce72ac974',
+    },
     EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID: process.env.EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID,
     EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID: process.env.EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID,
     EXPO_PUBLIC_CLERK_GOOGLE_IOS_URL_SCHEME: process.env.EXPO_PUBLIC_CLERK_GOOGLE_IOS_URL_SCHEME,
