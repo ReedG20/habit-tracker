@@ -1,6 +1,8 @@
 import { useClerk, useUser } from '@clerk/expo';
 import type { IconSvgElement } from '@hugeicons/react-native';
 import { useQuery } from 'convex/react';
+import Constants from 'expo-constants';
+import * as Updates from 'expo-updates';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Icon } from '@/components/icon';
@@ -33,6 +35,24 @@ const settings: { id: string; label: string; icon: IconSvgElement }[] = [
 
 function formatStreak(days: number): string {
   return days === 1 ? '1 day' : `${days} days`;
+}
+
+/**
+ * Which code is running, e.g. `Ante 1.0.0 · update 01a0b759`. Tells an OTA
+ * update apart from the bundle that shipped inside the build.
+ */
+function describeBuild(): string {
+  const version = `Ante ${Constants.expoConfig?.version ?? '?'}`;
+
+  if (!Updates.isEnabled) {
+    return `${version} · dev`;
+  }
+
+  if (Updates.isEmbeddedLaunch || Updates.updateId === null) {
+    return `${version} · embedded`;
+  }
+
+  return `${version} · update ${Updates.updateId.slice(0, 8)}`;
 }
 
 export default function MeScreen() {
@@ -113,6 +133,10 @@ export default function MeScreen() {
           <ThemedText style={styles.settingLabel}>Sign out</ThemedText>
         </Pressable>
       </ThemedView>
+
+      <ThemedText type="small" themeColor="textSecondary" style={styles.buildInfo}>
+        {describeBuild()}
+      </ThemedText>
     </ScreenScrollView>
   );
 }
@@ -163,5 +187,8 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
+  },
+  buildInfo: {
+    textAlign: 'center',
   },
 });
