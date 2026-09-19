@@ -1,0 +1,4 @@
+# Native folders are generated (CNG) and gitignored, so EAS never sees them;
+# ignore them locally too so `eas update` computes the same runtime version.
+ios/**/*
+android/**/*

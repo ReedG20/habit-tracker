@@ -11,4 +11,4 @@ bun.lock
 .claude/skills
 
 # Written by Xcode's Icon Composer in its own style.
-assets/expo.icon
+assets/*.icon

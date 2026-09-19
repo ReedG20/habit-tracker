@@ -1,30 +1,37 @@
 import type { ExpoConfig } from 'expo/config';
 
-// TODO: confirm before registering with Apple, Google, or Clerk — changing the
-// bundle identifier afterwards means redoing that setup.
-const bundleIdentifier = 'us.studyspot.habittracker';
+// Registered with Apple, Google (iOS OAuth client), and Clerk (Native
+// Applications). Changing it means redoing all three.
+const bundleIdentifier = 'com.useanteapp.ante';
+
+const brandColor = '#4121FF';
 
 const config: ExpoConfig = {
-  name: 'habit-tracker',
-  slug: 'habit-tracker',
+  name: 'Ante',
+  slug: 'ante',
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
-  scheme: 'habittracker',
+  scheme: 'ante',
   userInterfaceStyle: 'automatic',
   ios: {
     bundleIdentifier,
-    icon: './assets/expo.icon',
+    // Icon Composer bundle (Liquid Glass; light/dark/tinted derive from it).
+    // Rebuild the assets from assets/brand/*.svg if the mark changes.
+    icon: './assets/ante.icon',
     // Pinned here because anything set in Xcode's UI is wiped by `expo prebuild
     // --clean`. Also stops `expo run:ios` from prompting for an identity.
     appleTeamId: 'QYZY3GZC8B',
+    infoPlist: {
+      // Only HTTPS, so exempt from export compliance; stops EAS asking each build.
+      ITSAppUsesNonExemptEncryption: false,
+    },
   },
   android: {
     package: bundleIdentifier,
     adaptiveIcon: {
-      backgroundColor: '#E6F4FE',
+      backgroundColor: brandColor,
       foregroundImage: './assets/images/android-icon-foreground.png',
-      backgroundImage: './assets/images/android-icon-background.png',
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
     predictiveBackGestureEnabled: false,
@@ -38,9 +45,9 @@ const config: ExpoConfig = {
     [
       'expo-splash-screen',
       {
-        backgroundColor: '#208AEF',
+        backgroundColor: brandColor,
         image: './assets/images/splash-icon.png',
-        imageWidth: 76,
+        imageWidth: 160,
       },
     ],
     '@clerk/expo',
@@ -57,6 +64,15 @@ const config: ExpoConfig = {
     '@clerk/expo-google-signin',
     'expo-apple-authentication',
   ],
+  updates: {
+    url: 'https://u.expo.dev/d5f78f95-028f-41ed-bbe2-777ce72ac974',
+  },
+  // Hash of everything native (deps, plugins, SDK), so an OTA update can only
+  // reach builds it is actually compatible with. A native change means a new
+  // build; `eas update` refuses to publish to a runtime with no builds.
+  runtimeVersion: {
+    policy: 'fingerprint',
+  },
   experiments: {
     typedRoutes: true,
     reactCompiler: true,
@@ -66,6 +82,9 @@ const config: ExpoConfig = {
   // by package name and signing fingerprint, and the token audience stays the
   // web client ID.
   extra: {
+    eas: {
+      projectId: 'd5f78f95-028f-41ed-bbe2-777ce72ac974',
+    },
     EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID: process.env.EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID,
     EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID: process.env.EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID,
     EXPO_PUBLIC_CLERK_GOOGLE_IOS_URL_SCHEME: process.env.EXPO_PUBLIC_CLERK_GOOGLE_IOS_URL_SCHEME,
