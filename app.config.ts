@@ -1,16 +1,16 @@
 import type { ExpoConfig } from 'expo/config';
 
-// TODO: confirm before registering with Apple, Google, or Clerk — changing the
-// bundle identifier afterwards means redoing that setup.
-const bundleIdentifier = 'us.studyspot.habittracker';
+// Registered with Apple, Google (iOS OAuth client), and Clerk (Native
+// Applications). Changing it means redoing all three.
+const bundleIdentifier = 'com.useanteapp.ante';
 
 const config: ExpoConfig = {
-  name: 'habit-tracker',
-  slug: 'habit-tracker',
+  name: 'Ante',
+  slug: 'ante',
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/images/icon.png',
-  scheme: 'habittracker',
+  scheme: 'ante',
   userInterfaceStyle: 'automatic',
   ios: {
     bundleIdentifier,
