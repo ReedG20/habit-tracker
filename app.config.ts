@@ -22,6 +22,10 @@ const config: ExpoConfig = {
     // Pinned here because anything set in Xcode's UI is wiped by `expo prebuild
     // --clean`. Also stops `expo run:ios` from prompting for an identity.
     appleTeamId: 'QYZY3GZC8B',
+    infoPlist: {
+      // Only HTTPS, so exempt from export compliance; stops EAS asking each build.
+      ITSAppUsesNonExemptEncryption: false,
+    },
   },
   android: {
     package: bundleIdentifier,
