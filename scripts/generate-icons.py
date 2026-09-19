@@ -3,9 +3,10 @@ Builds every app icon / splash asset from assets/brand/ante-mark.svg.
 
     python3 scripts/generate-icons.py [preview-dir]
 
-Needs rsvg-convert (`brew install librsvg`). The mark is re-centered and scaled
-so the same source works for the iOS Icon Composer bundle (72% of the canvas)
-and Android's adaptive icon, whose circular mask only guarantees the middle 66%.
+Needs rsvg-convert (`brew install librsvg`). The mark is deliberately placed
+high on the canvas ("up the ante"), so it is used exactly as drawn for iOS and
+the store PNG. Android's adaptive icon is shrunk about the canvas center just
+enough to fit its circular mask, which only guarantees the middle 66%.
 """
 import re, subprocess, zlib, struct, pathlib, sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -49,15 +50,12 @@ x0,x1,y0,y1 = alpha_bbox(tmp); tmp.unlink()
 bw, bh = x1-x0+1, y1-y0+1
 print(f'source mark bbox: x {x0}-{x1} y {y0}-{y1} ({bw}x{bh})')
 
-def centered_svg(width_frac, canvas=1024, fill=None, background=None):
-    """Mark scaled to `width_frac` of the canvas and centered."""
-    s = width_frac*canvas/bw
-    tx = (canvas - bw*s)/2 - x0*s
-    ty = (canvas - bh*s)/2 - y0*s
-    body = inner if fill is None else inner.replace('fill="white"', f'fill="{fill}"')
+def placed_svg(scale=1.0, canvas=1024, background=None):
+    """The mark as drawn, optionally shrunk about the canvas center."""
+    off = canvas*(1-scale)/2
     bg = f'<rect width="{canvas}" height="{canvas}" fill="{background}"/>' if background else ''
     return (f'<svg width="{canvas}" height="{canvas}" viewBox="0 0 {canvas} {canvas}" fill="none" xmlns="http://www.w3.org/2000/svg">'
-            f'{bg}<g transform="translate({tx:.3f} {ty:.3f}) scale({s:.5f})">{body}</g></svg>')
+            f'{bg}<g transform="translate({off:.3f} {off:.3f}) scale({scale:.5f})">{inner}</g></svg>')
 
 def cropped_svg(pad_frac=0.06):
     """Just the mark, tightly cropped with a little padding (for the splash)."""
@@ -65,18 +63,19 @@ def cropped_svg(pad_frac=0.06):
     W, H = bw+2*pad, bh+2*pad
     return (f'<svg width="{W:.0f}" height="{H:.0f}" viewBox="{x0-pad:.3f} {y0-pad:.3f} {W:.3f} {H:.3f}" fill="none" xmlns="http://www.w3.org/2000/svg">{inner}</svg>')
 
-IOS_W, ANDROID_W = 0.72, 0.62
+# Shrink until the mark's width sits inside Android's 66% safe zone, with margin.
+ANDROID_SCALE = min(1.0, 0.62*1024/bw)
 
 img = ROOT/'assets/images'
-render(centered_svg(IOS_W, background=BRAND), 1024, 1024, img/'icon.png')
-render(centered_svg(ANDROID_W), 1024, 1024, img/'android-icon-foreground.png')
-render(centered_svg(ANDROID_W), 1024, 1024, img/'android-icon-monochrome.png')
-render(centered_svg(IOS_W, background=BRAND), 48, 48, img/'favicon.png')
+render(placed_svg(background=BRAND), 1024, 1024, img/'icon.png')
+render(placed_svg(ANDROID_SCALE), 1024, 1024, img/'android-icon-foreground.png')
+render(placed_svg(ANDROID_SCALE), 1024, 1024, img/'android-icon-monochrome.png')
+render(placed_svg(background=BRAND), 48, 48, img/'favicon.png')
 crop = cropped_svg(); cw = float(re.search(r'width="([\d.]+)"', crop).group(1)); ch = float(re.search(r'height="([\d.]+)"', crop).group(1))
 render(crop, 1024, round(1024*ch/cw), img/'splash-icon.png')
 
 icon = ROOT/'assets/ante.icon'; (icon/'Assets').mkdir(parents=True, exist_ok=True)
-(icon/'Assets/ante-mark.svg').write_text(centered_svg(IOS_W))
+(icon/'Assets/ante-mark.svg').write_text(placed_svg())
 r,g,b = (int(BRAND[i:i+2],16)/255 for i in (1,3,5))
 (icon/'icon.json').write_text(f'''{{
   "fill" : {{
@@ -109,6 +108,6 @@ r,g,b = (int(BRAND[i:i+2],16)/255 for i in (1,3,5))
 }}
 ''')
 if OUT:
-    render(centered_svg(IOS_W, background=BRAND), 256, 256, OUT/'preview-ios.png')
-    render(centered_svg(ANDROID_W, background=BRAND), 256, 256, OUT/'preview-android.png')
+    render(placed_svg(background=BRAND), 256, 256, OUT/'preview-ios.png')
+    render(placed_svg(ANDROID_SCALE, background=BRAND), 256, 256, OUT/'preview-android.png')
 print('done')

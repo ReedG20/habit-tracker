@@ -7,14 +7,7 @@
       "layers" : [
         {
           "image-name" : "ante-mark.svg",
-          "name" : "ante-mark",
-          "position" : {
-            "scale" : 1,
-            "translation-in-points" : [
-              0,
-              -230
-            ]
-          }
+          "name" : "ante-mark"
         }
       ],
       "shadow" : {
