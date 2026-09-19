@@ -64,6 +64,15 @@ const config: ExpoConfig = {
     '@clerk/expo-google-signin',
     'expo-apple-authentication',
   ],
+  updates: {
+    url: 'https://u.expo.dev/d5f78f95-028f-41ed-bbe2-777ce72ac974',
+  },
+  // Hash of everything native (deps, plugins, SDK), so an OTA update can only
+  // reach builds it is actually compatible with. A native change means a new
+  // build; `eas update` refuses to publish to a runtime with no builds.
+  runtimeVersion: {
+    policy: 'fingerprint',
+  },
   experiments: {
     typedRoutes: true,
     reactCompiler: true,
