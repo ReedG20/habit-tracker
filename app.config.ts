@@ -4,6 +4,8 @@ import type { ExpoConfig } from 'expo/config';
 // Applications). Changing it means redoing all three.
 const bundleIdentifier = 'com.useanteapp.ante';
 
+const brandColor = '#4121FF';
+
 const config: ExpoConfig = {
   name: 'Ante',
   slug: 'ante',
@@ -14,7 +16,9 @@ const config: ExpoConfig = {
   userInterfaceStyle: 'automatic',
   ios: {
     bundleIdentifier,
-    icon: './assets/expo.icon',
+    // Icon Composer bundle (Liquid Glass; light/dark/tinted derive from it).
+    // Rebuild the assets from assets/brand/*.svg if the mark changes.
+    icon: './assets/ante.icon',
     // Pinned here because anything set in Xcode's UI is wiped by `expo prebuild
     // --clean`. Also stops `expo run:ios` from prompting for an identity.
     appleTeamId: 'QYZY3GZC8B',
@@ -22,9 +26,8 @@ const config: ExpoConfig = {
   android: {
     package: bundleIdentifier,
     adaptiveIcon: {
-      backgroundColor: '#E6F4FE',
+      backgroundColor: brandColor,
       foregroundImage: './assets/images/android-icon-foreground.png',
-      backgroundImage: './assets/images/android-icon-background.png',
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
     predictiveBackGestureEnabled: false,
@@ -38,9 +41,9 @@ const config: ExpoConfig = {
     [
       'expo-splash-screen',
       {
-        backgroundColor: '#208AEF',
+        backgroundColor: brandColor,
         image: './assets/images/splash-icon.png',
-        imageWidth: 76,
+        imageWidth: 160,
       },
     ],
     '@clerk/expo',
