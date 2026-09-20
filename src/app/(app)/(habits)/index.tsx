@@ -5,7 +5,6 @@ import { StyleSheet, View } from 'react-native';
 import { EmptyState } from '@/components/empty-state';
 import { HabitCard } from '@/components/habit-card';
 import { HeaderAddButton } from '@/components/header-add-button';
-import { ProjectCard } from '@/components/project-card';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { StakesBanner } from '@/components/stakes-banner';
 import { ThemedText } from '@/components/themed-text';
@@ -20,13 +19,12 @@ import { todayKey } from '@/lib/dates';
 /** Placeholder until stakes live in the backend. */
 const PLACEHOLDER_UNFREEZE_FEE = '$24.62';
 
-export default function HomeScreen() {
+export default function HabitsScreen() {
   // Recomputed every render, so the day rolls over on the next interaction
   // without a timer. The value is compared by content, so this does not refetch.
   const today = todayKey();
   const habits = useQuery(api.habits.list, { today });
-  const projects = useQuery(api.projects.list);
-  const sections = habits && projects ? groupIntoHomeSections(habits, projects, today) : undefined;
+  const sections = habits ? groupIntoHomeSections(habits, today) : undefined;
 
   useVerificationToasts(habits);
 
@@ -42,7 +40,7 @@ export default function HomeScreen() {
 
       <View style={styles.sections}>
         {sections?.length === 0 ? (
-          <EmptyState icon={HabitIcon} message="Nothing yet. Tap New to add a habit or project." />
+          <EmptyState icon={HabitIcon} message="Nothing yet. Tap New to add a habit." />
         ) : null}
 
         {sections?.map((section) => (
@@ -51,18 +49,9 @@ export default function HomeScreen() {
               {section.title}
             </ThemedText>
             <View style={styles.list}>
-              {section.items.map((item) =>
-                item.kind === 'habit' ? (
-                  <HabitCard key={item.habit._id} habit={item.habit} deadlineAt={item.deadlineAt} />
-                ) : (
-                  <ProjectCard
-                    key={item.project._id}
-                    project={item.project}
-                    today={today}
-                    deadlineAt={item.deadlineAt}
-                  />
-                ),
-              )}
+              {section.items.map((item) => (
+                <HabitCard key={item.habit._id} habit={item.habit} deadlineAt={item.deadlineAt} />
+              ))}
             </View>
           </View>
         ))}

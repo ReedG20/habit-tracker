@@ -9,6 +9,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 
+import { StripeProvider } from '@/components/stripe-provider';
 import { sectionHeadingFontFamily, wisdomFontFamily } from '@/constants/custom-fonts';
 
 SplashScreen.preventAutoHideAsync();
@@ -46,9 +47,11 @@ export default function RootLayout() {
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
       <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <RootNavigator />
-        </ThemeProvider>
+        <StripeProvider>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <RootNavigator />
+          </ThemeProvider>
+        </StripeProvider>
       </ConvexProviderWithClerk>
     </ClerkProvider>
   );

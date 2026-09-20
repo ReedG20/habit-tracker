@@ -4,7 +4,22 @@
     {
       "name": "metro",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["expo", "start", "--dev-client"],
+      "runtimeArgs": [
+        "expo",
+        "start",
+        "--dev-client"
+      ],
+      "port": 8081
+    },
+    {
+      "name": "metro-tunnel",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": [
+        "expo",
+        "start",
+        "--dev-client",
+        "--tunnel"
+      ],
       "port": 8081
     }
   ]

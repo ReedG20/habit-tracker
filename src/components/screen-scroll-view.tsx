@@ -4,6 +4,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
+/**
+ * The safe area goes on the content as padding rather than as `contentInset`:
+ * a native `contentInset` is not reliably reapplied when a screen swaps its
+ * loading scroll view for the real one (the pushed screen also renders once
+ * with zero insets), which left content under the status bar. Padding is
+ * plain layout, so it always lands.
+ */
 export function ScreenScrollView({ contentContainerStyle, ...rest }: ScrollViewProps) {
   const safeAreaInsets = useSafeAreaInsets();
   const theme = useTheme();
@@ -14,22 +21,21 @@ export function ScreenScrollView({ contentContainerStyle, ...rest }: ScrollViewP
   };
 
   const contentPlatformStyle = Platform.select({
-    android: {
-      paddingTop: insets.top,
-      paddingLeft: insets.left,
-      paddingRight: insets.right,
-      paddingBottom: insets.bottom,
-    },
     web: {
       paddingTop: Spacing.six,
       paddingBottom: Spacing.four,
+    },
+    default: {
+      paddingTop: insets.top,
+      paddingLeft: Spacing.three + insets.left,
+      paddingRight: Spacing.three + insets.right,
+      paddingBottom: insets.bottom,
     },
   });
 
   return (
     <ScrollView
       style={[styles.scrollView, { backgroundColor: theme.background }]}
-      contentInset={insets}
       contentContainerStyle={[styles.contentContainer, contentPlatformStyle, contentContainerStyle]}
       {...rest}
     />

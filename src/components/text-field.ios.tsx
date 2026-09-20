@@ -9,6 +9,7 @@ import {
   textFieldStyle,
   textInputAutocapitalization,
 } from '@expo/ui/swift-ui/modifiers';
+import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { TextFieldProps } from './text-field';
@@ -33,9 +34,16 @@ export function TextField({
   placeholder,
   multiline,
   autoCapitalize,
+  readValueRef,
 }: TextFieldProps) {
   const theme = useTheme();
   const text = useNativeState(defaultValue ?? '');
+
+  // The native state is the source of truth and reads synchronously; change
+  // events trail it, and a fast tap on a submit button can beat the last one.
+  useEffect(() => {
+    if (readValueRef) readValueRef.current = () => text.get();
+  }, [readValueRef, text]);
 
   return (
     <View style={styles.field}>
