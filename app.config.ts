@@ -55,7 +55,8 @@ const config: ExpoConfig = {
     [
       'expo-image-picker',
       {
-        cameraPermission: 'Allow $(PRODUCT_NAME) to use the camera to verify your habits.',
+        cameraPermission:
+          'Allow $(PRODUCT_NAME) to use the camera to verify your habits and goals.',
         photosPermission: 'Allow $(PRODUCT_NAME) to access your photos.',
         // Images only; keeps NSMicrophoneUsageDescription out of the plist.
         microphonePermission: false,
@@ -63,6 +64,8 @@ const config: ExpoConfig = {
     ],
     '@clerk/expo-google-signin',
     'expo-apple-authentication',
+    // Card entry for goal stakes. No Apple Pay yet, so no merchant identifier.
+    ['@stripe/stripe-react-native', { enableGooglePay: false }],
   ],
   updates: {
     url: 'https://u.expo.dev/d5f78f95-028f-41ed-bbe2-777ce72ac974',

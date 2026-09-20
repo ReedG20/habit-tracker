@@ -6,31 +6,29 @@ import { ThemedText } from './themed-text';
 
 import { BorderRadius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { formatDayKey, fromDayKey, toDayKey } from '@/lib/dates';
+import { formatDueAt } from '@/lib/dates';
 
-const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-export type DueDateFieldProps = {
-  dueDay: string | undefined;
-  onChange: (dueDay: string | undefined) => void;
+export type DeadlineFieldProps = {
+  /** Timestamp in ms. Always set: a goal cannot exist without a deadline. */
+  value: number;
+  onChange: (value: number) => void;
+  label?: string;
 };
 
 /**
- * Keep the SwiftUI picker unmounted while typing. `@expo/ui`'s DateTimePicker
- * uses a SwiftUI `Host`, which steals first responder from RN `TextInput`s in
- * the same sheet.
+ * Android and web fallback. Android picks the date and the time in two steps;
+ * web takes an ISO-like `YYYY-MM-DDTHH:MM` string.
  */
-export function DueDateField({ dueDay, onChange }: DueDateFieldProps) {
+export function DeadlineField({ value, onChange, label = 'Deadline' }: DeadlineFieldProps) {
   const theme = useTheme();
-  const [draft, setDraft] = useState(dueDay ?? '');
-  const [picking, setPicking] = useState(false);
-  const value = dueDay ? fromDayKey(dueDay) : new Date();
+  const [step, setStep] = useState<'idle' | 'date' | 'time'>('idle');
+  const [draft, setDraft] = useState(() => toLocalInput(value));
 
   return (
     <View style={styles.field}>
       <View style={styles.row}>
         <ThemedText type="smallBold" themeColor="textSecondary" style={styles.label}>
-          Due date
+          {label}
         </ThemedText>
 
         {Platform.OS === 'web' ? (
@@ -46,61 +44,46 @@ export function DueDateField({ dueDay, onChange }: DueDateFieldProps) {
             value={draft}
             onChangeText={(text) => {
               setDraft(text);
-              const trimmed = text.trim();
-              if (trimmed.length === 0) {
-                onChange(undefined);
-                return;
-              }
-              if (DAY_PATTERN.test(trimmed)) {
-                onChange(trimmed);
-              }
+              const parsed = new Date(text).getTime();
+              if (!Number.isNaN(parsed)) onChange(parsed);
             }}
-            placeholder="YYYY-MM-DD"
+            placeholder="YYYY-MM-DDTHH:MM"
             placeholderTextColor={theme.textSecondary}
             autoCapitalize="none"
             autoCorrect={false}
           />
-        ) : picking ? (
+        ) : step !== 'idle' ? (
           <DateTimePicker
-            value={value}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'compact' : 'default'}
-            presentation="inline"
+            value={new Date(value)}
+            mode={step}
+            display="default"
             accentColor={theme.primary}
             onValueChange={(_event, date) => {
-              onChange(toDayKey(date));
-              setPicking(false);
+              onChange(date.getTime());
+              setStep(step === 'date' ? 'time' : 'idle');
             }}
           />
         ) : (
           <Pressable
             accessibilityRole="button"
-            onPress={() => setPicking(true)}
+            onPress={() => setStep('date')}
             hitSlop={Spacing.two}
             style={({ pressed }) => pressed && styles.pressed}>
-            <ThemedText type="smallBold" themeColor={dueDay ? 'text' : 'textSecondary'}>
-              {dueDay ? formatDayKey(dueDay) : 'Add'}
+            <ThemedText type="smallBold" themeColor="text">
+              {formatDueAt(value)}
             </ThemedText>
           </Pressable>
         )}
       </View>
-
-      {dueDay && Platform.OS !== 'web' && !picking ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            setDraft('');
-            onChange(undefined);
-          }}
-          hitSlop={Spacing.two}
-          style={({ pressed }) => [styles.clear, pressed && styles.pressed]}>
-          <ThemedText type="small" themeColor="textSecondary">
-            Clear
-          </ThemedText>
-        </Pressable>
-      ) : null}
     </View>
   );
+}
+
+function toLocalInput(value: number): string {
+  const date = new Date(value);
+  const pad = (n: number) => n.toString().padStart(2, '0');
+
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 const styles = StyleSheet.create({
@@ -127,9 +110,6 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     fontWeight: 500,
     textAlign: 'right',
-  },
-  clear: {
-    alignSelf: 'flex-end',
   },
   pressed: {
     opacity: 0.7,

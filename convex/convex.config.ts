@@ -13,6 +13,12 @@ const app = defineApp({
      *   bunx convex env set OPENROUTER_API_KEY sk-or-...
      */
     OPENROUTER_API_KEY: v.string(),
+    /**
+     * Stripe secret key used to save cards and settle missed goals (`goals.ts`,
+     * `stripe.ts`). Set with:
+     *   bunx convex env set STRIPE_SECRET_KEY sk_...
+     */
+    STRIPE_SECRET_KEY: v.string(),
   },
 });
 

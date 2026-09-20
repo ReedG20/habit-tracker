@@ -8,11 +8,15 @@
  * @module
  */
 
+import type * as goalSubmissions from "../goalSubmissions.js";
+import type * as goals from "../goals.js";
 import type * as habits from "../habits.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_customFunctions from "../lib/customFunctions.js";
 import type * as lib_days from "../lib/days.js";
-import type * as projects from "../projects.js";
+import type * as lib_stripe from "../lib/stripe.js";
+import type * as lib_vision from "../lib/vision.js";
+import type * as stripe from "../stripe.js";
 import type * as users from "../users.js";
 import type * as verifications from "../verifications.js";
 
@@ -23,11 +27,15 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  goalSubmissions: typeof goalSubmissions;
+  goals: typeof goals;
   habits: typeof habits;
   "lib/auth": typeof lib_auth;
   "lib/customFunctions": typeof lib_customFunctions;
   "lib/days": typeof lib_days;
-  projects: typeof projects;
+  "lib/stripe": typeof lib_stripe;
+  "lib/vision": typeof lib_vision;
+  stripe: typeof stripe;
   users: typeof users;
   verifications: typeof verifications;
 }>;
