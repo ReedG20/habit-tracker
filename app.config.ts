@@ -66,6 +66,8 @@ const config: ExpoConfig = {
     'expo-apple-authentication',
     // Card entry for goal stakes. No Apple Pay yet, so no merchant identifier.
     ['@stripe/stripe-react-native', { enableGooglePay: false }],
+    // UIScene adoption, required by the iOS 27 SDK; see the plugin for details.
+    './plugins/with-scene-lifecycle.js',
   ],
   updates: {
     url: 'https://u.expo.dev/d5f78f95-028f-41ed-bbe2-777ce72ac974',
