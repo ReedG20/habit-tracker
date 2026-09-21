@@ -16,16 +16,20 @@ Server secrets never leave the Convex deployment (`convex/convex.config.ts`).
 ## What runs automatically
 
 - **Every PR** — `.github/workflows/ci.yml`: lint, Prettier, `tsc` (app and
-  `convex/`), `vitest`. `.eas/workflows/pr-preview.yml` publishes an OTA update
-  to the `preview` channel. `.github/workflows/convex-preview.yml` deploys a
-  per-branch Convex backend, only if `CONVEX_DEPLOY_KEY_PREVIEW` is set (needs
-  Convex Pro).
-- **Push to `main`** — `.eas/workflows/deploy.yml`:
-  1. `deploy_convex` pushes `convex/` to the **production** deployment.
-  2. `fingerprint` hashes the native side; `get-build` looks for a production
-     build with that hash.
-  3. Found → OTA update on the `production` channel. Not found → new build,
-     submitted to TestFlight / Play internal.
+  `convex/`), `vitest`. Required by the `Protect main` ruleset.
+  `.github/workflows/convex-preview.yml` deploys a per-branch Convex backend,
+  only if `CONVEX_DEPLOY_KEY_PREVIEW` is set (needs Convex Pro).
+- **Push to `main`** — `.github/workflows/deploy.yml`, one job:
+  1. `convex deploy` to the **production** deployment.
+  2. Computes the iOS native fingerprint and asks EAS for a production build
+     with that hash.
+  3. Found → `eas update` to the `production` channel, from the Actions
+     runner (about two minutes end to end). Not found → `eas build
+--auto-submit`, which queues on EAS and lands on TestFlight when done.
+
+Everything runs on GitHub Actions so the common case never waits in EAS's
+queue; only native builds do. Adding a dependency with native code, changing a
+config plugin, or bumping the SDK changes the fingerprint and triggers a build.
 
 The backend deploys before any client because old bundles keep running until
 they fetch the update: keep Convex functions backwards compatible for at least
@@ -60,8 +64,8 @@ bunx convex env set --prod STRIPE_SECRET_KEY sk_live_...
 bunx convex env set --prod STRIPE_WEBHOOK_SECRET whsec_...   # after step 3
 ```
 
-Then in the Convex dashboard → project settings → **Deploy keys**, generate a
-**Production** deploy key for step 4.
+Then in the Convex dashboard → production deployment → Settings → **Deploy
+keys**, generate a key with only `deployment:deploy` for step 6.
 
 ### 2. Clerk production instance
 
@@ -115,8 +119,8 @@ The `whsec_` it prints is stable for your CLI login and is already set as
 
 ### 4. EAS production environment
 
-expo.dev → project → **Environment variables** → `production`. It is empty
-today. Create:
+expo.dev → project → **Environment variables** → `production`. `eas update
+--environment production` and `eas build` bundle these into the app:
 
 | Name                                      | Value                                    | Visibility |
 | ----------------------------------------- | ---------------------------------------- | ---------- |
@@ -126,7 +130,6 @@ today. Create:
 | `EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID`  | as in `development`                      | plain      |
 | `EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID`  | as in `development`                      | plain      |
 | `EXPO_PUBLIC_CLERK_GOOGLE_IOS_URL_SCHEME` | as in `development`                      | plain      |
-| `CONVEX_DEPLOY_KEY`                       | the Production deploy key from step 1    | **secret** |
 
 Or from the CLI, one at a time:
 
@@ -136,9 +139,6 @@ bunx eas-cli@latest env:create --environment production --scope project --visibi
 
 ### 5. EAS: GitHub, credentials, stores
 
-- expo.dev → project → **GitHub** → install the Expo GitHub app on
-  `ReedG20/habit-tracker`. Workflows in `.eas/workflows/` only trigger once
-  the repo is connected.
 - Signing credentials (EAS creates and stores the distribution certificate
   and provisioning profile; you sign in with your Apple ID once):
   ```bash
@@ -153,23 +153,31 @@ bunx eas-cli@latest env:create --environment production --scope project --visibi
 
 ### 6. GitHub
 
-- Branch protection on `main`: require the **Lint, typecheck, test** check.
-- Optional secret `CONVEX_DEPLOY_KEY_PREVIEW` (Convex → Deploy keys →
-  **Preview**) to enable per-PR Convex backends.
+Repository → Settings → Secrets and variables → Actions:
+
+| Secret                      | Value                                                       |
+| --------------------------- | ----------------------------------------------------------- |
+| `EXPO_TOKEN`                | expo.dev → account → **Access tokens** → new token          |
+| `CONVEX_DEPLOY_KEY`         | the production deploy key from step 1                       |
+| `CONVEX_DEPLOY_KEY_PREVIEW` | optional; Convex **Preview** deploy key for per-PR backends |
+
+The `Protect main` ruleset (Settings → Rules) requires a PR and the
+**Lint, typecheck, test** check before anything reaches `main`.
 
 ### 7. First production run
 
-Merge to `main`. The first `deploy.yml` run always builds (there is no
-production build with the current fingerprint yet). Watch it under expo.dev →
-**Workflows**. Once the build is on TestFlight, the next JS-only push takes the
-OTA path; the Me screen shows the running update id.
+Merge to `main`. The first `Deploy` run builds (there is no production build
+with the current fingerprint yet); watch the job under GitHub → **Actions**
+and the build under expo.dev → **Builds**. Once the build is on TestFlight,
+the next JS-only push takes the OTA path; the Me screen shows the running
+update id.
 
 ## Day to day
 
 ```bash
 bun run lint && bun run typecheck && bun run test   # what CI runs
 bunx eas-cli@latest build --profile preview -p ios  # a testable build on the dev backend
-bunx eas-cli@latest workflow:run deploy.yml         # re-run the production pipeline by hand
+gh workflow run deploy.yml                          # re-run the production pipeline by hand
 ```
 
 Rolling back an OTA update: expo.dev → Updates → `production` branch →
