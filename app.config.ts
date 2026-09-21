@@ -9,6 +9,8 @@ const brandColor = '#4121FF';
 const config: ExpoConfig = {
   name: 'Ante',
   slug: 'ante',
+  // Pinned so EAS resolves the project the same way in CI as when signed in.
+  owner: 'reedgrenager',
   version: '1.0.0',
   orientation: 'portrait',
   icon: './assets/images/icon.png',

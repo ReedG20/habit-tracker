@@ -7,7 +7,7 @@ const publishableKey = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '';
 
 if (!publishableKey) {
   throw new Error(
-    'Missing EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY in .env.local — copy it from the Stripe dashboard API keys page',
+    'Missing EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY — in .env.local for dev, or the EAS environment for builds (see .env.example)',
   );
 }
 

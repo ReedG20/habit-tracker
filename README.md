@@ -1,6 +1,11 @@
-# Welcome to your Expo app 👋
+# Ante
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Habits and goals with money on the line. Expo (React Native) app on a
+[Convex](https://convex.dev) backend, Clerk for sign-in, Stripe for stakes.
+
+- Shipping, environments and one-time production setup: [docs/deploy.md](docs/deploy.md)
+- Local env vars: copy [.env.example](.env.example) to `.env.local`
+- Checks CI runs: `bun run lint && bun run typecheck && bun run test`
 
 ## Get started
 

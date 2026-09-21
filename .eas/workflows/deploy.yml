@@ -1,0 +1,83 @@
+# Push to main → ship. The backend goes first so it is live before any client
+# bundle that depends on it; then a production build is reused (OTA update) or
+# made and submitted (native change). Expo's deploy template with a Convex job
+# in front, iOS only for now: to add Android, duplicate the get-build / build /
+# submit / update jobs for `platform: android` using
+# `needs.fingerprint.outputs.android_fingerprint_hash`.
+#
+# Needs, in the EAS `production` environment: CONVEX_DEPLOY_KEY (Production
+# deploy key, sensitive) plus every EXPO_PUBLIC_* the app reads. See
+# docs/deploy.md.
+name: Deploy to production
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ workflow.filename }}-${{ github.ref }}
+  cancel_in_progress: false
+
+defaults:
+  tools:
+    bun: 1.3.4
+
+jobs:
+  deploy_convex:
+    name: Deploy Convex backend
+    environment: production
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+      - name: Deploy functions and schema
+        run: |
+          if [ -z "$CONVEX_DEPLOY_KEY" ]; then
+            echo "CONVEX_DEPLOY_KEY is not set in the EAS production environment" >&2
+            exit 1
+          fi
+          bunx convex deploy --yes
+
+  fingerprint:
+    name: Fingerprint
+    needs: [deploy_convex]
+    type: fingerprint
+    environment: production
+
+  get_ios_build:
+    name: Check for existing ios build
+    needs: [fingerprint]
+    type: get-build
+    params:
+      fingerprint_hash: ${{ needs.fingerprint.outputs.ios_fingerprint_hash }}
+      profile: production
+
+  build_ios:
+    name: Build iOS
+    needs: [get_ios_build]
+    if: ${{ !needs.get_ios_build.outputs.build_id }}
+    type: build
+    params:
+      platform: ios
+      profile: production
+
+  submit_ios_build:
+    name: Submit iOS build
+    needs: [build_ios]
+    type: submit
+    params:
+      build_id: ${{ needs.build_ios.outputs.build_id }}
+      profile: production
+
+  # `update` defaults to the preview environment; production is explicit so
+  # the bundle inlines the production Convex URL and live keys.
+
+  publish_ios_update:
+    name: Publish iOS update
+    needs: [get_ios_build]
+    if: ${{ needs.get_ios_build.outputs.build_id }}
+    type: update
+    environment: production
+    params:
+      branch: production
+      platform: ios
+      message: ${{ github.commit_message }}

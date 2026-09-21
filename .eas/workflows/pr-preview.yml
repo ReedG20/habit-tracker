@@ -1,0 +1,28 @@
+# Every PR publishes an OTA update to the `preview` branch, so anyone with a
+# preview build (`eas build --profile preview`) sees the change by reopening the
+# app. Preview builds point at the dev Convex deployment (EAS `preview` env),
+# so a PR that also changes the backend needs `bunx convex dev` run against it
+# first, or a Convex preview deployment (.github/workflows/convex-preview.yml).
+name: PR preview update
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ workflow.filename }}-${{ github.ref }}
+  cancel_in_progress: true
+
+defaults:
+  tools:
+    bun: 1.3.4
+
+jobs:
+  publish_preview_update:
+    name: Publish preview update
+    type: update
+    environment: preview
+    params:
+      branch: preview
+      platform: ios
+      message: ${{ github.event.pull_request.title }}
