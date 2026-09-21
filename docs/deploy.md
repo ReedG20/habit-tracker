@@ -75,9 +75,12 @@ real users (rate limits, shared OAuth apps). Production is a blank instance on
 your own domain, and nothing copies over: rebuild the three things below.
 
 1. Clerk dashboard → instance dropdown → **Create production instance** with the
-   apex domain you own (`useanteapp.com`). Add the CNAME records it lists at
-   your DNS provider and wait for Configure → **Domains** to show them verified.
-   The **Frontend API URL** shown there (`https://clerk.useanteapp.com`) is
+   apex domain you own (`useanteapp.com`). Add the five CNAME records it lists
+   (Configure → Domains → Configure) at the DNS provider and click **Verify
+   Records**; Clerk then issues the TLS certificate. Until that is done the
+   app hangs on the splash screen: `clerk.useanteapp.com` does not resolve, so
+   Clerk never loads and `useConvexAuth` never leaves `isLoading`. The
+   **Frontend API URL** (`https://clerk.useanteapp.com`) is
    `CLERK_JWT_ISSUER_DOMAIN` for prod (step 1).
 2. Switch the dropdown to **Production** and rebuild:
    - Configure → **Native applications**: enable the Native API and add the
@@ -171,6 +174,13 @@ with the current fingerprint yet); watch the job under GitHub → **Actions**
 and the build under expo.dev → **Builds**. Once the build is on TestFlight,
 the next JS-only push takes the OTA path; the Me screen shows the running
 update id.
+
+## Testing a production build
+
+TestFlight installs over the dev build (same bundle id), so the dev client's
+menu disappears; reinstall a `development` profile build to get it back.
+Production builds talk to the production Clerk instance and Convex deployment
+— sign-ins there are real users, and stakes charge live cards.
 
 ## Day to day
 
