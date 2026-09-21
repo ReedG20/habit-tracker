@@ -19,6 +19,13 @@ const app = defineApp({
      *   bunx convex env set STRIPE_SECRET_KEY sk_...
      */
     STRIPE_SECRET_KEY: v.string(),
+    /**
+     * Signing secret for the `/stripe/webhook` endpoint (`http.ts`). In
+     * production it is the endpoint's secret from the Stripe dashboard; in
+     * development it is the one `stripe listen` prints. Set with:
+     *   bunx convex env set STRIPE_WEBHOOK_SECRET whsec_...
+     */
+    STRIPE_WEBHOOK_SECRET: v.string(),
   },
 });
 

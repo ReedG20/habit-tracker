@@ -28,6 +28,10 @@ function describeStake(goal: GoalWithStatus): string | null {
   switch (stake.status) {
     case 'charged':
       return `Charged ${amount}`;
+    case 'refunded':
+      return `${amount} · refunded`;
+    case 'disputed':
+      return `${amount} · disputed`;
     case 'charge_failed':
       return `${amount} · charge failed`;
     case 'released':

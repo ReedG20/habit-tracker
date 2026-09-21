@@ -11,6 +11,7 @@
 import type * as goalSubmissions from "../goalSubmissions.js";
 import type * as goals from "../goals.js";
 import type * as habits from "../habits.js";
+import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_customFunctions from "../lib/customFunctions.js";
 import type * as lib_days from "../lib/days.js";
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   goalSubmissions: typeof goalSubmissions;
   goals: typeof goals;
   habits: typeof habits;
+  http: typeof http;
   "lib/auth": typeof lib_auth;
   "lib/customFunctions": typeof lib_customFunctions;
   "lib/days": typeof lib_days;
