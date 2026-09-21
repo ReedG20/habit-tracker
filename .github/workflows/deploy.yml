@@ -10,6 +10,7 @@ name: Deploy
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   group: deploy-production
@@ -36,6 +37,7 @@ jobs:
         run: |
           [ -n "$EXPO_TOKEN" ] || { echo "EXPO_TOKEN secret is not set" >&2; exit 1; }
           [ -n "$CONVEX_DEPLOY_KEY" ] || { echo "CONVEX_DEPLOY_KEY secret is not set" >&2; exit 1; }
+          bunx eas-cli@latest whoami
 
       # Backend first: old client bundles keep running until they fetch the
       # update, so functions must stay compatible with the previous release.
@@ -47,11 +49,15 @@ jobs:
       # finished or still in flight means an update can reach it.
       - name: Look for a production build with this native fingerprint
         id: native
+        env:
+          EXPO_DEBUG: '1'
         run: |
-          hash=$(bunx eas-cli@latest fingerprint:generate -p ios -e production --json | jq -r .hash)
-          matching=$(bunx eas-cli@latest build:list -p ios -e production --fingerprint-hash "$hash" \
-            --json --non-interactive --limit 5 \
-            | jq '[.[] | select(.status | IN("FINISHED","IN_PROGRESS","IN_QUEUE","NEW","PENDING"))] | length')
+          fp=$(bunx eas-cli@latest fingerprint:generate -p ios -e production --json)
+          hash=$(jq -r .hash <<<"$fp")
+          [ -n "$hash" ] && [ "$hash" != null ] || { echo "no fingerprint hash in: $fp" >&2; exit 1; }
+          builds=$(bunx eas-cli@latest build:list -p ios -e production --fingerprint-hash "$hash" \
+            --json --non-interactive --limit 5)
+          matching=$(jq '[.[] | select(.status | IN("FINISHED","IN_PROGRESS","IN_QUEUE","NEW","PENDING"))] | length' <<<"$builds")
           echo "fingerprint=$hash"
           echo "matching builds=$matching"
           echo "has_build=$([ "$matching" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
