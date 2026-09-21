@@ -1,0 +1,70 @@
+# Push to main → ship. One job, in order: Convex backend to prod, then either an
+# OTA update (runs right here, ~2 min) or, when the native fingerprint has no
+# production build yet, an EAS build that submits itself to TestFlight.
+#
+# Secrets: EXPO_TOKEN (expo.dev → Access tokens) and CONVEX_DEPLOY_KEY (Convex →
+# prod deployment → Deploy keys, `deployment:deploy` only). The EXPO_PUBLIC_*
+# values come from the EAS `production` environment via --environment.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - run: bun install --frozen-lockfile
+
+      - name: Check secrets
+        run: |
+          [ -n "$EXPO_TOKEN" ] || { echo "EXPO_TOKEN secret is not set" >&2; exit 1; }
+          [ -n "$CONVEX_DEPLOY_KEY" ] || { echo "CONVEX_DEPLOY_KEY secret is not set" >&2; exit 1; }
+
+      # Backend first: old client bundles keep running until they fetch the
+      # update, so functions must stay compatible with the previous release.
+      - name: Deploy Convex backend
+        run: bunx convex deploy --yes
+
+      # Same hash EAS computes for a build (.fingerprintignore keeps the
+      # generated native folders out of it). Any build with this hash that is
+      # finished or still in flight means an update can reach it.
+      - name: Look for a production build with this native fingerprint
+        id: native
+        run: |
+          hash=$(bunx eas-cli@latest fingerprint:generate -p ios -e production --json | jq -r .hash)
+          matching=$(bunx eas-cli@latest build:list -p ios -e production --fingerprint-hash "$hash" \
+            --json --non-interactive --limit 5 \
+            | jq '[.[] | select(.status | IN("FINISHED","IN_PROGRESS","IN_QUEUE","NEW","PENDING"))] | length')
+          echo "fingerprint=$hash"
+          echo "matching builds=$matching"
+          echo "has_build=$([ "$matching" -gt 0 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - name: Publish OTA update
+        if: steps.native.outputs.has_build == 'true'
+        run: |
+          bunx eas-cli@latest update --platform ios --channel production --environment production \
+            --message "$(git log -1 --pretty=%s)" --non-interactive
+
+      - name: Build iOS and submit to TestFlight
+        if: steps.native.outputs.has_build == 'false'
+        run: |
+          bunx eas-cli@latest build --platform ios --profile production \
+            --auto-submit --no-wait --non-interactive \
+            --message "$(git log -1 --pretty=%s)"

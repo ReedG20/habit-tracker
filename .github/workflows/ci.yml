@@ -1,4 +1,4 @@
-# PR checks. Deploys are not here: pushes to main run .eas/workflows/deploy.yml.
+# PR checks. Deploys are not here: pushes to main run deploy.yml.
 name: CI
 
 on:
