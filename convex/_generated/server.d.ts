@@ -33,6 +33,7 @@ type Env = {
   readonly CLERK_JWT_ISSUER_DOMAIN: string;
   readonly OPENROUTER_API_KEY: string;
   readonly STRIPE_SECRET_KEY: string;
+  readonly STRIPE_WEBHOOK_SECRET: string;
 };
 
 /**

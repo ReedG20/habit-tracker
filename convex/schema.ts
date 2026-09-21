@@ -5,6 +5,8 @@ import { v } from 'convex/values';
  * `armed` → `charging` → `charged` | `charge_failed` when the deadline passes
  * uncompleted; `armed` → `released` when a submission is approved first.
  * `charging` is the settlement action's claim, so a re-run cannot double charge.
+ * After the money moved, Stripe webhooks (`http.ts`) can take it further:
+ * `charged` → `refunded` on a full refund, `charged` | `refunded` → `disputed`.
  */
 export const stakeStatusValidator = v.union(
   v.literal('armed'),
@@ -12,6 +14,8 @@ export const stakeStatusValidator = v.union(
   v.literal('charged'),
   v.literal('charge_failed'),
   v.literal('released'),
+  v.literal('refunded'),
+  v.literal('disputed'),
 );
 
 export const stakeValidator = v.object({
@@ -25,6 +29,12 @@ export const stakeValidator = v.object({
   stripePaymentIntentId: v.optional(v.string()),
   chargedAt: v.optional(v.number()),
   failureReason: v.optional(v.string()),
+  /** Set by the `charge.refunded` webhook. A partial refund keeps `charged`. */
+  refundedCents: v.optional(v.number()),
+  refundedAt: v.optional(v.number()),
+  /** Set by the `charge.dispute.created` webhook. */
+  stripeDisputeId: v.optional(v.string()),
+  disputedAt: v.optional(v.number()),
 });
 
 export const submissionStatusValidator = v.union(
@@ -112,7 +122,9 @@ export default defineSchema({
   })
     .index('by_user', ['userId'])
     // Replay protection: a SetupIntent may back at most one goal.
-    .index('by_setup_intent', ['stake.stripeSetupIntentId']),
+    .index('by_setup_intent', ['stake.stripeSetupIntentId'])
+    // Webhook lookup for events that carry no metadata (disputes).
+    .index('by_payment_intent', ['stake.stripePaymentIntentId']),
 
   /**
    * One row per proof attempt. Same lifecycle as `habitVerifications`, but a
@@ -129,4 +141,15 @@ export default defineSchema({
     createdAt: v.number(),
     resolvedAt: v.optional(v.number()),
   }).index('by_goal', ['goalId']),
+
+  /**
+   * Every Stripe webhook event we have acted on, by Stripe's event id. Stripe
+   * retries until it sees a 2xx and may deliver twice, so the handler records
+   * the id in the same transaction as the state change it causes.
+   */
+  stripeEvents: defineTable({
+    eventId: v.string(),
+    type: v.string(),
+    receivedAt: v.number(),
+  }).index('by_event_id', ['eventId']),
 });

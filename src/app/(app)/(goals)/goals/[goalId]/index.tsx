@@ -44,6 +44,10 @@ function describeStake(goal: GoalWithStatus): string {
       return `${amount} · charge failed${stake.failureReason ? ` (${stake.failureReason})` : ''}`;
     case 'released':
       return `${amount} · safe`;
+    case 'refunded':
+      return `${amount} · refunded`;
+    case 'disputed':
+      return `${amount} · disputed`;
   }
 }
 
