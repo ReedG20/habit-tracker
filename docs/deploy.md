@@ -144,10 +144,12 @@ bunx eas-cli@latest env:create --environment production --scope project --visibi
   ```bash
   bunx eas-cli@latest credentials:configure-build -p ios --profile production
   ```
-- App Store Connect: create the app record for `com.useanteapp.ante`, then put
-  its numeric App ID in `eas.json` → `submit.production.ios.ascAppId`, and
-  connect an App Store Connect API key under expo.dev → project → **Credentials**
-  so `submit` runs non-interactively.
+- App Store Connect: the app record is **Ante: Habits with Stakes**
+  (App ID `6814632907`, already in `eas.json` → `submit.production.ios.ascAppId`).
+  For `submit` to run unattended, EAS needs an App Store Connect API key:
+  ASC → Users and Access → Integrations → App Store Connect API → generate a
+  key with the **App Manager** role, then upload it with
+  `bunx eas-cli@latest credentials -p ios` → App Store Connect API Key.
 
 ### 6. GitHub
 
