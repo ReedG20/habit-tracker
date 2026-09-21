@@ -180,6 +180,16 @@ bunx eas-cli@latest build --profile preview -p ios  # a testable build on the de
 gh workflow run deploy.yml                          # re-run the production pipeline by hand
 ```
 
+If a build finished but the TestFlight upload failed (Apple's upload service
+has bad days), check App Store Connect → TestFlight first: the upload often
+went through and only the confirmation was lost. If it really is missing:
+
+```bash
+bunx eas-cli@latest submit -p ios --profile production --latest
+```
+
+A "build number already used" error means Apple did keep it — nothing to do.
+
 Rolling back an OTA update: expo.dev → Updates → `production` branch →
 republish the previous update. Rolling back the backend: `git revert` and push
 to `main`; `convex deploy` is idempotent.
