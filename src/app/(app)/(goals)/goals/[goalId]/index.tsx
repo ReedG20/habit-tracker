@@ -13,7 +13,6 @@ import { Camera01Icon } from '@/constants/icons';
 import {
   BorderRadius,
   CardRadius,
-  CardShadow,
   Fonts,
   ScreenHeadingTypography,
   Spacing,
@@ -250,7 +249,6 @@ const styles = StyleSheet.create({
   meta: {
     borderRadius: CardRadius,
     overflow: 'hidden',
-    ...CardShadow,
   },
   metaRow: {
     flexDirection: 'row',
@@ -275,7 +273,6 @@ const styles = StyleSheet.create({
   group: {
     borderRadius: CardRadius,
     overflow: 'hidden',
-    ...CardShadow,
   },
   submission: {
     padding: Spacing.three,

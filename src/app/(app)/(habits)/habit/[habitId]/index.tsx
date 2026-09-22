@@ -8,7 +8,7 @@ import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { CheckmarkCircle02Icon } from '@/constants/icons';
-import { CardRadius, CardShadow, Fonts, ScreenHeadingTypography, Spacing } from '@/constants/theme';
+import { CardRadius, Fonts, ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import { useTheme } from '@/hooks/use-theme';
@@ -160,7 +160,6 @@ const styles = StyleSheet.create({
     borderRadius: CardRadius,
     padding: Spacing.three,
     gap: Spacing.half,
-    ...CardShadow,
   },
   statValue: ScreenHeadingTypography,
   section: {
@@ -175,7 +174,6 @@ const styles = StyleSheet.create({
   historyGroup: {
     borderRadius: CardRadius,
     overflow: 'hidden',
-    ...CardShadow,
   },
   historyRow: {
     flexDirection: 'row',

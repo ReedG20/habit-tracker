@@ -20,7 +20,6 @@ import {
 } from '@/constants/icons';
 import {
   CardRadius,
-  CardShadow,
   PillRadius,
   ScreenHeadingTypography,
   Spacing,
@@ -202,12 +201,10 @@ const styles = StyleSheet.create({
     borderRadius: CardRadius,
     padding: Spacing.three,
     gap: Spacing.half,
-    ...CardShadow,
   },
   settingsGroup: {
     borderRadius: CardRadius,
     overflow: 'hidden',
-    ...CardShadow,
   },
   settingRow: {
     flexDirection: 'row',

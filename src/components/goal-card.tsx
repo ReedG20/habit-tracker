@@ -8,7 +8,7 @@ import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
 import { GoalListIcon } from '@/constants/icons';
-import { BorderRadius, CardRadius, CardShadow, PillRadius, Spacing } from '@/constants/theme';
+import { ActionCardRadius, ButtonHeight, PillRadius, Spacing } from '@/constants/theme';
 import { COUNTDOWN_WINDOW_MS, isMissed, type GoalWithStatus } from '@/data/goals';
 import { useTheme } from '@/hooks/use-theme';
 import { describeDueAt } from '@/lib/dates';
@@ -48,8 +48,6 @@ export function GoalCard({ goal, now }: GoalCardProps) {
   const missed = isMissed(goal, now);
   const over = done || missed;
   const verifying = !over && goal.submission?.status === 'pending';
-  const setback =
-    !over && (goal.submission?.status === 'rejected' || goal.submission?.status === 'failed');
   const countdown = !over && goal.dueAt - now <= COUNTDOWN_WINDOW_MS;
   const stake = describeStake(goal);
 
@@ -95,21 +93,14 @@ export function GoalCard({ goal, now }: GoalCardProps) {
               </View>
             ) : null}
           </View>
-
-          {setback ? (
-            <ThemedText type="small" themeColor="accent" numberOfLines={2}>
-              {goal.submission?.reason ?? 'Try another photo.'}
-            </ThemedText>
-          ) : null}
         </View>
       </Pressable>
 
       {done ? (
-        <ActionButton label="Done" size="small" disabled onPress={() => {}} style={styles.action} />
+        <ActionButton label="Done" disabled onPress={() => {}} style={styles.action} />
       ) : missed ? (
         <ActionButton
           label="Missed"
-          size="small"
           disabled
           onPress={() => {}}
           style={styles.action}
@@ -118,7 +109,6 @@ export function GoalCard({ goal, now }: GoalCardProps) {
         <ActionButton
           label="Verifying…"
           accessibilityLabel={`Verifying ${goal.title}`}
-          size="small"
           disabled
           onPress={() => {}}
           style={styles.action}
@@ -128,7 +118,6 @@ export function GoalCard({ goal, now }: GoalCardProps) {
           label="Submit"
           accessibilityLabel={`Submit proof for ${goal.title}`}
           variant="primary"
-          size="small"
           // `navigate` rather than `push`: a double tap must not stack two screens.
           onPress={() => router.navigate(`/goals/${goal._id}/submit`)}
           style={styles.action}
@@ -143,9 +132,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'stretch',
     gap: Spacing.three,
-    borderRadius: CardRadius,
+    borderRadius: ActionCardRadius,
     padding: Spacing.three,
-    ...CardShadow,
   },
   main: {
     flex: 1,
@@ -154,10 +142,11 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     minWidth: 0,
   },
+  // Same height as the button opposite it, and concentric with the card's corner.
   goalIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: BorderRadius,
+    width: ButtonHeight,
+    height: ButtonHeight,
+    borderRadius: ActionCardRadius - Spacing.three,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -182,7 +171,6 @@ const styles = StyleSheet.create({
   },
   action: {
     alignSelf: 'flex-start',
-    minWidth: 72,
   },
   pressed: {
     opacity: 0.7,
