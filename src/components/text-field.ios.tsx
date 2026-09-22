@@ -15,7 +15,7 @@ import { StyleSheet, View } from 'react-native';
 import type { TextFieldProps } from './text-field';
 import { ThemedText } from './themed-text';
 
-import { BorderRadius, Spacing } from '@/constants/theme';
+import { ControlHeight, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 /** Fills the RN-sized host; SwiftUI has no "infinite" over the bridge, so a large cap stands in. */
@@ -47,7 +47,7 @@ export function TextField({
 
   return (
     <View style={styles.field}>
-      <ThemedText type="smallBold" themeColor="textSecondary">
+      <ThemedText type="small" themeColor="textSecondary">
         {label}
       </ThemedText>
       <Host matchContents={{ vertical: true }}>
@@ -63,15 +63,17 @@ export function TextField({
             ),
             font({ size: 16, weight: 'medium' }),
             foregroundStyle(theme.text),
-            padding({ all: Spacing.three }),
+            // One line is a capsule the height of a button; the multiline
+            // field keeps the same corner, so it reads as the capsule grown taller.
+            padding(multiline ? { all: Spacing.three } : { horizontal: Spacing.three }),
             frame(
               multiline
                 ? { maxWidth: FILL, minHeight: 88, alignment: 'topLeading' }
-                : { maxWidth: FILL, alignment: 'leading' },
+                : { maxWidth: FILL, minHeight: ControlHeight, alignment: 'leading' },
             ),
             background(
               theme.backgroundElement,
-              shapes.roundedRectangle({ cornerRadius: BorderRadius }),
+              shapes.roundedRectangle({ cornerRadius: ControlHeight / 2 }),
             ),
           ]}
         />

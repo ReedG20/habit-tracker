@@ -8,7 +8,7 @@ import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
 import { FlameIcon, HabitIcon } from '@/constants/icons';
-import { BorderRadius, CardRadius, CardShadow, Spacing } from '@/constants/theme';
+import { ActionCardRadius, ControlHeight, Spacing } from '@/constants/theme';
 import type { HabitWithProgress } from '@/data/habits';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -58,18 +58,11 @@ export function HabitCard({ habit, deadlineAt }: HabitCardProps) {
       </Pressable>
 
       {logged ? (
-        <ActionButton
-          label="Logged"
-          size="small"
-          disabled
-          onPress={() => {}}
-          style={styles.logAction}
-        />
+        <ActionButton label="Logged" disabled onPress={() => {}} style={styles.logAction} />
       ) : verifying ? (
         <ActionButton
           label="Verifying…"
           accessibilityLabel={`Verifying ${habit.title}`}
-          size="small"
           disabled
           onPress={() => {}}
           style={styles.logAction}
@@ -79,7 +72,6 @@ export function HabitCard({ habit, deadlineAt }: HabitCardProps) {
           label="Log"
           accessibilityLabel={`Log ${habit.title}`}
           variant="primary"
-          size="small"
           // `navigate` rather than `push`: a double tap must not stack two sheets.
           onPress={() => router.navigate(`/habit/${habit._id}/verify`)}
           style={styles.logAction}
@@ -94,9 +86,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'stretch',
     gap: Spacing.three,
-    borderRadius: CardRadius,
+    borderRadius: ActionCardRadius,
     padding: Spacing.three,
-    ...CardShadow,
   },
   main: {
     flex: 1,
@@ -105,10 +96,11 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     minWidth: 0,
   },
+  // Same height as the button opposite it, and concentric with the card's corner.
   habitIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: BorderRadius,
+    width: ControlHeight,
+    height: ControlHeight,
+    borderRadius: ActionCardRadius - Spacing.three,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -129,7 +121,6 @@ const styles = StyleSheet.create({
   },
   logAction: {
     alignSelf: 'flex-start',
-    minWidth: 72,
   },
   pressed: {
     opacity: 0.7,

@@ -1,6 +1,7 @@
+import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useEffect, useSyncExternalStore } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
-import Animated, { FadeInUp, FadeOutUp } from 'react-native-reanimated';
+import Animated, { SlideInUp, SlideOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from './icon';
@@ -52,6 +53,7 @@ export function ToastHost() {
   const toast = useSyncExternalStore(subscribe, () => current);
   const insets = useSafeAreaInsets();
   const theme = useTheme();
+  const glass = isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
 
   useEffect(() => {
     if (toast === null) return;
@@ -64,14 +66,26 @@ export function ToastHost() {
   return (
     <Animated.View
       key={toast.id}
-      entering={FadeInUp}
-      exiting={FadeOutUp}
+      // Slide, not fade: glass renders nothing under a parent whose opacity animates.
+      entering={SlideInUp}
+      exiting={SlideOutUp}
       pointerEvents="box-none"
       style={[styles.host, { top: insets.top + Spacing.two }]}>
       <Pressable
         accessibilityRole="alert"
         onPress={() => dismissToast(toast.id)}
-        style={[styles.toast, { backgroundColor: theme.backgroundElement }]}>
+        style={[
+          styles.toast,
+          glass ? null : [styles.solid, { backgroundColor: theme.backgroundElement }],
+        ]}>
+        {glass ? (
+          <GlassView
+            pointerEvents="none"
+            // UIKit takes the radius literally, so it's repeated on the glass itself.
+            style={[StyleSheet.absoluteFill, styles.glass]}
+            glassEffectStyle="regular"
+          />
+        ) : null}
         <Icon
           icon={toast.tone === 'success' ? CheckmarkCircle02Icon : Alert02Icon}
           size={22}
@@ -106,6 +120,12 @@ const styles = StyleSheet.create({
     width: '100%',
     padding: Spacing.three,
     borderRadius: CardRadius,
+  },
+  glass: {
+    borderRadius: CardRadius,
+  },
+  // Off iOS 26 there is no glass, so the toast lifts off the content instead.
+  solid: {
     boxShadow: '0 4px 16px rgba(0, 0, 0, 0.12)',
   },
   text: {

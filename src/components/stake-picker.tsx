@@ -63,7 +63,7 @@ export function StakePicker({ amountCents, onChange, disabled = false }: StakePi
 
   return (
     <View style={styles.field}>
-      <ThemedText type="smallBold" themeColor="textSecondary">
+      <ThemedText type="small" themeColor="textSecondary">
         Stake
       </ThemedText>
 

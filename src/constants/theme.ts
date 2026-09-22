@@ -42,11 +42,6 @@ export const BorderRadius = 16;
 /** Cards, stat tiles, and grouped lists. */
 export const CardRadius = 24;
 
-/** A whisper of lift under every card; invisible on the dark background, which is fine. */
-export const CardShadow = {
-  boxShadow: '0 1px 6px rgba(0, 0, 0, 0.06)',
-} as const;
-
 /** Buttons and pills are capsules; liquid glass reads best that way. */
 export const PillRadius = 999;
 
@@ -100,6 +95,18 @@ export const Spacing = {
   five: 32,
   six: 64,
 } as const;
+
+/**
+ * A regular-size button (SwiftUI's `.large` glass capsule, matched by
+ * `GlassButton`) and a one-line text field, so both read as the same capsule.
+ */
+export const ControlHeight = 48;
+
+/**
+ * Cards with a button in their top-right corner. The corner is concentric
+ * with the capsule inside it: the button's radius plus the card's padding.
+ */
+export const ActionCardRadius = ControlHeight / 2 + Spacing.three;
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
