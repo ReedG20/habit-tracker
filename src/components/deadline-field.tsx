@@ -4,7 +4,7 @@ import { Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ThemedText } from './themed-text';
 
-import { BorderRadius, Spacing } from '@/constants/theme';
+import { PillRadius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDueAt } from '@/lib/dates';
 
@@ -27,7 +27,7 @@ export function DeadlineField({ value, onChange, label = 'Deadline' }: DeadlineF
   return (
     <View style={styles.field}>
       <View style={styles.row}>
-        <ThemedText type="smallBold" themeColor="textSecondary" style={styles.label}>
+        <ThemedText type="small" themeColor="textSecondary" style={styles.label}>
           {label}
         </ThemedText>
 
@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    borderRadius: BorderRadius,
+    borderRadius: PillRadius,
     borderWidth: 1,
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,

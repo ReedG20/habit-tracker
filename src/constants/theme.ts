@@ -96,14 +96,17 @@ export const Spacing = {
   six: 64,
 } as const;
 
-/** A regular-size button: SwiftUI's `.large` glass capsule, matched by `GlassButton`. */
-export const ButtonHeight = 48;
+/**
+ * A regular-size button (SwiftUI's `.large` glass capsule, matched by
+ * `GlassButton`) and a one-line text field, so both read as the same capsule.
+ */
+export const ControlHeight = 48;
 
 /**
  * Cards with a button in their top-right corner. The corner is concentric
  * with the capsule inside it: the button's radius plus the card's padding.
  */
-export const ActionCardRadius = ButtonHeight / 2 + Spacing.three;
+export const ActionCardRadius = ControlHeight / 2 + Spacing.three;
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;

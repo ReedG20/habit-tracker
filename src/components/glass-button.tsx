@@ -5,10 +5,10 @@ import type { ActionButtonProps } from './action-button.types';
 import { Icon } from './icon';
 import { ThemedText } from './themed-text';
 
-import { ButtonHeight, Spacing } from '@/constants/theme';
+import { ControlHeight, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-const REGULAR_HEIGHT = ButtonHeight;
+const REGULAR_HEIGHT = ControlHeight;
 const SMALL_HEIGHT = 36;
 
 /**

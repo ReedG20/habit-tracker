@@ -5,7 +5,7 @@ import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
 import { ThemedText } from './themed-text';
 
-import { BorderRadius, Spacing } from '@/constants/theme';
+import { ControlHeight, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type TextFieldProps = TextInputProps & {
@@ -36,7 +36,7 @@ export function TextField({
 
   return (
     <View style={styles.field}>
-      <ThemedText type="smallBold" themeColor="textSecondary">
+      <ThemedText type="small" themeColor="textSecondary">
         {label}
       </ThemedText>
       <View
@@ -64,17 +64,20 @@ const styles = StyleSheet.create({
   field: {
     gap: Spacing.one,
   },
+  // A capsule when it's one line; the multiline field keeps the same corner.
   inputWrap: {
-    borderRadius: BorderRadius,
+    borderRadius: ControlHeight / 2,
     borderWidth: 1,
   },
   input: {
-    padding: Spacing.three,
+    minHeight: ControlHeight,
+    paddingHorizontal: Spacing.three,
     fontSize: 16,
     fontWeight: 500,
   },
   multiline: {
     minHeight: 88,
+    paddingVertical: Spacing.three,
     textAlignVertical: 'top',
   },
 });

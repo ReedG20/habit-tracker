@@ -8,7 +8,7 @@ import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
 import { FlameIcon, HabitIcon } from '@/constants/icons';
-import { ActionCardRadius, ButtonHeight, Spacing } from '@/constants/theme';
+import { ActionCardRadius, ControlHeight, Spacing } from '@/constants/theme';
 import type { HabitWithProgress } from '@/data/habits';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -98,8 +98,8 @@ const styles = StyleSheet.create({
   },
   // Same height as the button opposite it, and concentric with the card's corner.
   habitIcon: {
-    width: ButtonHeight,
-    height: ButtonHeight,
+    width: ControlHeight,
+    height: ControlHeight,
     borderRadius: ActionCardRadius - Spacing.three,
     alignItems: 'center',
     justifyContent: 'center',

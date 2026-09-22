@@ -33,7 +33,10 @@ export function DeadlineField({ value, onChange, label = 'Deadline' }: DeadlineF
             frame({ maxWidth: FILL, minHeight: 44 }),
           ]}>
           <Text
-            modifiers={[font({ size: 14, weight: 'bold' }), foregroundStyle(theme.textSecondary)]}>
+            modifiers={[
+              font({ size: 14, weight: 'medium' }),
+              foregroundStyle(theme.textSecondary),
+            ]}>
             {label}
           </Text>
         </DatePicker>

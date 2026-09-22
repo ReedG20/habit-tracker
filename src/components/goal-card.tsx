@@ -8,7 +8,7 @@ import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
 import { GoalListIcon } from '@/constants/icons';
-import { ActionCardRadius, ButtonHeight, PillRadius, Spacing } from '@/constants/theme';
+import { ActionCardRadius, ControlHeight, PillRadius, Spacing } from '@/constants/theme';
 import { COUNTDOWN_WINDOW_MS, isMissed, type GoalWithStatus } from '@/data/goals';
 import { useTheme } from '@/hooks/use-theme';
 import { describeDueAt } from '@/lib/dates';
@@ -139,8 +139,8 @@ const styles = StyleSheet.create({
   },
   // Same height as the button opposite it, and concentric with the card's corner.
   goalIcon: {
-    width: ButtonHeight,
-    height: ButtonHeight,
+    width: ControlHeight,
+    height: ControlHeight,
     borderRadius: ActionCardRadius - Spacing.three,
     alignItems: 'center',
     justifyContent: 'center',
