@@ -26,6 +26,7 @@ import Logout01Icon from '@hugeicons/core-free-icons/Logout01Icon';
 import MinusSignIcon from '@hugeicons/core-free-icons/MinusSignIcon';
 import Notification01Icon from '@hugeicons/core-free-icons/Notification01Icon';
 import Settings02Icon from '@hugeicons/core-free-icons/Settings02Icon';
+import SparklesIcon from '@hugeicons/core-free-icons/SparklesIcon';
 import UserCircleIcon from '@hugeicons/core-free-icons/UserCircleIcon';
 
 export {
@@ -49,6 +50,7 @@ export {
   MinusSignIcon,
   Notification01Icon,
   Settings02Icon,
+  SparklesIcon,
   UserCircleIcon,
 };
 

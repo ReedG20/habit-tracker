@@ -62,6 +62,7 @@ bunx convex env set --prod CLERK_JWT_ISSUER_DOMAIN https://clerk.<your-domain>
 bunx convex env set --prod OPENROUTER_API_KEY sk-or-...
 bunx convex env set --prod STRIPE_SECRET_KEY sk_live_...
 bunx convex env set --prod STRIPE_WEBHOOK_SECRET whsec_...   # after step 3
+bunx convex env set --prod REVENUECAT_WEBHOOK_AUTH "Bearer $(openssl rand -hex 32)"   # see step 3b
 ```
 
 Then in the Convex dashboard → production deployment → Settings → **Deploy
@@ -120,6 +121,65 @@ The `whsec_` it prints is stable for your CLI login and is already set as
 `STRIPE_WEBHOOK_SECRET` on dev. If it ever changes, update it with
 `bunx convex env set STRIPE_WEBHOOK_SECRET ...` (no `--prod`: that targets dev).
 
+### 3b. RevenueCat and App Store subscriptions
+
+**App Store Connect** → the app → Subscriptions → group **Ante Pro**:
+
+| Product ID         | Duration | Price  | Introductory offer                |
+| ------------------ | -------- | ------ | --------------------------------- |
+| `ante_pro_monthly` | 1 month  | $7.99  | none                              |
+| `ante_pro_annual`  | 1 year   | $49.99 | Free trial, 1 week, all countries |
+
+Each needs a localization and a review screenshot before it reads "Ready to
+Submit"; the SDK returns nothing for a product without one, so the paywall
+falls back to "Plans aren't available right now". The group itself also needs a
+display name localization. The Paid Apps agreement must be signed.
+
+Keep both subscriptions at the **same level** in the group. Level 1 is the
+highest service tier, so leaving monthly above annual makes monthly → annual a
+_downgrade_ (deferred to the end of the paid month) and annual → monthly an
+_upgrade_ (immediate, prorated) — backwards. Same level makes either switch a
+crossgrade that takes effect at the next renewal.
+
+Under Users and Access → Integrations, create an **In-App Purchase** key and
+note the app-specific shared secret for RevenueCat. Create a Sandbox tester
+(Users and Access → Sandbox) for device testing.
+
+**RevenueCat dashboard** → project **Ante** → iOS app `com.useanteapp.ante`
+(upload the In-App Purchase key):
+
+- Products: import both product IDs from App Store Connect.
+- Entitlements: `ante_pro`, with both products attached. The code reads exactly
+  this identifier (`PRO_ENTITLEMENT`).
+- Offerings: `default` (marked current) with packages `$rc_monthly` →
+  `ante_pro_monthly` and `$rc_annual` → `ante_pro_annual`. The paywall reads
+  `offering.monthly` / `offering.annual`.
+- The app's **public API key** (`appl_...`) goes into
+  `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` in every EAS environment (step 4) and
+  `.env.local`.
+- Integrations → Webhooks → two webhooks, both with Authorization header set
+  to the exact `REVENUECAT_WEBHOOK_AUTH` value of the deployment they target:
+  - **Sandbox** events only → `https://cool-kiwi-961.convex.site/revenuecat/webhook`
+  - **Production** events only → `https://whimsical-labrador-585.convex.site/revenuecat/webhook`
+
+  Send a test event from the dashboard; the Convex logs show a 200 and a
+  `TEST` row lands in `revenuecatEvents`. Webhooks are gated by RevenueCat's
+  plan: without them the client still knows it is Pro from the SDK, but the
+  Convex `subscriptions` mirror (and anything the server gates on it) stays
+  empty.
+
+Real StoreKit sandbox purchases need a **development build on a device**
+signed into a Sandbox Apple ID (Settings → App Store → Sandbox Account), and a
+product Apple still lists as "Missing Metadata" is not returned at all — the
+paywall then shows its "Plans aren't available" state. An OTA update cannot add
+the native module to an existing build either.
+
+For day-to-day work on the paywall, set `EXPO_PUBLIC_REVENUECAT_TEST_API_KEY`
+in `.env.local` instead (see `.env.example`): the **Test Store** sells the same
+offerings and entitlements in the simulator, with no App Store Connect products
+involved, and its success/failure/cancel modal makes the error paths easy to
+exercise. Test subscriptions renew five times and then cancel themselves.
+
 ### 4. EAS production environment
 
 expo.dev → project → **Environment variables** → `production`. `eas update
@@ -130,6 +190,7 @@ expo.dev → project → **Environment variables** → `production`. `eas update
 | `EXPO_PUBLIC_CONVEX_URL`                  | `https://<prod-deployment>.convex.cloud` | plain      |
 | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY`       | `pk_live_...`                            | plain      |
 | `EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY`      | `pk_live_...`                            | plain      |
+| `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY`      | `appl_...` (same in every environment)   | plain      |
 | `EXPO_PUBLIC_CLERK_GOOGLE_WEB_CLIENT_ID`  | as in `development`                      | plain      |
 | `EXPO_PUBLIC_CLERK_GOOGLE_IOS_CLIENT_ID`  | as in `development`                      | plain      |
 | `EXPO_PUBLIC_CLERK_GOOGLE_IOS_URL_SCHEME` | as in `development`                      | plain      |

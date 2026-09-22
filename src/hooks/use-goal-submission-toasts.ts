@@ -37,7 +37,7 @@ export function useGoalSubmissionToasts(goals: GoalWithStatus[] | undefined) {
         } else if (before === 'pending' && goal.completedAt !== undefined) {
           // An approval completes the goal, and a completed goal carries no
           // submission summary, so this is what an approval looks like here.
-          showToast(`${goal.title} is done`, 'Proof accepted. Nice work.');
+          showToast(`${goal.title} is done`, 'Proof accepted. Nice work.', 'success');
         }
       }
     }

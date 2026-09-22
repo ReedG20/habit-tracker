@@ -84,6 +84,13 @@ export function formatDueAt(dueAt: number): string {
   return dueAtFormat.format(new Date(dueAt));
 }
 
+const shortDateFormat = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
+
+/** "Oct 3" — a date without a time, for renewal and expiry lines. */
+export function formatShortDate(at: number): string {
+  return shortDateFormat.format(new Date(at));
+}
+
 function pluralize(count: number, unit: string): string {
   return `${count} ${unit}${count === 1 ? '' : 's'}`;
 }
