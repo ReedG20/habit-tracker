@@ -26,6 +26,14 @@ const app = defineApp({
      *   bunx convex env set STRIPE_WEBHOOK_SECRET whsec_...
      */
     STRIPE_WEBHOOK_SECRET: v.string(),
+    /**
+     * The exact `Authorization` header RevenueCat sends to `/revenuecat/webhook`
+     * (`http.ts`). Any long random value; paste the same string into the
+     * RevenueCat dashboard → Integrations → Webhooks → Authorization header.
+     * Set with:
+     *   bunx convex env set REVENUECAT_WEBHOOK_AUTH "Bearer $(openssl rand -hex 32)"
+     */
+    REVENUECAT_WEBHOOK_AUTH: v.string(),
   },
 });
 

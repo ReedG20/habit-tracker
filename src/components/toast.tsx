@@ -6,14 +6,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from './icon';
 import { ThemedText } from './themed-text';
 
-import { Alert02Icon } from '@/constants/icons';
+import { Alert02Icon, CheckmarkCircle02Icon } from '@/constants/icons';
 import { CardRadius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+
+/** `alert` is the default because most toasts report something going wrong. */
+export type ToastTone = 'alert' | 'success';
 
 export type Toast = {
   id: number;
   title: string;
   message?: string;
+  tone: ToastTone;
 };
 
 const DISMISS_AFTER_MS = 6_000;
@@ -27,8 +31,8 @@ function emit() {
   for (const listener of listeners) listener();
 }
 
-export function showToast(title: string, message?: string) {
-  current = { id: nextId++, title, message };
+export function showToast(title: string, message?: string, tone: ToastTone = 'alert') {
+  current = { id: nextId++, title, message, tone };
   emit();
 }
 
@@ -68,7 +72,11 @@ export function ToastHost() {
         accessibilityRole="alert"
         onPress={() => dismissToast(toast.id)}
         style={[styles.toast, { backgroundColor: theme.backgroundElement }]}>
-        <Icon icon={Alert02Icon} size={22} color={theme.accent} />
+        <Icon
+          icon={toast.tone === 'success' ? CheckmarkCircle02Icon : Alert02Icon}
+          size={22}
+          color={toast.tone === 'success' ? theme.primary : theme.accent}
+        />
         <ThemedText style={styles.text}>
           <ThemedText type="smallSemibold">{toast.title}</ThemedText>
           {toast.message ? (

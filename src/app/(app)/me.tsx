@@ -2,8 +2,9 @@ import { useClerk, useUser } from '@clerk/expo';
 import type { IconSvgElement } from '@hugeicons/react-native';
 import { useQuery } from 'convex/react';
 import Constants from 'expo-constants';
+import { router } from 'expo-router';
 import * as Updates from 'expo-updates';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { Icon } from '@/components/icon';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
@@ -14,6 +15,7 @@ import {
   Logout01Icon,
   Notification01Icon,
   Settings02Icon,
+  SparklesIcon,
   UserCircleIcon,
 } from '@/constants/icons';
 import {
@@ -25,8 +27,12 @@ import {
 } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { currentStreak } from '@/data/habits';
+import { describeSubscription } from '@/data/subscription';
+import { useNow } from '@/hooks/use-now';
+import { useSubscription } from '@/hooks/use-subscription';
 import { useTheme } from '@/hooks/use-theme';
 import { todayKey } from '@/lib/dates';
+import { manageSubscriptionsUrl, revenueCatSupported } from '@/lib/revenuecat';
 
 const settings: { id: string; label: string; icon: IconSvgElement }[] = [
   { id: 'reminders', label: 'Reminders', icon: Notification01Icon },
@@ -61,6 +67,8 @@ export default function MeScreen() {
   const { signOut } = useClerk();
   const habits = useQuery(api.habits.list, { today: todayKey() });
   const loggedCount = useQuery(api.habits.loggedCount);
+  const { isPro, summary } = useSubscription();
+  const now = useNow();
 
   const displayName =
     user?.firstName ?? user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? 'You';
@@ -105,13 +113,38 @@ export default function MeScreen() {
       </View>
 
       <ThemedView type="backgroundElement" style={styles.settingsGroup}>
+        {/* Hidden where there is no store: nothing to buy or manage on web. */}
+        {revenueCatSupported && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Ante Pro"
+            // Apple owns cancellation and plan changes; the paywall only sells.
+            // In a debug build it stays reachable while subscribed so it can
+            // still be worked on — and Apple's screen does nothing in a
+            // simulator regardless.
+            onPress={() =>
+              isPro && !__DEV__ ? void Linking.openURL(manageSubscriptionsUrl) : router.push('/pro')
+            }
+            style={({ pressed }) => [styles.settingRow, pressed && styles.pressed]}>
+            <Icon icon={SparklesIcon} size={22} themeColor="primary" />
+            <ThemedText style={styles.settingLabel}>Ante Pro</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              {describeSubscription(summary, now)}
+            </ThemedText>
+            <Icon icon={ArrowRight01Icon} size={18} themeColor="textSecondary" />
+          </Pressable>
+        )}
+
         {settings.map((setting, index) => (
           <Pressable
             key={setting.id}
             accessibilityRole="button"
             style={({ pressed }) => [
               styles.settingRow,
-              index > 0 && { borderTopWidth: 1, borderTopColor: theme.border },
+              (index > 0 || revenueCatSupported) && {
+                borderTopWidth: 1,
+                borderTopColor: theme.border,
+              },
               pressed && styles.pressed,
             ]}>
             <Icon icon={setting.icon} size={22} themeColor="textSecondary" />

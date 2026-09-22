@@ -37,6 +37,22 @@ export const stakeValidator = v.object({
   disputedAt: v.optional(v.number()),
 });
 
+/**
+ * What the settings row displays, not what grants access: a `cancelled`
+ * subscription keeps Pro until `expiresAt`, and a `billing_issue` keeps it
+ * through Apple's grace period (RevenueCat extends `expiresAt` for that).
+ * Access is always "`expiresAt` is in the future" (`lib/entitlements.ts`).
+ */
+export const subscriptionStatusValidator = v.union(
+  v.literal('trial'),
+  v.literal('active'),
+  v.literal('cancelled'),
+  v.literal('billing_issue'),
+  /** Play Store only. */
+  v.literal('paused'),
+  v.literal('expired'),
+);
+
 export const submissionStatusValidator = v.union(
   v.literal('pending'),
   v.literal('approved'),
@@ -148,6 +164,45 @@ export default defineSchema({
    * the id in the same transaction as the state change it causes.
    */
   stripeEvents: defineTable({
+    eventId: v.string(),
+    type: v.string(),
+    receivedAt: v.number(),
+  }).index('by_event_id', ['eventId']),
+
+  /**
+   * Mirror of the user's RevenueCat subscription, one row per user, written
+   * only by the `/revenuecat/webhook` handler (`revenuecat.ts`). The client
+   * also reads the SDK's CustomerInfo, so this row is for server-side checks
+   * and lags a purchase by however long the webhook takes.
+   */
+  subscriptions: defineTable({
+    userId: v.id('users'),
+    status: subscriptionStatusValidator,
+    /** `ante_pro_monthly` | `ante_pro_annual`; what the user last bought or changed to. */
+    productId: v.string(),
+    /** RevenueCat's `store` (APP_STORE, PLAY_STORE, ...); a string so a new value cannot break the webhook. */
+    store: v.string(),
+    /** RevenueCat's `period_type`: TRIAL, INTRO, NORMAL, PROMOTIONAL, PREPAID. */
+    periodType: v.string(),
+    environment: v.union(v.literal('SANDBOX'), v.literal('PRODUCTION')),
+    purchasedAt: v.number(),
+    /** Absent only for grants that never expire. */
+    expiresAt: v.optional(v.number()),
+    willRenew: v.boolean(),
+    /** Set by PRODUCT_CHANGE; the switch itself lands as a later RENEWAL. */
+    pendingProductId: v.optional(v.string()),
+    cancelReason: v.optional(v.string()),
+    expirationReason: v.optional(v.string()),
+    /** The `app_user_id` on the last event, for tracing aliases and transfers. */
+    rcAppUserId: v.string(),
+    /** `event_timestamp_ms` of the newest event applied; older deliveries are dropped. */
+    lastEventAt: v.number(),
+    lastEventType: v.string(),
+    updatedAt: v.number(),
+  }).index('by_user', ['userId']),
+
+  /** Same role as `stripeEvents`: RevenueCat retries until 2xx and may deliver twice. */
+  revenuecatEvents: defineTable({
     eventId: v.string(),
     type: v.string(),
     receivedAt: v.number(),

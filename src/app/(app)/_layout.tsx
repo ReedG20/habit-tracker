@@ -5,17 +5,27 @@ import { StyleSheet, View } from 'react-native';
 import AppTabs from '@/components/app-tabs';
 import { ToastHost } from '@/components/toast';
 import { api } from '@/convex/_generated/api';
+import { logInRevenueCat, logOutRevenueCat } from '@/lib/revenuecat';
 
 export default function AppLayout() {
   const storeUser = useMutation(api.users.storeUser);
 
   // This layout only mounts behind the authenticated guard, so the identity is
   // always present. Queries tolerate the user row not existing yet and
-  // re-resolve on their own once it lands.
+  // re-resolve on their own once it lands. The user id is also RevenueCat's
+  // customer id; unmounting means sign-out, which hands the device back to an
+  // anonymous customer.
   useEffect(() => {
-    storeUser().catch((error: unknown) => {
-      console.error('Failed to store the signed-in user', error);
-    });
+    let cancelled = false;
+    storeUser()
+      .then((userId) => (cancelled ? undefined : logInRevenueCat(userId)))
+      .catch((error: unknown) => {
+        console.error('Failed to store the signed-in user', error);
+      });
+    return () => {
+      cancelled = true;
+      void logOutRevenueCat();
+    };
   }, [storeUser]);
 
   return (

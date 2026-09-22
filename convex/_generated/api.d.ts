@@ -15,9 +15,12 @@ import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_customFunctions from "../lib/customFunctions.js";
 import type * as lib_days from "../lib/days.js";
+import type * as lib_entitlements from "../lib/entitlements.js";
 import type * as lib_stripe from "../lib/stripe.js";
 import type * as lib_vision from "../lib/vision.js";
+import type * as revenuecat from "../revenuecat.js";
 import type * as stripe from "../stripe.js";
+import type * as subscriptions from "../subscriptions.js";
 import type * as users from "../users.js";
 import type * as verifications from "../verifications.js";
 
@@ -35,9 +38,12 @@ declare const fullApi: ApiFromModules<{
   "lib/auth": typeof lib_auth;
   "lib/customFunctions": typeof lib_customFunctions;
   "lib/days": typeof lib_days;
+  "lib/entitlements": typeof lib_entitlements;
   "lib/stripe": typeof lib_stripe;
   "lib/vision": typeof lib_vision;
+  revenuecat: typeof revenuecat;
   stripe: typeof stripe;
+  subscriptions: typeof subscriptions;
   users: typeof users;
   verifications: typeof verifications;
 }>;

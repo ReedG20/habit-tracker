@@ -11,6 +11,8 @@ import { useColorScheme } from 'react-native';
 
 import { StripeProvider } from '@/components/stripe-provider';
 import { sectionHeadingFontFamily, wisdomFontFamily } from '@/constants/custom-fonts';
+import { sheetScreenOptions } from '@/constants/sheet-screen-options';
+import { configureRevenueCat } from '@/lib/revenuecat';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -32,6 +34,10 @@ if (!convexUrl) {
 }
 
 const convex = new ConvexReactClient(convexUrl, { unsavedChangesWarning: false });
+
+// At module scope rather than in an effect: child effects run before parent
+// effects, so the authenticated layout's `logIn` would otherwise beat `configure`.
+configureRevenueCat();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -81,6 +87,12 @@ function RootNavigator() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Protected guard={isAuthenticated}>
         <Stack.Screen name="(app)" />
+        {/* In the root stack so it can open over the tab bar from any tab. */}
+        <Stack.Screen
+          name="pro"
+          // Taller than the form sheets: two plan cards plus the legal line.
+          options={{ ...sheetScreenOptions, sheetAllowedDetents: [0.9] }}
+        />
       </Stack.Protected>
 
       <Stack.Protected guard={!isAuthenticated}>
