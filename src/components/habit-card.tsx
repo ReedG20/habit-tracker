@@ -58,12 +58,7 @@ export function HabitCard({ habit, deadlineAt }: HabitCardProps) {
       </Pressable>
 
       {logged ? (
-        <ActionButton
-          label="Logged"
-          disabled
-          onPress={() => {}}
-          style={styles.logAction}
-        />
+        <ActionButton label="Logged" disabled onPress={() => {}} style={styles.logAction} />
       ) : verifying ? (
         <ActionButton
           label="Verifying…"

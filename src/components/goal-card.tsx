@@ -99,12 +99,7 @@ export function GoalCard({ goal, now }: GoalCardProps) {
       {done ? (
         <ActionButton label="Done" disabled onPress={() => {}} style={styles.action} />
       ) : missed ? (
-        <ActionButton
-          label="Missed"
-          disabled
-          onPress={() => {}}
-          style={styles.action}
-        />
+        <ActionButton label="Missed" disabled onPress={() => {}} style={styles.action} />
       ) : verifying ? (
         <ActionButton
           label="Verifying…"

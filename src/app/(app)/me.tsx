@@ -18,12 +18,7 @@ import {
   SparklesIcon,
   UserCircleIcon,
 } from '@/constants/icons';
-import {
-  CardRadius,
-  PillRadius,
-  ScreenHeadingTypography,
-  Spacing,
-} from '@/constants/theme';
+import { CardRadius, PillRadius, ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { currentStreak } from '@/data/habits';
 import { describeSubscription } from '@/data/subscription';
