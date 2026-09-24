@@ -2,7 +2,6 @@ import { ClerkProvider, useAuth } from '@clerk/expo';
 import { tokenCache } from '@clerk/expo/token-cache';
 import { ConvexReactClient, useConvexAuth } from 'convex/react';
 import { ConvexProviderWithClerk } from 'convex/react-clerk';
-import { YujiBoku_400Regular } from '@expo-google-fonts/yuji-boku';
 import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -10,9 +9,10 @@ import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 
 import { StripeProvider } from '@/components/stripe-provider';
-import { sectionHeadingFontFamily, wisdomFontFamily } from '@/constants/custom-fonts';
+import { wisdomFontFamily } from '@/constants/custom-fonts';
 import { sheetScreenOptions } from '@/constants/sheet-screen-options';
 import { configureRevenueCat } from '@/lib/revenuecat';
+import { loadThemePreference } from '@/lib/theme-preference';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -39,12 +39,14 @@ const convex = new ConvexReactClient(convexUrl, { unsavedChangesWarning: false }
 // effects, so the authenticated layout's `logIn` would otherwise beat `configure`.
 configureRevenueCat();
 
+// Before the first render, so a forced light or dark scheme never flashes the system one.
+loadThemePreference();
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   const [fontsLoaded, fontError] = useFonts({
     [wisdomFontFamily]: require('@/assets/fonts/Comico-Regular.otf'),
-    [sectionHeadingFontFamily]: YujiBoku_400Regular,
   });
 
   if (!fontsLoaded && !fontError) {
@@ -92,6 +94,10 @@ function RootNavigator() {
           name="pro"
           // Taller than the form sheets: two plan cards plus the legal line.
           options={{ ...sheetScreenOptions, sheetAllowedDetents: [0.9] }}
+        />
+        <Stack.Screen
+          name="preferences"
+          options={{ ...sheetScreenOptions, sheetAllowedDetents: [0.22] }}
         />
       </Stack.Protected>
 

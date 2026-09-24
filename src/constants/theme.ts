@@ -7,7 +7,7 @@ import '@/global.css';
 
 import { Platform } from 'react-native';
 
-import { sectionHeadingFontFamily, wisdomFontFamily } from '@/constants/custom-fonts';
+import { wisdomFontFamily } from '@/constants/custom-fonts';
 
 export const Colors = {
   light: {
@@ -76,7 +76,8 @@ const systemFonts = Platform.select({
 export const Fonts = {
   ...systemFonts,
   wisdom: wisdomFontFamily,
-  sectionHeading: sectionHeadingFontFamily,
+  /** Section and sheet titles; same face as the screen headings. */
+  sectionHeading: wisdomFontFamily,
 };
 
 /** Top-of-screen title on Home and Me (Comico). */

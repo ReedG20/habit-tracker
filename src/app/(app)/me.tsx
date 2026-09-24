@@ -28,9 +28,9 @@ import { useTheme } from '@/hooks/use-theme';
 import { todayKey } from '@/lib/dates';
 import { manageSubscriptionsUrl, revenueCatSupported } from '@/lib/revenuecat';
 
-const settings: { id: string; label: string; icon: IconSvgElement }[] = [
+const settings: { id: string; label: string; icon: IconSvgElement; href?: '/preferences' }[] = [
   { id: 'reminders', label: 'Reminders', icon: Notification01Icon },
-  { id: 'preferences', label: 'Preferences', icon: Settings02Icon },
+  { id: 'preferences', label: 'Preferences', icon: Settings02Icon, href: '/preferences' },
 ];
 
 function formatStreak(days: number): string {
@@ -129,10 +129,11 @@ export default function MeScreen() {
           </Pressable>
         )}
 
-        {settings.map((setting, index) => (
+        {settings.map(({ href, ...setting }, index) => (
           <Pressable
             key={setting.id}
             accessibilityRole="button"
+            onPress={href && (() => router.push(href))}
             style={({ pressed }) => [
               styles.settingRow,
               (index > 0 || revenueCatSupported) && {
