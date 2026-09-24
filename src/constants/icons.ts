@@ -22,11 +22,15 @@ import FlameIcon from '@hugeicons/core-free-icons/FlameIcon';
 import GoalIcon from '@hugeicons/core-free-icons/GoalIcon';
 import GoogleIcon from '@hugeicons/core-free-icons/GoogleIcon';
 import Image01Icon from '@hugeicons/core-free-icons/Image01Icon';
+import Location01Icon from '@hugeicons/core-free-icons/Location01Icon';
+import LockIcon from '@hugeicons/core-free-icons/LockIcon';
 import Logout01Icon from '@hugeicons/core-free-icons/Logout01Icon';
 import MinusSignIcon from '@hugeicons/core-free-icons/MinusSignIcon';
 import Notification01Icon from '@hugeicons/core-free-icons/Notification01Icon';
 import Settings02Icon from '@hugeicons/core-free-icons/Settings02Icon';
 import SparklesIcon from '@hugeicons/core-free-icons/SparklesIcon';
+import Tick02Icon from '@hugeicons/core-free-icons/Tick02Icon';
+import Timer02Icon from '@hugeicons/core-free-icons/Timer02Icon';
 import UserCircleIcon from '@hugeicons/core-free-icons/UserCircleIcon';
 
 export {
@@ -46,11 +50,15 @@ export {
   GoalIcon,
   GoogleIcon,
   Image01Icon,
+  Location01Icon,
+  LockIcon,
   Logout01Icon,
   MinusSignIcon,
   Notification01Icon,
   Settings02Icon,
   SparklesIcon,
+  Tick02Icon,
+  Timer02Icon,
   UserCircleIcon,
 };
 

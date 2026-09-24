@@ -7,7 +7,7 @@ import '@/global.css';
 
 import { Platform } from 'react-native';
 
-import { wisdomFontFamily } from '@/constants/custom-fonts';
+import { noteFontFamily, wisdomFontFamily } from '@/constants/custom-fonts';
 
 export const Colors = {
   light: {
@@ -78,6 +78,8 @@ export const Fonts = {
   wisdom: wisdomFontFamily,
   /** Section and sheet titles; same face as the screen headings. */
   sectionHeading: wisdomFontFamily,
+  /** Handwritten asides to the user in the commitment flow. */
+  note: noteFontFamily,
 };
 
 /** Top-of-screen title on Home and Me (Comico). */

@@ -1,3 +1,4 @@
+import { Mansalva_400Regular } from '@expo-google-fonts/mansalva';
 import { ClerkProvider, useAuth } from '@clerk/expo';
 import { tokenCache } from '@clerk/expo/token-cache';
 import { ConvexReactClient, useConvexAuth } from 'convex/react';
@@ -6,11 +7,11 @@ import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
 
 import { StripeProvider } from '@/components/stripe-provider';
-import { wisdomFontFamily } from '@/constants/custom-fonts';
+import { noteFontFamily, wisdomFontFamily } from '@/constants/custom-fonts';
 import { sheetScreenOptions } from '@/constants/sheet-screen-options';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { configureRevenueCat } from '@/lib/revenuecat';
 import { loadThemePreference } from '@/lib/theme-preference';
 
@@ -47,6 +48,7 @@ export default function RootLayout() {
 
   const [fontsLoaded, fontError] = useFonts({
     [wisdomFontFamily]: require('@/assets/fonts/Comico-Regular.otf'),
+    [noteFontFamily]: Mansalva_400Regular,
   });
 
   if (!fontsLoaded && !fontError) {
@@ -99,6 +101,8 @@ function RootNavigator() {
           name="preferences"
           options={{ ...sheetScreenOptions, sheetAllowedDetents: [0.22] }}
         />
+        {/* Making a commitment takes over the screen: no tabs, no swipe away mid-contract. */}
+        <Stack.Screen name="new" options={{ presentation: 'fullScreenModal' }} />
       </Stack.Protected>
 
       <Stack.Protected guard={!isAuthenticated}>

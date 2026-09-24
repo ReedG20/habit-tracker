@@ -1,9 +1,19 @@
 import { StyleSheet, View } from 'react-native';
 
-import { ThemePicker } from '@/components/theme-picker';
+import { SegmentedPicker } from '@/components/segmented-picker';
 import { ThemedText } from '@/components/themed-text';
 import { Fonts, Spacing } from '@/constants/theme';
-import { setThemePreference, useThemePreference } from '@/lib/theme-preference';
+import {
+  setThemePreference,
+  useThemePreference,
+  type ThemePreference,
+} from '@/lib/theme-preference';
+
+const themeOptions: { value: ThemePreference; label: string }[] = [
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+];
 
 export default function PreferencesScreen() {
   const themePreference = useThemePreference();
@@ -18,7 +28,11 @@ export default function PreferencesScreen() {
         <ThemedText type="small" themeColor="textSecondary">
           Appearance
         </ThemedText>
-        <ThemePicker value={themePreference} onChange={setThemePreference} />
+        <SegmentedPicker
+          options={themeOptions}
+          value={themePreference}
+          onChange={setThemePreference}
+        />
       </View>
     </View>
   );
