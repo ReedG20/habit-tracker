@@ -7,3 +7,6 @@
 
 /** `fontFamily` value for the Habits wisdom heading (must match the `useFonts` key in `_layout.tsx`). */
 export const wisdomFontFamily = 'Comico-Regular';
+
+/** `fontFamily` for handwritten notes to the user (Mansalva, from `@expo-google-fonts/mansalva`). */
+export const noteFontFamily = 'Mansalva';

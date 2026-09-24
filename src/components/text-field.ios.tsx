@@ -35,6 +35,7 @@ export function TextField({
   multiline,
   autoCapitalize,
   readValueRef,
+  onFocusChange,
 }: TextFieldProps) {
   const theme = useTheme();
   const text = useNativeState(defaultValue ?? '');
@@ -56,6 +57,7 @@ export function TextField({
           placeholder={placeholder}
           axis={multiline ? 'vertical' : 'horizontal'}
           onTextChange={onChangeText}
+          onFocusChange={onFocusChange}
           modifiers={[
             textFieldStyle('plain'),
             textInputAutocapitalization(

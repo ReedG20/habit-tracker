@@ -40,9 +40,12 @@ function write(preference: ThemePreference) {
 /**
  * `Appearance.setColorScheme` overrides the whole app, native views included
  * (UIKit's `overrideUserInterfaceStyle`), and `useColorScheme` follows it, so
- * nothing downstream needs to know a preference exists.
+ * nothing downstream needs to know a preference exists. React Native Web has
+ * no such override; the web `useColorScheme` reads the preference instead.
  */
 function apply(preference: ThemePreference) {
+  // Missing on web, including the static server render.
+  if (typeof Appearance.setColorScheme !== 'function') return;
   Appearance.setColorScheme(preference === 'system' ? 'unspecified' : preference);
 }
 

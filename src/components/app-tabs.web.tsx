@@ -19,11 +19,11 @@ export default function AppTabs() {
       <TabSlot style={{ height: '100%' }} />
       <TabList asChild>
         <CustomTabList>
-          <TabTrigger name="habits" href="/" asChild>
-            <TabButton>Habits</TabButton>
+          <TabTrigger name="today" href="/" asChild>
+            <TabButton>Today</TabButton>
           </TabTrigger>
-          <TabTrigger name="goals" href="/goals" asChild>
-            <TabButton>Goals</TabButton>
+          <TabTrigger name="commitments" href="/commitments" asChild>
+            <TabButton>Commitments</TabButton>
           </TabTrigger>
           <TabTrigger name="me" href="/me" asChild>
             <TabButton>Me</TabButton>

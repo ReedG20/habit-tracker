@@ -12,16 +12,16 @@ export default function AppTabs() {
       backgroundColor={colors.background}
       indicatorColor={colors.backgroundElement}
       labelStyle={{ selected: { color: colors.text } }}>
-      <NativeTabs.Trigger name="(habits)">
-        <NativeTabs.Trigger.Label>Habits</NativeTabs.Trigger.Label>
+      <NativeTabs.Trigger name="(today)">
+        <NativeTabs.Trigger.Label>Today</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           src={require('@/assets/images/tabIcons/habits.png')}
           renderingMode="template"
         />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="(goals)">
-        <NativeTabs.Trigger.Label>Goals</NativeTabs.Trigger.Label>
+      <NativeTabs.Trigger name="(commitments)">
+        <NativeTabs.Trigger.Label>Commitments</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           src={require('@/assets/images/tabIcons/goals.png')}
           renderingMode="template"

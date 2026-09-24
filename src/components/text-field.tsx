@@ -16,6 +16,8 @@ export type TextFieldProps = TextInputProps & {
    * flight (the SwiftUI field delivers change events asynchronously).
    */
   readValueRef?: MutableRefObject<(() => string) | null>;
+  /** Fires when the field gains or loses focus; the same on the SwiftUI field. */
+  onFocusChange?: (focused: boolean) => void;
 };
 
 export function TextField({
@@ -25,6 +27,7 @@ export function TextField({
   defaultValue,
   onChangeText,
   readValueRef,
+  onFocusChange,
   ...rest
 }: TextFieldProps) {
   const theme = useTheme();
@@ -53,6 +56,8 @@ export function TextField({
             latest.current = value;
             onChangeText?.(value);
           }}
+          onFocus={() => onFocusChange?.(true)}
+          onBlur={() => onFocusChange?.(false)}
           {...rest}
         />
       </View>

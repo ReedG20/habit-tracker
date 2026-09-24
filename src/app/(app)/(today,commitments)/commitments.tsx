@@ -4,41 +4,58 @@ import { StyleSheet, View } from 'react-native';
 
 import { EmptyState } from '@/components/empty-state';
 import { GoalCard } from '@/components/goal-card';
+import { HabitCard } from '@/components/habit-card';
 import { HeaderAddButton } from '@/components/header-add-button';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { GoalListIcon } from '@/constants/icons';
 import { Fonts, ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
-import { groupGoals } from '@/data/goals';
-import { useGoalSubmissionToasts } from '@/hooks/use-goal-submission-toasts';
+import { groupGoals, type GoalWithStatus } from '@/data/goals';
+import type { HabitWithProgress } from '@/data/habits';
 import { useNow } from '@/hooks/use-now';
+import { todayKey } from '@/lib/dates';
 
-export default function GoalsScreen() {
+type Section =
+  | { id: 'goals'; title: string; items: GoalWithStatus[] }
+  | { id: 'habits'; title: string; items: HabitWithProgress[] };
+
+export default function CommitmentsScreen() {
   // Refreshed once a minute so "due in 3 hours" and "missed" roll over on their own.
   const now = useNow();
   const goals = useQuery(api.goals.list);
-  const sections = goals ? groupGoals(goals, now) : undefined;
+  const habits = useQuery(api.habits.list, { today: todayKey() });
 
-  useGoalSubmissionToasts(goals);
+  // Goals first, in their active, missed, done order; then every habit.
+  const sections: Section[] | undefined =
+    goals && habits
+      ? [
+          {
+            id: 'goals' as const,
+            title: 'goals',
+            items: groupGoals(goals, now).flatMap((section) => section.items),
+          },
+          { id: 'habits' as const, title: 'habits', items: habits },
+        ].filter((section) => section.items.length > 0)
+      : undefined;
 
   return (
     <ScreenScrollView>
       <View style={styles.header}>
         <ThemedText style={styles.title} themeColor="text">
-          Goals
+          Commitments
         </ThemedText>
         <ThemedText themeColor="textSecondary">
-          One-off commitments with a deadline. Put money on one to make it real.
+          Goals with a deadline and the habits you keep every day.
         </ThemedText>
-        <HeaderAddButton label="New" onPress={() => router.push('/goals/new')} />
+        <HeaderAddButton label="New" onPress={() => router.push('/new')} />
       </View>
 
       <View style={styles.sections}>
         {sections?.length === 0 ? (
           <EmptyState
             icon={GoalListIcon}
-            message="No goals yet. Tap New to set one — and put money on it."
+            message="Nothing yet. Tap New to add a habit or a goal."
           />
         ) : null}
 
@@ -48,9 +65,9 @@ export default function GoalsScreen() {
               {section.title}
             </ThemedText>
             <View style={styles.list}>
-              {section.items.map((goal) => (
-                <GoalCard key={goal._id} goal={goal} now={now} />
-              ))}
+              {section.id === 'goals'
+                ? section.items.map((goal) => <GoalCard key={goal._id} goal={goal} now={now} />)
+                : section.items.map((habit) => <HabitCard key={habit._id} habit={habit} />)}
             </View>
           </View>
         ))}

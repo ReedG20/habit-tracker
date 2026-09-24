@@ -1,0 +1,23 @@
+diff --git a/ios/TextFieldView.swift b/ios/TextFieldView.swift
+index ec381d1ac16a287283d1a0e116cc91018c7ba070..ac5588665fe1bc580c8e1233f1b9d46227a9f9b9 100644
+--- a/ios/TextFieldView.swift
++++ b/ios/TextFieldView.swift
+@@ -77,9 +77,17 @@ struct TextFieldView: ExpoSwiftUI.View, ExpoSwiftUI.FocusableView {
+       .first
+   }
+ 
++  // iOS 27 draws nothing for SwiftUI's selection-bound `TextField`: no text,
++  // placeholder or modifiers, only a caret. The plain initializer renders
++  // fine and only loses selection sync, so fall back to it there.
++  static var selectionFieldIsBroken: Bool {
++    if #available(iOS 27.0, *) { return true }
++    return false
++  }
++
+   var body: some View {
+ #if !os(tvOS)
+-    if #available(iOS 18.0, macOS 15.0, *) {
++    if #available(iOS 18.0, macOS 15.0, *), !Self.selectionFieldIsBroken {
+       StatefulSelectableTextField(
+         state: props.text,
+         selection: props.selection,

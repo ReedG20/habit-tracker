@@ -1,3 +1,4 @@
+import type { Ref } from 'react';
 import { Platform, ScrollView, StyleSheet, type ScrollViewProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -11,7 +12,10 @@ import { useTheme } from '@/hooks/use-theme';
  * with zero insets), which left content under the status bar. Padding is
  * plain layout, so it always lands.
  */
-export function ScreenScrollView({ contentContainerStyle, ...rest }: ScrollViewProps) {
+export function ScreenScrollView({
+  contentContainerStyle,
+  ...rest
+}: ScrollViewProps & { ref?: Ref<ScrollView> }) {
   const safeAreaInsets = useSafeAreaInsets();
   const theme = useTheme();
 

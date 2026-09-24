@@ -1,10 +1,13 @@
+import { isMissed, type GoalWithStatus } from '@/data/goals';
 import type { HabitWithProgress } from '@/data/habits';
 import { endOfDay } from '@/lib/dates';
 
-/** `deadlineAt` is set on urgent items only: the card counts down to it. */
-export type HomeItem = { habit: HabitWithProgress; deadlineAt?: number };
+/** `deadlineAt` is set on urgent habits only: the card counts down to it. */
+export type HomeItem =
+  | { kind: 'habit'; habit: HabitWithProgress; deadlineAt?: number }
+  | { kind: 'goal'; goal: GoalWithStatus };
 
-export type HomeSectionId = 'urgent' | 'habits';
+export type HomeSectionId = 'urgent' | 'goals' | 'habits';
 
 export type HomeSection = {
   id: HomeSectionId;
@@ -19,27 +22,42 @@ function isSetback(habit: HabitWithProgress): boolean {
 }
 
 /**
- * Urgent holds what needs acting on today: habits with a setback. Everything
- * else stays in the main list, with what is done today sinking to the bottom.
- * The input arrives already ordered.
+ * Urgent holds what needs acting on today: habits with a setback. Goals still
+ * in play follow, soonest first, with missed ones after so a charge is never
+ * hidden; done goals only show on Commitments. Everything else stays in the
+ * habits list, with what is done today sinking to the bottom. Both inputs
+ * arrive already ordered.
  */
-export function groupIntoHomeSections(habits: HabitWithProgress[], today: string): HomeSection[] {
+export function groupIntoHomeSections(
+  habits: HabitWithProgress[],
+  goals: GoalWithStatus[],
+  today: string,
+  now: number,
+): HomeSection[] {
   const urgent: HomeItem[] = [];
   const upcoming: HomeItem[] = [];
   const completed: HomeItem[] = [];
+  const activeGoals: HomeItem[] = [];
+  const missedGoals: HomeItem[] = [];
 
   for (const habit of habits) {
     if (isSetback(habit)) {
-      urgent.push({ habit, deadlineAt: endOfDay(today) });
+      urgent.push({ kind: 'habit', habit, deadlineAt: endOfDay(today) });
     } else if (habit.completedToday) {
-      completed.push({ habit });
+      completed.push({ kind: 'habit', habit });
     } else {
-      upcoming.push({ habit });
+      upcoming.push({ kind: 'habit', habit });
     }
+  }
+
+  for (const goal of goals) {
+    if (goal.completedAt !== undefined) continue;
+    (isMissed(goal, now) ? missedGoals : activeGoals).push({ kind: 'goal', goal });
   }
 
   const sections: HomeSection[] = [
     { id: 'urgent', title: 'urgent', items: urgent },
+    { id: 'goals', title: 'goals', items: [...activeGoals, ...missedGoals] },
     { id: 'habits', title: 'habits', items: [...upcoming, ...completed] },
   ];
 
