@@ -3,7 +3,8 @@ import { v } from 'convex/values';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, internalQuery, mutation } from './_generated/server';
 import { getCurrentUser } from './lib/auth';
-import schema from './schema';
+import { authedMutation } from './lib/customFunctions';
+import schema, { onboardingValidator } from './schema';
 
 /**
  * Upserts the signed-in Clerk identity into the `users` table. Called on every
@@ -84,5 +85,25 @@ export const setStripeCustomerId = internalMutation({
     await ctx.db.patch('users', args.userId, { stripeCustomerId: args.stripeCustomerId });
 
     return args.stripeCustomerId;
+  },
+});
+
+/**
+ * Saves the first-run survey. A replay overwrites the previous answers, so the
+ * row always reflects the latest run.
+ */
+export const saveOnboarding = authedMutation({
+  args: onboardingValidator.omit('completedAt').fields,
+  returns: v.null(),
+  handler: async (ctx, args): Promise<null> => {
+    await ctx.db.patch('users', ctx.user._id, {
+      onboarding: {
+        areas: [...new Set(args.areas)],
+        history: args.history,
+        motivator: args.motivator,
+        completedAt: Date.now(),
+      },
+    });
+    return null;
   },
 });

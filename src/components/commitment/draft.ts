@@ -22,8 +22,8 @@ export const MIN_LEAD_MS = 60 * 1000;
 export const DEFAULT_STAKE_CENTS = 1000;
 
 /** Tomorrow evening: far enough to be a real goal, near enough to feel urgent. */
-export function defaultDueAt(): number {
-  const date = new Date();
+export function defaultDueAt(now: number = Date.now()): number {
+  const date = new Date(now);
   date.setDate(date.getDate() + 1);
   date.setHours(21, 0, 0, 0);
 

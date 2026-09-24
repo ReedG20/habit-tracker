@@ -18,6 +18,34 @@ export const stakeStatusValidator = v.union(
   v.literal('disputed'),
 );
 
+/** Mirrors the options in `src/data/onboarding.ts`. */
+export const onboardingValidator = v.object({
+  areas: v.array(
+    v.union(
+      v.literal('fitness'),
+      v.literal('health'),
+      v.literal('focus'),
+      v.literal('learning'),
+      v.literal('money'),
+      v.literal('mind'),
+      v.literal('home'),
+      v.literal('other'),
+    ),
+  ),
+  history: v.optional(
+    v.union(
+      v.literal('fades'),
+      v.literal('never_start'),
+      v.literal('consistent'),
+      v.literal('first_try'),
+    ),
+  ),
+  motivator: v.optional(
+    v.union(v.literal('money'), v.literal('proof'), v.literal('streak'), v.literal('unsure')),
+  ),
+  completedAt: v.number(),
+});
+
 export const stakeValidator = v.object({
   amountCents: v.number(),
   stripeCustomerId: v.string(),
@@ -75,6 +103,8 @@ export default defineSchema({
     updatedAt: v.optional(v.number()),
     /** Created lazily the first time the user puts money on a goal. */
     stripeCustomerId: v.optional(v.string()),
+    /** The first-run survey, saved once the new user signs in. */
+    onboarding: v.optional(onboardingValidator),
   })
     .index('by_token', ['tokenIdentifier'])
     .index('by_email', ['email']),
