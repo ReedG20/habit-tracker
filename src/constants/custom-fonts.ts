@@ -7,6 +7,3 @@
 
 /** `fontFamily` value for the Habits wisdom heading (must match the `useFonts` key in `_layout.tsx`). */
 export const wisdomFontFamily = 'Comico-Regular';
-
-/** Section titles on the Habits screen (Yuji Boku via `@expo-google-fonts/yuji-boku`). */
-export const sectionHeadingFontFamily = 'YujiBoku_400Regular';
