@@ -3,6 +3,7 @@ import { useSyncExternalStore } from 'react';
 import { Platform } from 'react-native';
 
 import type { CommitmentDraft } from '@/components/commitment/draft';
+import { DAILY } from '@/convex/lib/frequency';
 import type { OnboardingAnswers, OnboardingStatus } from '@/data/onboarding';
 
 /**
@@ -47,7 +48,14 @@ function read(): OnboardingState {
           ? parsed.status
           : null,
       answers: { areas: [], ...parsed.answers },
-      draft: parsed.draft ?? null,
+      // Drafts saved before habits had a frequency were daily.
+      draft:
+        parsed.draft == null
+          ? null
+          : {
+              ...parsed.draft,
+              timesPerWeek: (parsed.draft as Partial<CommitmentDraft>).timesPerWeek ?? DAILY,
+            },
       draftSaved: parsed.draftSaved === true,
     };
   } catch {

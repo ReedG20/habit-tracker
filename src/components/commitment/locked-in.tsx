@@ -8,6 +8,7 @@ import { ActionButton } from '@/components/action-button';
 import { Countdown } from '@/components/countdown';
 import { ThemedText } from '@/components/themed-text';
 import { CardRadius, ScreenHeadingTypography, Spacing } from '@/constants/theme';
+import { DAILY, frequencyLabel } from '@/convex/lib/frequency';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDueAt } from '@/lib/dates';
 import { formatCents } from '@/lib/money';
@@ -21,9 +22,12 @@ export type LockedInProps = {
 export function LockedIn({ draft, onDone }: LockedInProps) {
   const theme = useTheme();
 
+  const daily = draft.timesPerWeek >= DAILY;
   const stakes =
     draft.kind === 'habit'
-      ? 'Miss a day and Ante locks'
+      ? daily
+        ? 'Miss a day and Ante locks'
+        : 'End a week short and Ante locks'
       : draft.amountCents === null
         ? 'Your word'
         : `${formatCents(draft.amountCents)} on your card`;
@@ -46,12 +50,25 @@ export function LockedIn({ draft, onDone }: LockedInProps) {
             <Countdown deadlineAt={draft.dueAt} />
           </View>
         ) : (
-          <Row label="When" value="Every day, before midnight" />
+          <Row
+            label="When"
+            value={
+              daily
+                ? 'Every day, before midnight'
+                : `${frequencyLabel(draft.timesPerWeek)}, any days, Monday to Sunday`
+            }
+          />
         )}
         <Row label="Stakes" value={stakes} />
       </View>
 
-      <Note>{draft.kind === 'habit' ? 'day one starts now.' : 'clock’s running.'}</Note>
+      <Note>
+        {draft.kind === 'goal'
+          ? 'clock’s running.'
+          : daily
+            ? 'day one starts now.'
+            : 'week one starts now.'}
+      </Note>
     </StepLayout>
   );
 }

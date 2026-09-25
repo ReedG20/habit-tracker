@@ -1,5 +1,6 @@
 import type { CommitmentDraft } from './draft';
 
+import { DAILY, frequencyLabel } from '@/convex/lib/frequency';
 import { formatDueAt } from '@/lib/dates';
 import { formatCents } from '@/lib/money';
 
@@ -8,6 +9,20 @@ export type ContractRun = { text: string; strong?: boolean };
 
 /** The contract as one "I will…" paragraph, with the user's own terms marked. */
 export function contractRuns(draft: CommitmentDraft): ContractRun[] {
+  if (draft.kind === 'habit' && draft.timesPerWeek < DAILY) {
+    return [
+      { text: 'I will ' },
+      { text: lowerFirst(draft.title), strong: true },
+      { text: ', ' },
+      { text: frequencyLabel(draft.timesPerWeek).toLowerCase(), strong: true },
+      { text: '. Each time I’ll prove it with a photo showing ' },
+      { text: lowerFirst(draft.proof), strong: true },
+      { text: '. If I end a week short, ' },
+      { text: 'Ante locks until I pay to get back in', strong: true },
+      { text: '.' },
+    ];
+  }
+
   if (draft.kind === 'habit') {
     return [
       { text: 'I will ' },

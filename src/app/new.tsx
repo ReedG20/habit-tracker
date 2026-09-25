@@ -22,6 +22,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ArrowLeft01Icon, Cancel01Icon } from '@/constants/icons';
 import { ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
+import { DAILY } from '@/convex/lib/frequency';
 import { useTheme } from '@/hooks/use-theme';
 
 type Step = 'what' | 'stakes' | 'sign' | 'done';
@@ -59,6 +60,7 @@ export default function NewCommitmentScreen() {
     kind: params.kind === 'goal' ? 'goal' : 'habit',
     title: '',
     proof: '',
+    timesPerWeek: DAILY,
     dueAt: defaultDueAt(),
     amountCents: DEFAULT_STAKE_CENTS,
     card: null,
@@ -94,7 +96,7 @@ export default function NewCommitmentScreen() {
     setBusy(true);
     try {
       if (draft.kind === 'habit') {
-        await createHabit({ title, description });
+        await createHabit({ title, description, timesPerWeek: draft.timesPerWeek });
       } else if (draft.amountCents === null) {
         await createGoal({ title, description, dueAt: draft.dueAt });
       } else {

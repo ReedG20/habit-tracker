@@ -9,6 +9,7 @@
   "dependencies": {
     "@clerk/expo": "^4.6.8",
     "@clerk/expo-google-signin": "^1.0.4",
+    "@convex-dev/rate-limiter": "^0.4.0",
     "@expo-google-fonts/mansalva": "^0.4.1",
     "@expo/ui": "~57.0.18",
     "@hugeicons/core-free-icons": "^4.3.3",

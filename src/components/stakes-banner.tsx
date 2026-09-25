@@ -5,17 +5,19 @@ import { ThemedText } from './themed-text';
 
 import { FlameIcon } from '@/constants/icons';
 import { Fonts, Spacing } from '@/constants/theme';
+import type { Streak } from '@/data/habits';
 import { useTheme } from '@/hooks/use-theme';
 
 export type StakesBannerProps = {
   /** Already formatted, e.g. `$24.62`. */
   fee: string;
   /** `undefined` while the habits are still loading. */
-  streak: number | undefined;
+  streak: Streak | undefined;
 };
 
-function describeStreak(days: number): string {
-  return days === 1 ? '1 day streak' : `${days} day streak`;
+/** "1 day streak", "3 week streak". */
+function describeStreak({ count, unit }: Streak): string {
+  return `${count} ${unit} streak`;
 }
 
 /** The stakes, front and center: what a skipped day costs, and the run at risk. */

@@ -5,7 +5,15 @@ import type { Doc, Id } from './_generated/dataModel';
 import { query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { getCurrentUserOrNull } from './lib/auth';
 import { authedMutation, authedQuery } from './lib/customFunctions';
-import { daysBefore, streakLength, STREAK_WINDOW_DAYS } from './lib/days';
+import { requireCommitmentText } from './lib/commitmentText';
+import {
+  countThisWeek,
+  daysBefore,
+  streakLength,
+  STREAK_WINDOW_DAYS,
+  weeklyStreak,
+} from './lib/days';
+import { DAILY, isValidTimesPerWeek, targetPerWeek } from './lib/frequency';
 
 const habitValidator = v.object({
   _id: v.id('habits'),
@@ -13,6 +21,7 @@ const habitValidator = v.object({
   userId: v.id('users'),
   title: v.string(),
   description: v.optional(v.string()),
+  timesPerWeek: v.optional(v.number()),
   order: v.number(),
 });
 
@@ -35,6 +44,9 @@ const verificationSummaryValidator = v.object({
 const habitWithProgressValidator = v.object({
   ...habitValidator.fields,
   completedToday: v.boolean(),
+  /** Logs so far this week (Monday to today); what weekly habits count toward. */
+  weekCount: v.number(),
+  /** In days for daily habits, in weeks for the rest; see `habitStreak`. */
   streak: v.number(),
   verification: v.union(verificationSummaryValidator, v.null()),
 });
@@ -55,11 +67,18 @@ export type HabitVerificationSummary = {
 
 export type HabitWithProgress = Doc<'habits'> & {
   completedToday: boolean;
+  weekCount: number;
   streak: number;
   verification: HabitVerificationSummary | null;
 };
 
 export type AuthedCtx<T> = T & { user: Doc<'users'> };
+
+/** A daily habit's streak counts days; a weekly one's counts weeks that hit the target. */
+function habitStreak(habit: Doc<'habits'>, days: Set<string>, today: string): number {
+  const target = targetPerWeek(habit);
+  return target >= DAILY ? streakLength(days, today) : weeklyStreak(days, today, target);
+}
 
 async function getOwnedHabitOrNull(
   ctx: AuthedCtx<QueryCtx | MutationCtx>,
@@ -149,7 +168,8 @@ export const list = query({
         return {
           ...habit,
           completedToday,
-          streak: streakLength(days, args.today),
+          weekCount: countThisWeek(days, args.today),
+          streak: habitStreak(habit, days, args.today),
           verification:
             completedToday || latest === undefined
               ? null
@@ -184,7 +204,7 @@ export const stats = authedQuery({
 
     const days = new Set(completions.map((completion) => completion.day));
 
-    return { total: completions.length, streak: streakLength(days, args.today) };
+    return { total: completions.length, streak: habitStreak(habit, days, args.today) };
   },
 });
 
@@ -214,9 +234,20 @@ export const listCompletions = authedQuery({
 });
 
 export const create = authedMutation({
-  args: { title: v.string(), description: v.optional(v.string()) },
+  args: {
+    title: v.string(),
+    description: v.optional(v.string()),
+    /** 1 to 7 days a week; omitted means every day. */
+    timesPerWeek: v.optional(v.number()),
+  },
   returns: v.id('habits'),
   handler: async (ctx, args): Promise<Id<'habits'>> => {
+    requireCommitmentText(args.title, args.description);
+    const timesPerWeek = args.timesPerWeek ?? DAILY;
+    if (!isValidTimesPerWeek(timesPerWeek)) {
+      throw new Error('A habit is due 1 to 7 days a week');
+    }
+
     const existing = await ctx.db
       .query('habits')
       .withIndex('by_user', (q) => q.eq('userId', ctx.user._id))
@@ -228,6 +259,7 @@ export const create = authedMutation({
       userId: ctx.user._id,
       title: args.title,
       description: args.description,
+      timesPerWeek,
       order,
     });
   },
@@ -242,7 +274,8 @@ export const update = authedMutation({
   },
   returns: v.null(),
   handler: async (ctx, args): Promise<null> => {
-    await requireOwnedHabit(ctx, args.habitId);
+    const habit = await requireOwnedHabit(ctx, args.habitId);
+    requireCommitmentText(args.title ?? habit.title, args.description);
 
     // `patch` removes fields set to `undefined`, so only send what was provided.
     const fields: Partial<Doc<'habits'>> = {};

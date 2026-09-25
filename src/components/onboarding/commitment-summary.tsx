@@ -5,6 +5,7 @@ import { ThemedText } from '@/components/themed-text';
 import { GoalListIcon, HabitIcon } from '@/constants/icons';
 import { ActionCardRadius, CardRadius, ControlHeight, Spacing } from '@/constants/theme';
 import type { CommitmentDraft } from '@/components/commitment/draft';
+import { frequencyLabel } from '@/convex/lib/frequency';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDueAt } from '@/lib/dates';
 
@@ -26,7 +27,9 @@ export function CommitmentSummary({ draft }: { draft: CommitmentDraft }) {
           {draft.title}
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-          {draft.kind === 'habit' ? 'Every day' : `Due ${formatDueAt(draft.dueAt)}`}
+          {draft.kind === 'habit'
+            ? frequencyLabel(draft.timesPerWeek)
+            : `Due ${formatDueAt(draft.dueAt)}`}
         </ThemedText>
       </View>
     </View>

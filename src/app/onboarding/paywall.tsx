@@ -61,7 +61,11 @@ export default function OnboardingPaywallScreen() {
       pending === null
         ? Promise.resolve()
         : pending.kind === 'habit'
-          ? createHabit({ title: pending.title.trim(), description: pending.proof.trim() })
+          ? createHabit({
+              title: pending.title.trim(),
+              description: pending.proof.trim(),
+              timesPerWeek: pending.timesPerWeek,
+            })
           : createGoal({
               title: pending.title.trim(),
               description: pending.proof.trim(),
