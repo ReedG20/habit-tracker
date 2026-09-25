@@ -16,7 +16,7 @@ const rules: { icon: IconSvgElement; tint: ThemeColor; title: string; body: stri
     icon: Target02Icon,
     tint: 'primary',
     title: 'Pick one thing',
-    body: 'A habit you do every day, or a goal with a deadline.',
+    body: 'A habit you repeat, or a goal with a deadline.',
   },
   {
     icon: Camera01Icon,
@@ -28,7 +28,7 @@ const rules: { icon: IconSvgElement; tint: ThemeColor; title: string; body: stri
     icon: LockIcon,
     tint: 'accent',
     title: 'Miss it, and it costs you',
-    body: 'Miss a day of a habit and Ante locks until you pay to get back in. Miss a goal you put money on, and it’s charged.',
+    body: 'Fall short on a habit and Ante locks until you pay to get back in. Miss a goal you put money on, and it’s charged.',
   },
 ];
 

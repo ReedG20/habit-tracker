@@ -1,3 +1,4 @@
+import rateLimiter from '@convex-dev/rate-limiter/convex.config.js';
 import { defineApp } from 'convex/server';
 import { v } from 'convex/values';
 
@@ -9,7 +10,8 @@ const app = defineApp({
      */
     CLERK_JWT_ISSUER_DOMAIN: v.string(),
     /**
-     * OpenRouter key used by photo verification (`verifications.analyze`). Set with:
+     * OpenRouter key used by photo verification (`verifications.analyze`) and
+     * the wording check (`commitmentChecks.check`). Set with:
      *   bunx convex env set OPENROUTER_API_KEY sk-or-...
      */
     OPENROUTER_API_KEY: v.string(),
@@ -36,5 +38,8 @@ const app = defineApp({
     REVENUECAT_WEBHOOK_AUTH: v.string(),
   },
 });
+
+/** Bounds the wording check, which anyone in onboarding can call (`commitmentChecks.ts`). */
+app.use(rateLimiter);
 
 export default app;

@@ -21,7 +21,7 @@ import {
 } from '@/constants/icons';
 import { CardRadius, PillRadius, ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
-import { currentStreak } from '@/data/habits';
+import { currentStreak, formatStreak } from '@/data/habits';
 import { describeSubscription } from '@/data/subscription';
 import { useNow } from '@/hooks/use-now';
 import { useSubscription } from '@/hooks/use-subscription';
@@ -40,10 +40,6 @@ const settings: { id: string; label: string; icon: IconSvgElement; href?: '/pref
   { id: 'reminders', label: 'Reminders', icon: Notification01Icon },
   { id: 'preferences', label: 'Preferences', icon: Settings02Icon, href: '/preferences' },
 ];
-
-function formatStreak(days: number): string {
-  return days === 1 ? '1 day' : `${days} days`;
-}
 
 /**
  * Which code is running, e.g. `Ante 1.0.0 · update 01a0b759`. Tells an OTA

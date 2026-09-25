@@ -48,3 +48,59 @@ export function streakLength(days: Set<string>, today: string): number {
 
   return streak;
 }
+
+/** 0 for Monday through 6 for Sunday: weeks run Monday to Sunday. */
+export function dayOfWeek(day: string): number {
+  const [year, month, date] = day.split('-').map(Number);
+  const sundayFirst = new Date(Date.UTC(year, month - 1, date)).getUTCDay();
+
+  return (sundayFirst + 6) % 7;
+}
+
+/** The Monday that starts the week `day` falls in. */
+export function weekStart(day: string): string {
+  return daysBefore(day, dayOfWeek(day));
+}
+
+/** Days still open this week, counting `day` itself: 7 on a Monday, 1 on a Sunday. */
+export function daysLeftInWeek(day: string): number {
+  return 7 - dayOfWeek(day);
+}
+
+/** How many of `days` fall in the same week as `today`, up to and including it. */
+export function countThisWeek(days: Set<string>, today: string): number {
+  const start = weekStart(today);
+  let count = 0;
+  for (const day of days) {
+    if (day >= start && day <= today) count += 1;
+  }
+
+  return count;
+}
+
+/**
+ * Unbroken run of weeks that each hit `target` logs, ending with the current
+ * week once it has hit it, or with last week while it is still in progress —
+ * so, like `streakLength`, a streak only breaks once the week actually ends short.
+ */
+export function weeklyStreak(days: Set<string>, today: string, target: number): number {
+  const logsByWeek = new Map<string, number>();
+  for (const day of days) {
+    if (day > today) continue;
+    const week = weekStart(day);
+    logsByWeek.set(week, (logsByWeek.get(week) ?? 0) + 1);
+  }
+
+  const met = (week: string) => (logsByWeek.get(week) ?? 0) >= target;
+
+  const thisWeek = weekStart(today);
+  let cursor = met(thisWeek) ? thisWeek : daysBefore(thisWeek, 7);
+
+  let streak = 0;
+  while (met(cursor)) {
+    streak += 1;
+    cursor = daysBefore(cursor, 7);
+  }
+
+  return streak;
+}

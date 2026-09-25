@@ -46,7 +46,7 @@ export default function CommitmentsScreen() {
           Commitments
         </ThemedText>
         <ThemedText themeColor="textSecondary">
-          Goals with a deadline and the habits you keep every day.
+          Goals with a deadline and the habits you keep up.
         </ThemedText>
         <HeaderAddButton label="New" onPress={() => router.push('/new')} />
       </View>

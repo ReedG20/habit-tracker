@@ -12,6 +12,7 @@ import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
 import { Cancel01Icon, LockIcon, Tick02Icon } from '@/constants/icons';
 import { PillRadius, Spacing } from '@/constants/theme';
+import { DAILY } from '@/convex/lib/frequency';
 import { useStakePayment } from '@/hooks/use-stake-payment';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDueAt } from '@/lib/dates';
@@ -32,7 +33,7 @@ export function StakesStep(props: StakesStepProps) {
   return props.draft.kind === 'goal' ? (
     <GoalStakes {...props} />
   ) : (
-    <HabitStakes onNext={props.onNext} />
+    <HabitStakes timesPerWeek={props.draft.timesPerWeek} onNext={props.onNext} />
   );
 }
 
@@ -136,21 +137,38 @@ function GoalStakes({ draft, onChange, onNext, allowMoney = true }: StakesStepPr
   );
 }
 
-const WEEK: ('done' | 'missed' | 'locked')[] = [
-  'done',
-  'done',
-  'done',
-  'missed',
-  'locked',
-  'locked',
-  'locked',
-];
+type DayState = 'done' | 'missed' | 'locked' | 'rest';
+
+/** Daily: three days done, one missed, and every day after it locked. */
+const DAILY_STRIP: DayState[] = ['done', 'done', 'done', 'missed', 'locked', 'locked', 'locked'];
+
+/**
+ * Weekly: one Monday-to-Sunday week that comes up one short. The logs that did
+ * happen are spread across Monday to Saturday, and Sunday is where it locks.
+ */
+function weeklyStrip(timesPerWeek: number): DayState[] {
+  const logged = timesPerWeek - 1;
+  const strip: DayState[] = ['rest', 'rest', 'rest', 'rest', 'rest', 'rest', 'locked'];
+  for (let i = 0; i < logged; i += 1) {
+    strip[Math.floor((i * 6) / logged)] = 'done';
+  }
+
+  return strip;
+}
+
 const dayInitial = new Intl.DateTimeFormat(undefined, { weekday: 'narrow' });
 
+/** 1 January 2024 was a Monday; only its weekday names are used. */
+const A_MONDAY = new Date(2024, 0, 1);
+
 /** Step 2 for a habit: no money up front, but a miss locks everything. */
-function HabitStakes({ onNext }: { onNext: () => void }) {
+function HabitStakes({ timesPerWeek, onNext }: { timesPerWeek: number; onNext: () => void }) {
   const theme = useTheme();
-  const today = new Date();
+  const daily = timesPerWeek >= DAILY;
+  const strip = daily ? DAILY_STRIP : weeklyStrip(timesPerWeek);
+  // Daily counts forward from today; weekly shows the week as it is laid out.
+  const firstDay = daily ? new Date() : A_MONDAY;
+  const days = timesPerWeek === 1 ? 'one day' : `${timesPerWeek} days`;
 
   return (
     <StepLayout
@@ -158,10 +176,16 @@ function HabitStakes({ onNext }: { onNext: () => void }) {
       <View
         style={styles.week}
         accessible
-        accessibilityLabel="Three days done, one missed, and every day after it locked">
-        {WEEK.map((state, index) => {
-          const day = new Date(today);
-          day.setDate(today.getDate() + index);
+        accessibilityLabel={
+          daily
+            ? 'Three days done, one missed, and every day after it locked'
+            : `${timesPerWeek - 1} of ${timesPerWeek} done by Sunday, so the week ends short and locks`
+        }>
+        {strip.map((state, index) => {
+          const day = new Date(firstDay);
+          day.setDate(firstDay.getDate() + index);
+          // The day it all locks on a weekly strip is the Sunday it came up short.
+          const lockedShort = !daily && state === 'locked';
 
           return (
             <View key={index} style={styles.day}>
@@ -169,23 +193,31 @@ function HabitStakes({ onNext }: { onNext: () => void }) {
                 style={[
                   styles.dot,
                   state === 'done' && { backgroundColor: theme.primary },
-                  state === 'missed' && { backgroundColor: theme.accent },
-                  state === 'locked' && {
-                    backgroundColor: theme.backgroundElement,
-                    borderColor: theme.border,
-                    borderWidth: 1,
-                  },
+                  (state === 'missed' || lockedShort) && { backgroundColor: theme.accent },
+                  state === 'locked' &&
+                    !lockedShort && {
+                      backgroundColor: theme.backgroundElement,
+                      borderColor: theme.border,
+                      borderWidth: 1,
+                    },
+                  state === 'rest' && { backgroundColor: theme.backgroundElement },
                 ]}>
-                <Icon
-                  icon={
-                    state === 'done' ? Tick02Icon : state === 'missed' ? Cancel01Icon : LockIcon
-                  }
-                  size={state === 'locked' ? 16 : 18}
-                  strokeWidth={state === 'locked' ? 1.75 : 2.5}
-                  color={state === 'locked' ? theme.textSecondary : theme.onPrimary}
-                />
+                {state === 'rest' ? null : (
+                  <Icon
+                    icon={
+                      state === 'done' ? Tick02Icon : state === 'missed' ? Cancel01Icon : LockIcon
+                    }
+                    size={state === 'locked' && !lockedShort ? 16 : 18}
+                    strokeWidth={state === 'locked' && !lockedShort ? 1.75 : 2.5}
+                    color={
+                      state === 'locked' && !lockedShort ? theme.textSecondary : theme.onPrimary
+                    }
+                  />
+                )}
               </View>
-              <ThemedText type="small" themeColor={state === 'missed' ? 'accent' : 'textSecondary'}>
+              <ThemedText
+                type="small"
+                themeColor={state === 'missed' || lockedShort ? 'accent' : 'textSecondary'}>
                 {dayInitial.format(day)}
               </ThemedText>
             </View>
@@ -194,11 +226,19 @@ function HabitStakes({ onNext }: { onNext: () => void }) {
       </View>
 
       <WhatHappens
-        steps={[
-          'Every day, prove it with a photo before midnight.',
-          'Miss one day and Ante locks. Your other commitments freeze with it.',
-          'To get back in, you pay a re-entry fee. The streak doesn’t come back.',
-        ]}
+        steps={
+          daily
+            ? [
+                'Every day, prove it with a photo before midnight.',
+                'Miss one day and Ante locks. Your other commitments freeze with it.',
+                'To get back in, you pay a re-entry fee. The streak doesn’t come back.',
+              ]
+            : [
+                `Any ${days} a week, prove it with a photo. Weeks run Monday to Sunday.`,
+                'End a week short and Ante locks. Your other commitments freeze with it.',
+                'To get back in, you pay a re-entry fee. The streak doesn’t come back.',
+              ]
+        }
       />
 
       <Note>the lock is the point. it’s cheaper to just do it.</Note>

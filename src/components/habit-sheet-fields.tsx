@@ -26,12 +26,12 @@ export function HabitSheetFields({ initial, draftRef }: HabitSheetFieldsProps) {
         returnKeyType="next"
       />
       <TextField
-        label="Description (optional)"
+        label="What does the photo need to show?"
         defaultValue={initial?.description ?? ''}
         onChangeText={(text) => {
           draftRef.current.description = text;
         }}
-        placeholder="What does doing this well look like?"
+        placeholder="Me at the gym with the equipment in view"
         multiline
       />
     </>

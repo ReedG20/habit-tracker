@@ -18,6 +18,7 @@ import { OnboardingProgress } from '@/components/onboarding/onboarding-progress'
 import { ThemedText } from '@/components/themed-text';
 import { ArrowLeft01Icon } from '@/constants/icons';
 import { ScreenHeadingTypography, Spacing } from '@/constants/theme';
+import { DAILY } from '@/convex/lib/frequency';
 import { historyReply, suggestionsFor, suggestKind } from '@/data/onboarding';
 import { useTheme } from '@/hooks/use-theme';
 import { getOnboarding, setDraft as saveDraft } from '@/lib/onboarding';
@@ -68,6 +69,7 @@ export default function OnboardingCommitmentScreen() {
         kind: suggestKind(getOnboarding().answers),
         title: '',
         proof: '',
+        timesPerWeek: DAILY,
         dueAt: defaultDueAt(),
         amountCents: DEFAULT_STAKE_CENTS,
         card: null,

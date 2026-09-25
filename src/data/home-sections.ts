@@ -1,5 +1,5 @@
 import { isMissed, type GoalWithStatus } from '@/data/goals';
-import type { HabitWithProgress } from '@/data/habits';
+import { isDoneForToday, mustLogToday, type HabitWithProgress } from '@/data/habits';
 import { endOfDay } from '@/lib/dates';
 
 /** `deadlineAt` is set on urgent habits only: the card counts down to it. */
@@ -18,15 +18,16 @@ export type HomeSection = {
 /** A photo that came back rejected or failed: the user has to try again today. */
 function isSetback(habit: HabitWithProgress): boolean {
   const status = habit.verification?.status;
-  return !habit.completedToday && (status === 'rejected' || status === 'failed');
+  return !isDoneForToday(habit) && (status === 'rejected' || status === 'failed');
 }
 
 /**
- * Urgent holds what needs acting on today: habits with a setback. Goals still
+ * Urgent holds what needs acting on today: habits with a setback, and weekly
+ * habits out of slack (skipping today would end the week short). Goals still
  * in play follow, soonest first, with missed ones after so a charge is never
  * hidden; done goals only show on Commitments. Everything else stays in the
- * habits list, with what is done today sinking to the bottom. Both inputs
- * arrive already ordered.
+ * habits list, with what is done for today, or for the week, sinking to the
+ * bottom. Both inputs arrive already ordered.
  */
 export function groupIntoHomeSections(
   habits: HabitWithProgress[],
@@ -41,9 +42,9 @@ export function groupIntoHomeSections(
   const missedGoals: HomeItem[] = [];
 
   for (const habit of habits) {
-    if (isSetback(habit)) {
+    if (isSetback(habit) || mustLogToday(habit, today)) {
       urgent.push({ kind: 'habit', habit, deadlineAt: endOfDay(today) });
-    } else if (habit.completedToday) {
+    } else if (isDoneForToday(habit)) {
       completed.push({ kind: 'habit', habit });
     } else {
       upcoming.push({ kind: 'habit', habit });

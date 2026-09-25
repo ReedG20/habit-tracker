@@ -4,6 +4,7 @@ import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { getCurrentUserOrNull } from './lib/auth';
+import { requireCommitmentText } from './lib/commitmentText';
 import { authedAction, authedMutation, authedQuery } from './lib/customFunctions';
 import { stripeClient } from './lib/stripe';
 import schema, { submissionStatusValidator } from './schema';
@@ -198,6 +199,7 @@ export const create = authedMutation({
   returns: v.id('goals'),
   handler: async (ctx, args): Promise<Id<'goals'>> => {
     requireLead(args.dueAt);
+    requireCommitmentText(args.title, args.description);
 
     return await ctx.db.insert('goals', {
       userId: ctx.user._id,
@@ -302,6 +304,7 @@ export const createStaked = authedAction({
   returns: v.id('goals'),
   handler: async (ctx, args): Promise<Id<'goals'>> => {
     requireLead(args.dueAt);
+    requireCommitmentText(args.title, args.description);
     requireStakeAmount(args.amountCents);
 
     const customerId = ctx.user.stripeCustomerId;
@@ -421,6 +424,7 @@ export const update = authedMutation({
   returns: v.null(),
   handler: async (ctx, args): Promise<null> => {
     const goal = await requireOwnedGoal(ctx, args.goalId);
+    requireCommitmentText(args.title ?? goal.title, args.description);
 
     const fields: Partial<Doc<'goals'>> = {};
     if (args.title !== undefined) fields.title = args.title;

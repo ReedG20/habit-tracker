@@ -11,6 +11,7 @@ import { CheckmarkCircle02Icon } from '@/constants/icons';
 import { CardRadius, Fonts, ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
+import { isDaily } from '@/data/habits';
 import { useTheme } from '@/hooks/use-theme';
 import { confirmDestructive } from '@/lib/confirm';
 import { formatCompletedAt, todayKey } from '@/lib/dates';
@@ -84,7 +85,7 @@ export default function HabitDetailScreen() {
             {stats?.streak ?? '—'}
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            Day streak
+            {isDaily(habit) ? 'Day streak' : 'Week streak'}
           </ThemedText>
         </ThemedView>
         <ThemedView type="backgroundElement" style={styles.statTile}>

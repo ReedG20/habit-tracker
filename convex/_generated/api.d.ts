@@ -8,14 +8,18 @@
  * @module
  */
 
+import type * as commitmentChecks from "../commitmentChecks.js";
 import type * as goalSubmissions from "../goalSubmissions.js";
 import type * as goals from "../goals.js";
 import type * as habits from "../habits.js";
 import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_commitmentText from "../lib/commitmentText.js";
 import type * as lib_customFunctions from "../lib/customFunctions.js";
 import type * as lib_days from "../lib/days.js";
 import type * as lib_entitlements from "../lib/entitlements.js";
+import type * as lib_frequency from "../lib/frequency.js";
+import type * as lib_openrouter from "../lib/openrouter.js";
 import type * as lib_stripe from "../lib/stripe.js";
 import type * as lib_vision from "../lib/vision.js";
 import type * as revenuecat from "../revenuecat.js";
@@ -31,14 +35,18 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  commitmentChecks: typeof commitmentChecks;
   goalSubmissions: typeof goalSubmissions;
   goals: typeof goals;
   habits: typeof habits;
   http: typeof http;
   "lib/auth": typeof lib_auth;
+  "lib/commitmentText": typeof lib_commitmentText;
   "lib/customFunctions": typeof lib_customFunctions;
   "lib/days": typeof lib_days;
   "lib/entitlements": typeof lib_entitlements;
+  "lib/frequency": typeof lib_frequency;
+  "lib/openrouter": typeof lib_openrouter;
   "lib/stripe": typeof lib_stripe;
   "lib/vision": typeof lib_vision;
   revenuecat: typeof revenuecat;
@@ -74,4 +82,6 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  rateLimiter: import("@convex-dev/rate-limiter/_generated/component.js").ComponentApi<"rateLimiter">;
+};

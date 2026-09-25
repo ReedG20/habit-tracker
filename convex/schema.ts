@@ -109,11 +109,15 @@ export default defineSchema({
     .index('by_token', ['tokenIdentifier'])
     .index('by_email', ['email']),
 
-  /** Every habit is once per day for now; frequency is implicit. */
   habits: defineTable({
     userId: v.id('users'),
     title: v.string(),
     description: v.optional(v.string()),
+    /**
+     * Days a week it is due, on any days, 1 to 7; 7 is every day. Absent on
+     * habits made before frequency existed, which are daily (`targetPerWeek`).
+     */
+    timesPerWeek: v.optional(v.number()),
     order: v.number(),
   }).index('by_user', ['userId']),
 

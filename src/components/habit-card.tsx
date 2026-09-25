@@ -9,7 +9,8 @@ import { ThemedView } from './themed-view';
 
 import { FlameIcon, HabitIcon } from '@/constants/icons';
 import { ActionCardRadius, ControlHeight, Spacing } from '@/constants/theme';
-import type { HabitWithProgress } from '@/data/habits';
+import { targetPerWeek } from '@/convex/lib/frequency';
+import { isDaily, isWeekDone, type HabitWithProgress } from '@/data/habits';
 import { useTheme } from '@/hooks/use-theme';
 
 export type HabitCardProps = {
@@ -21,7 +22,9 @@ export type HabitCardProps = {
 export function HabitCard({ habit, deadlineAt }: HabitCardProps) {
   const theme = useTheme();
 
-  const logged = habit.completedToday;
+  const daily = isDaily(habit);
+  const weekDone = isWeekDone(habit);
+  const logged = habit.completedToday || weekDone;
   const verifying = !logged && habit.verification?.status === 'pending';
 
   return (
@@ -45,19 +48,24 @@ export function HabitCard({ habit, deadlineAt }: HabitCardProps) {
             {habit.streak > 0 ? (
               <View style={styles.streak}>
                 <Icon icon={FlameIcon} size={16} color={theme.accent} fill={theme.accent} />
-                <ThemedText type="smallSemibold" themeColor={logged ? 'textSecondary' : 'text'}>
-                  {habit.streak}
+                <ThemedText
+                  type="smallSemibold"
+                  themeColor={logged ? 'textSecondary' : 'text'}
+                  accessibilityLabel={`${habit.streak} ${daily ? 'day' : 'week'} streak`}>
+                  {daily ? habit.streak : `${habit.streak}w`}
                 </ThemedText>
               </View>
             ) : null}
             <ThemedText type="small" themeColor="textSecondary">
-              Daily
+              {daily ? 'Daily' : `${habit.weekCount} of ${targetPerWeek(habit)} this week`}
             </ThemedText>
           </View>
         </View>
       </Pressable>
 
-      {logged ? (
+      {weekDone ? (
+        <ActionButton label="Done this week" disabled onPress={() => {}} style={styles.logAction} />
+      ) : logged ? (
         <ActionButton label="Logged" disabled onPress={() => {}} style={styles.logAction} />
       ) : verifying ? (
         <ActionButton
