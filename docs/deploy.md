@@ -21,20 +21,50 @@ Server secrets never leave the Convex deployment (`convex/convex.config.ts`).
   only if `CONVEX_DEPLOY_KEY_PREVIEW` is set (needs Convex Pro).
 - **Push to `main`** — `.github/workflows/deploy.yml`, one job:
   1. `convex deploy` to the **production** deployment.
-  2. Computes the iOS native fingerprint and asks EAS for a production build
-     with that hash.
-  3. Found → `eas update` to the `production` channel, from the Actions
-     runner (about two minutes end to end). Not found → `eas build
---auto-submit`, which queues on EAS and lands on TestFlight when done.
+  2. Computes the iOS native fingerprint (`scripts/eas-has-build.sh`) and asks
+     EAS whether a `preview` and a `production` build have it.
+  3. **Preview:** a matching build → `eas update` to the `preview` channel from
+     the Actions runner (about two minutes); your internal build picks it up on
+     its next two launches. No match → a new internal preview build to install.
+  4. **Production:** a matching build → nothing; production users wait for a
+     Release. No match → `eas build --auto-submit`, which lands on TestFlight.
+- **Release** — `.github/workflows/release.yml`, run by hand (below). Ships the
+  code on your preview build to production over the air.
 
 Everything runs on GitHub Actions so the common case never waits in EAS's
 queue; only native builds do. Adding a dependency with native code, changing a
-config plugin, or bumping the SDK changes the fingerprint and triggers a build.
+config plugin, adding a patch to a native package, or bumping the SDK changes
+the fingerprint and triggers builds.
 
-The backend deploys before any client because old bundles keep running until
-they fetch the update: keep Convex functions backwards compatible for at least
-one release (add optional fields, never rename or remove without a grace
-period).
+The backend deploys to production on merge, before any client can use it:
+production keeps running the last released bundle, so keep Convex functions
+backwards compatible for at least one release (add optional fields, never
+rename or remove without a grace period).
+
+The preview build talks to the **shared dev deployment**, which nothing in CI
+deploys: it has whatever `bunx convex dev` last pushed from a laptop. Before
+relying on a preview update that needs new functions, deploy them there (run
+`bunx convex dev` from a checkout that has them).
+
+## Releasing to production
+
+When the preview build has been on your phone and it's good:
+
+```bash
+gh workflow run release.yml                 # ship what the preview build is running
+gh workflow run release.yml -f ref=<sha>    # or a specific merged commit
+```
+
+or GitHub → **Actions** → **Release** → **Run workflow**. It looks up the git
+commit of the latest `preview` update, checks it is on `main`, checks a
+production build has the same native code, and publishes it to the
+`production` channel. It rebuilds the bundle instead of copying the preview
+one: `EXPO_PUBLIC_*` values are inlined when bundling, and preview's point at
+the dev backend and test keys.
+
+If the release refuses because no production build has the commit's native
+code, the change needs a store build: Deploy started one on merge, and it
+already contains that code, so ship it through TestFlight instead.
 
 `convex/_generated/` is committed and CI typechecks against it. After changing
 functions, keep `bunx convex dev` running (it regenerates on save) or run
@@ -233,7 +263,7 @@ The `Protect main` ruleset (Settings → Rules) requires a PR and the
 Merge to `main`. The first `Deploy` run builds (there is no production build
 with the current fingerprint yet); watch the job under GitHub → **Actions**
 and the build under expo.dev → **Builds**. Once the build is on TestFlight,
-the next JS-only push takes the OTA path; the Me screen shows the running
+JS-only changes reach it through **Release**; the Me screen shows the running
 update id.
 
 ## Testing a production build
@@ -248,7 +278,8 @@ Production builds talk to the production Clerk instance and Convex deployment
 ```bash
 bun run lint && bun run typecheck && bun run test   # what CI runs
 bunx eas-cli@latest build --profile preview -p ios  # a testable build on the dev backend
-gh workflow run deploy.yml                          # re-run the production pipeline by hand
+gh workflow run deploy.yml                          # re-run the merge pipeline by hand
+gh workflow run release.yml                         # ship the preview build's code to production
 ```
 
 If a build finished but the TestFlight upload failed (Apple's upload service
@@ -262,7 +293,7 @@ bunx eas-cli@latest submit -p ios --profile production --latest
 A "build number already used" error means Apple did keep it — nothing to do.
 
 Rolling back an OTA update: expo.dev → Updates → `production` branch →
-republish the previous update. Rolling back the backend: `git revert` and push
+republish the previous update, or `gh workflow run release.yml -f ref=<last good sha>`. Rolling back the backend: `git revert` and push
 to `main`; `convex deploy` is idempotent.
 
 Never run `bunx convex deploy` from a laptop with `CONVEX_DEPLOY_KEY` set, and
