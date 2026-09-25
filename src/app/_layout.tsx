@@ -11,7 +11,10 @@ import { useEffect } from 'react';
 import { StripeProvider } from '@/components/stripe-provider';
 import { noteFontFamily, wisdomFontFamily } from '@/constants/custom-fonts';
 import { sheetScreenOptions } from '@/constants/sheet-screen-options';
+import { shouldShowOnboarding } from '@/data/onboarding';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useSignedInSession } from '@/hooks/use-signed-in-session';
+import { loadOnboarding, markExistingUserOnboarded, useOnboarding } from '@/lib/onboarding';
 import { configureRevenueCat } from '@/lib/revenuecat';
 import { loadThemePreference } from '@/lib/theme-preference';
 
@@ -42,6 +45,9 @@ configureRevenueCat();
 
 // Before the first render, so a forced light or dark scheme never flashes the system one.
 loadThemePreference();
+
+// Synchronous, so the first frame already knows whether to show onboarding.
+loadOnboarding();
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -74,12 +80,20 @@ function RootNavigator() {
   // once Convex itself has validated the token, so authenticated screens never
   // mount before their queries can resolve.
   const { isAuthenticated, isLoading } = useConvexAuth();
+  const { status } = useOnboarding();
+  const onboarding = shouldShowOnboarding(status, isAuthenticated);
+
+  useSignedInSession(isAuthenticated);
 
   useEffect(() => {
     if (!isLoading) {
       void SplashScreen.hideAsync();
     }
   }, [isLoading]);
+
+  useEffect(() => {
+    if (isAuthenticated) markExistingUserOnboarded();
+  }, [isAuthenticated]);
 
   // Hold the splash screen rather than flashing sign-in at someone whose
   // session is still being restored from SecureStore.
@@ -89,7 +103,13 @@ function RootNavigator() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Protected guard={isAuthenticated}>
+      {/* Before sign-in for a new user, and after it until the paywall is
+          answered: the flow's own save step is where the account is made. */}
+      <Stack.Protected guard={onboarding}>
+        <Stack.Screen name="onboarding" />
+      </Stack.Protected>
+
+      <Stack.Protected guard={isAuthenticated && !onboarding}>
         <Stack.Screen name="(app)" />
         {/* In the root stack so it can open over the tab bar from any tab. */}
         <Stack.Screen
@@ -105,7 +125,7 @@ function RootNavigator() {
         <Stack.Screen name="new" options={{ presentation: 'fullScreenModal' }} />
       </Stack.Protected>
 
-      <Stack.Protected guard={!isAuthenticated}>
+      <Stack.Protected guard={!isAuthenticated && !onboarding}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
     </Stack>

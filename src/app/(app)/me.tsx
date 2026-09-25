@@ -16,6 +16,7 @@ import {
   Notification01Icon,
   Settings02Icon,
   SparklesIcon,
+  Target02Icon,
   UserCircleIcon,
 } from '@/constants/icons';
 import { CardRadius, PillRadius, ScreenHeadingTypography, Spacing } from '@/constants/theme';
@@ -26,7 +27,14 @@ import { useNow } from '@/hooks/use-now';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useTheme } from '@/hooks/use-theme';
 import { todayKey } from '@/lib/dates';
+import { resetOnboarding } from '@/lib/onboarding';
 import { manageSubscriptionsUrl, revenueCatSupported } from '@/lib/revenuecat';
+
+/**
+ * Tools for working on the app itself. Always in a debug build; in a preview
+ * or TestFlight build only when `EXPO_PUBLIC_DEV_TOOLS=1` is set for it.
+ */
+const showDevTools = __DEV__ || process.env.EXPO_PUBLIC_DEV_TOOLS === '1';
 
 const settings: { id: string; label: string; icon: IconSvgElement; href?: '/preferences' }[] = [
   { id: 'reminders', label: 'Reminders', icon: Notification01Icon },
@@ -162,6 +170,43 @@ export default function MeScreen() {
         </Pressable>
       </ThemedView>
 
+      {showDevTools ? (
+        <View style={styles.devTools}>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.groupLabel}>
+            Developer
+          </ThemedText>
+          <ThemedView type="backgroundElement" style={styles.settingsGroup}>
+            {/* Flipping the stored status is enough: the root guard swaps the
+                tabs for the onboarding stack. Signed in, the sign-in step is
+                skipped and the paywall saves a real habit or goal. */}
+            <Pressable
+              accessibilityRole="button"
+              onPress={resetOnboarding}
+              style={({ pressed }) => [styles.settingRow, pressed && styles.pressed]}>
+              <Icon icon={Target02Icon} size={22} themeColor="textSecondary" />
+              <ThemedText style={styles.settingLabel}>Replay onboarding</ThemedText>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                resetOnboarding();
+                void signOut();
+              }}
+              style={({ pressed }) => [
+                styles.settingRow,
+                { borderTopWidth: 1, borderTopColor: theme.border },
+                pressed && styles.pressed,
+              ]}>
+              <Icon icon={Logout01Icon} size={22} themeColor="textSecondary" />
+              <ThemedText style={styles.settingLabel}>Replay as a new user</ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                Signs out
+              </ThemedText>
+            </Pressable>
+          </ThemedView>
+        </View>
+      ) : null}
+
       <ThemedText type="small" themeColor="textSecondary" style={styles.buildInfo}>
         {describeBuild()}
       </ThemedText>
@@ -213,6 +258,12 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
+  },
+  devTools: {
+    gap: Spacing.two,
+  },
+  groupLabel: {
+    paddingHorizontal: Spacing.three,
   },
   buildInfo: {
     textAlign: 'center',

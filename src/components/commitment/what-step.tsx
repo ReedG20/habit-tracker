@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert, Keyboard, ScrollView, StyleSheet, View } from 'react-native';
 
 import { MIN_LEAD_MS, type CommitmentDraft, type CommitmentKind } from './draft';
@@ -7,9 +7,11 @@ import { ProofMethodPicker } from './proof-method-picker';
 import { StepLayout } from './step-layout';
 
 import { ActionButton } from '@/components/action-button';
+import { ChoiceChip } from '@/components/onboarding/choice-chip';
 import { DeadlineField } from '@/components/deadline-field';
 import { SegmentedPicker } from '@/components/segmented-picker';
 import { TextField } from '@/components/text-field';
+import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 
 const kindOptions: { value: CommitmentKind; label: string }[] = [
@@ -32,13 +34,17 @@ export type WhatStepProps = {
   draft: CommitmentDraft;
   onChange: (patch: Partial<CommitmentDraft>) => void;
   onNext: () => void;
+  /** Presets shown as chips above the name, per kind; onboarding fills them from the survey. */
+  suggestions?: Record<CommitmentKind, { title: string; proof: string }[]>;
 };
 
 /** Step 1: what exactly, by when, and what counts as proof. */
-export function WhatStep({ draft, onChange, onNext }: WhatStepProps) {
+export function WhatStep({ draft, onChange, onNext, suggestions }: WhatStepProps) {
   // The fields are uncontrolled; they are read into the draft when leaving the step.
   const readTitle = useRef<(() => string) | null>(null);
   const readProof = useRef<(() => string) | null>(null);
+  // Bumped when a suggestion is picked, remounting the fields with its text.
+  const [fieldsKey, setFieldsKey] = useState(0);
 
   // With the keyboard up the body is shorter than the step, so keep the field
   // being typed in on screen: the name sits at the top, the proof at the bottom.
@@ -100,7 +106,29 @@ export function WhatStep({ draft, onChange, onNext }: WhatStepProps) {
         onChange={(kind) => onChange({ ...readFields(), kind })}
       />
 
+      {suggestions !== undefined && suggestions[draft.kind].length > 0 ? (
+        <View style={styles.suggestions}>
+          <ThemedText type="small" themeColor="textSecondary">
+            Need an idea?
+          </ThemedText>
+          <View style={styles.chips}>
+            {suggestions[draft.kind].map((suggestion) => (
+              <ChoiceChip
+                key={suggestion.title}
+                label={suggestion.title}
+                selected={draft.title === suggestion.title}
+                onPress={() => {
+                  onChange({ title: suggestion.title, proof: suggestion.proof });
+                  setFieldsKey((key) => key + 1);
+                }}
+              />
+            ))}
+          </View>
+        </View>
+      ) : null}
+
       <TextField
+        key={`title-${fieldsKey}`}
         label="Name"
         defaultValue={draft.title}
         readValueRef={readTitle}
@@ -118,6 +146,7 @@ export function WhatStep({ draft, onChange, onNext }: WhatStepProps) {
 
       <View style={styles.proof}>
         <TextField
+          key={`proof-${fieldsKey}`}
           label="What does the photo need to show?"
           defaultValue={draft.proof}
           readValueRef={readProof}
@@ -132,6 +161,14 @@ export function WhatStep({ draft, onChange, onNext }: WhatStepProps) {
 }
 
 const styles = StyleSheet.create({
+  suggestions: {
+    gap: Spacing.two,
+  },
+  chips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
+  },
   proof: {
     gap: Spacing.two,
   },

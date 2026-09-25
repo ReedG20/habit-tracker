@@ -21,6 +21,11 @@ export type StakesStepProps = {
   draft: CommitmentDraft;
   onChange: (patch: Partial<CommitmentDraft>) => void;
   onNext: () => void;
+  /**
+   * `false` before there is an account to save a card to (onboarding): a goal
+   * goes ahead on your word, and the step says money comes with the next one.
+   */
+  allowMoney?: boolean;
 };
 
 export function StakesStep(props: StakesStepProps) {
@@ -32,7 +37,7 @@ export function StakesStep(props: StakesStepProps) {
 }
 
 /** Step 2 for a goal: pick the forfeit, then save a card for it (or explicitly don't). */
-function GoalStakes({ draft, onChange, onNext }: StakesStepProps) {
+function GoalStakes({ draft, onChange, onNext, allowMoney = true }: StakesStepProps) {
   const theme = useTheme();
   const stakePayment = useStakePayment();
   const [amountCents, setAmountCents] = useState(draft.amountCents ?? DEFAULT_STAKE_CENTS);
@@ -71,11 +76,24 @@ function GoalStakes({ draft, onChange, onNext }: StakesStepProps) {
     onNext();
   };
 
-  if (!stakePayment.supported) {
+  if (!stakePayment.supported || !allowMoney) {
     return (
       <StepLayout
         footer={<ActionButton label="Next: sign it" variant="primary" fill onPress={noMoney} />}>
-        <Note>money stakes live in the app. on the web, it’s just your word.</Note>
+        {allowMoney ? null : (
+          <WhatHappens
+            steps={[
+              `Before ${formatDueAt(draft.dueAt)}, submit a photo. AI checks it against what you wrote.`,
+              'Miss it, or the proof doesn’t hold up, and it counts against you.',
+              'Once your account is set up, you can put money on the next one.',
+            ]}
+          />
+        )}
+        <Note>
+          {stakePayment.supported
+            ? 'your first one is on your word. make it count.'
+            : 'money stakes live in the app. on the web, it’s just your word.'}
+        </Note>
       </StepLayout>
     );
   }
