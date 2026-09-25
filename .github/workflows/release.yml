@@ -1,0 +1,93 @@
+# Release → production users get the app code you have been testing on the
+# preview build. Run it from GitHub → Actions → Release → Run workflow, or
+# `gh workflow run release.yml`.
+#
+# By default it ships the commit of the latest `preview` update, so production
+# gets exactly the code on your phone. The bundle is rebuilt rather than copied:
+# EXPO_PUBLIC_* values are inlined at bundle time and preview's point at the dev
+# backend and test keys. Pass `ref` to ship a different merged commit instead.
+#
+# The backend is already live: Deploy pushed it to production on merge.
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Commit to release (default — whatever the preview build is running)
+        required: false
+        default: ''
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release to production
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+
+      - run: bun install --frozen-lockfile
+
+      - name: Pick the commit
+        id: commit
+        env:
+          REF: ${{ inputs.ref }}
+        run: |
+          [ -n "$EXPO_TOKEN" ] || { echo "EXPO_TOKEN secret is not set" >&2; exit 1; }
+          if [ -n "$REF" ]; then
+            sha=$(git rev-parse --verify "$REF^{commit}")
+          else
+            group=$(bunx eas-cli@latest update:list --branch preview -p ios --json --non-interactive --limit 1 \
+              | jq -r '.currentPage[0].group // empty')
+            [ -n "$group" ] || { echo "No preview update yet; pass a ref instead." >&2; exit 1; }
+            sha=$(bunx eas-cli@latest update:view "$group" --json | jq -r '.[0].gitCommitHash // empty')
+            [ -n "$sha" ] || { echo "Preview update $group has no commit recorded; pass a ref instead." >&2; exit 1; }
+          fi
+          # Only code that went through a PR and CI.
+          git merge-base --is-ancestor "$sha" origin/main \
+            || { echo "$sha is not on main; only merged commits can be released." >&2; exit 1; }
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Releasing $(git log -1 --format='%h %s' "$sha")"
+
+      # The build check comes from this workflow's revision, not the commit's:
+      # an older commit may predate the script.
+      - name: Check out that commit
+        run: |
+          cp scripts/eas-has-build.sh "$RUNNER_TEMP/eas-has-build.sh"
+          git checkout --quiet "${{ steps.commit.outputs.sha }}"
+          bun install --frozen-lockfile
+
+      # An update only reaches builds with the same native code. Deploy starts a
+      # production build whenever that changes; until it's through TestFlight
+      # (and App Store review, for store users) there is nothing to update.
+      - name: Check a production build can take it
+        env:
+          EXPO_DEBUG: '1'
+        run: |
+          if [ "$("$RUNNER_TEMP/eas-has-build.sh" production)" != true ]; then
+            echo "No production build has this commit's native code yet. Deploy builds one on merge;" >&2
+            echo "that build already contains this code, so ship it through TestFlight instead." >&2
+            exit 1
+          fi
+
+      - name: Publish OTA update to production
+        run: |
+          subject=$(git log -1 --pretty=%s)
+          bunx eas-cli@latest update --platform ios --channel production --environment production \
+            --message "Release: $subject" --non-interactive
+          {
+            echo "### Released to production"
+            echo "$(git log -1 --format='`%h` %s')"
+          } >> "$GITHUB_STEP_SUMMARY"
