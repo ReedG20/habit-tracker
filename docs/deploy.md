@@ -21,12 +21,15 @@ Server secrets never leave the Convex deployment (`convex/convex.config.ts`).
   only if `CONVEX_DEPLOY_KEY_PREVIEW` is set (needs Convex Pro).
 - **Push to `main`** — `.github/workflows/deploy.yml`, one job:
   1. `convex deploy` to the **production** deployment.
-  2. Computes the iOS native fingerprint (`scripts/eas-has-build.sh`) and asks
+  2. `convex deploy` to the **shared dev deployment**, which the preview build
+     talks to. Without `CONVEX_DEPLOY_KEY_DEV` the job stops here, so preview
+     never gets a bundle its backend can't serve.
+  3. Computes the iOS native fingerprint (`scripts/eas-has-build.sh`) and asks
      EAS whether a `preview` and a `production` build have it.
-  3. **Preview:** a matching build → `eas update` to the `preview` channel from
+  4. **Preview:** a matching build → `eas update` to the `preview` channel from
      the Actions runner (about two minutes); your internal build picks it up on
      its next two launches. No match → a new internal preview build to install.
-  4. **Production:** a matching build → nothing; production users wait for a
+  5. **Production:** a matching build → nothing; production users wait for a
      Release. No match → `eas build --auto-submit`, which lands on TestFlight.
 - **Release** — `.github/workflows/release.yml`, run by hand (below). Ships the
   code on your preview build to production over the air.
@@ -41,10 +44,11 @@ production keeps running the last released bundle, so keep Convex functions
 backwards compatible for at least one release (add optional fields, never
 rename or remove without a grace period).
 
-The preview build talks to the **shared dev deployment**, which nothing in CI
-deploys: it has whatever `bunx convex dev` last pushed from a laptop. Before
-relying on a preview update that needs new functions, deploy them there (run
-`bunx convex dev` from a checkout that has them).
+The preview build talks to the **shared dev deployment**. Every merge deploys
+`main` there before the preview update goes out. Between merges it has whatever
+`bunx convex dev` last pushed from a laptop, so a `convex dev` left running on
+an old or unmerged branch can push functions the preview build doesn't expect
+(or drop ones it does). Stop it, or pull `main`, once a branch has merged.
 
 ## Releasing to production
 
@@ -270,7 +274,12 @@ Repository → Settings → Secrets and variables → Actions:
 | --------------------------- | ----------------------------------------------------------- |
 | `EXPO_TOKEN`                | expo.dev → account → **Access tokens** → new token          |
 | `CONVEX_DEPLOY_KEY`         | the production deploy key from step 1                       |
+| `CONVEX_DEPLOY_KEY_DEV`     | the shared dev deployment's deploy key (see below)          |
 | `CONVEX_DEPLOY_KEY_PREVIEW` | optional; Convex **Preview** deploy key for per-PR backends |
+
+`CONVEX_DEPLOY_KEY_DEV`: Convex dashboard → the **dev** deployment
+(`cool-kiwi-961`) → Settings → **Deploy keys** → generate one. It starts with
+`dev:`; the workflow refuses anything else.
 
 The `Protect main` ruleset (Settings → Rules) requires a PR and the
 **Lint, typecheck, test** check before anything reaches `main`.

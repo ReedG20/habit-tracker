@@ -5,14 +5,18 @@
 # In order:
 #   1. Convex backend to production. Backend first, and ahead of any client:
 #      functions must stay compatible with the bundle production is running.
-#   2. Preview: an OTA update if a preview build has this native fingerprint,
+#   2. The same backend to the shared dev deployment, which the preview build
+#      talks to. Without it, a preview update that calls a new function crashes
+#      on launch against whatever a laptop last pushed there.
+#   3. Preview: an OTA update if a preview build has this native fingerprint,
 #      otherwise a new internal preview build.
-#   3. Production: nothing, unless no production build has this native
+#   4. Production: nothing, unless no production build has this native
 #      fingerprint, in which case one is built and submitted to TestFlight.
 #
-# Secrets: EXPO_TOKEN (expo.dev → Access tokens) and CONVEX_DEPLOY_KEY (Convex →
-# prod deployment → Deploy keys, `deployment:deploy` only). EXPO_PUBLIC_* values
-# come from the EAS environment named by --environment.
+# Secrets: EXPO_TOKEN (expo.dev → Access tokens), CONVEX_DEPLOY_KEY (Convex →
+# prod deployment → Deploy keys, `deployment:deploy` only) and
+# CONVEX_DEPLOY_KEY_DEV (the same, on the shared dev deployment). EXPO_PUBLIC_*
+# values come from the EAS environment named by --environment.
 name: Deploy
 
 on:
@@ -49,6 +53,20 @@ jobs:
 
       - name: Deploy Convex backend
         run: bunx convex deploy --yes
+
+      # Before anything reaches the preview build, so its bundle never runs
+      # ahead of its backend. A missing key stops the job here, after
+      # production is deployed but before preview is touched.
+      - name: Deploy Convex backend to the shared dev deployment
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY_DEV }}
+        run: |
+          [ -n "$CONVEX_DEPLOY_KEY" ] || { echo "CONVEX_DEPLOY_KEY_DEV secret is not set; not updating preview" >&2; exit 1; }
+          case "$CONVEX_DEPLOY_KEY" in
+            dev:*) ;;
+            *) echo "CONVEX_DEPLOY_KEY_DEV must be a dev deployment's deploy key (dev:...)" >&2; exit 1 ;;
+          esac
+          bunx convex deploy --yes
 
       - name: Look for builds with this native fingerprint
         id: native
