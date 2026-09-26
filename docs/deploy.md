@@ -172,7 +172,14 @@ The `whsec_` it prints is stable for your CLI login and is already set as
 Each needs a localization and a review screenshot before it reads "Ready to
 Submit"; the SDK returns nothing for a product without one, so the paywall
 falls back to "Plans aren't available right now". The group itself also needs a
-display name localization. The Paid Apps agreement must be signed.
+display name localization.
+
+**The Paid Apps Agreement must be Active before any product loads, even in
+sandbox.** Signing it is not enough: under Business, the legal entity, a bank
+account and the tax forms (W-9 for a US individual) all have to be in, and the
+status goes New → Pending User Info → Active (up to 24 hours). Until then
+StoreKit returns no products at all, so the paywall and the locked screen both
+say plans or the fee "can't be loaded" however complete the products are.
 
 Keep both subscriptions at the **same level** in the group. Level 1 is the
 highest service tier, so leaving monthly above annual makes monthly → annual a
