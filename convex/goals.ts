@@ -182,6 +182,39 @@ export const list = query({
   },
 });
 
+/**
+ * Money totals for the Me screen. On the line is every `armed` stake: a
+ * deadline still ahead with the card ready to charge. Kept is every stake that
+ * was `released` by an approved submission.
+ */
+export const stakeTotals = query({
+  args: {},
+  returns: v.object({ onTheLineCents: v.number(), keptCents: v.number() }),
+  handler: async (ctx): Promise<{ onTheLineCents: number; keptCents: number }> => {
+    const totals = { onTheLineCents: 0, keptCents: 0 };
+
+    const user = await getCurrentUserOrNull(ctx);
+    if (user === null) {
+      return totals;
+    }
+
+    const goals = await ctx.db
+      .query('goals')
+      .withIndex('by_user', (q) => q.eq('userId', user._id))
+      .collect();
+
+    for (const { stake } of goals) {
+      if (stake?.status === 'armed') {
+        totals.onTheLineCents += stake.amountCents;
+      } else if (stake?.status === 'released') {
+        totals.keptCents += stake.amountCents;
+      }
+    }
+
+    return totals;
+  },
+});
+
 export const get = authedQuery({
   args: { goalId: v.id('goals') },
   returns: v.union(goalWithStatusValidator, v.null()),

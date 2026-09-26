@@ -31,6 +31,7 @@ import { useSubscription } from '@/hooks/use-subscription';
 import { useTheme } from '@/hooks/use-theme';
 import { todayKey } from '@/lib/dates';
 import { setForceDelete, showDevTools, useForceDelete } from '@/lib/dev-tools';
+import { formatCents } from '@/lib/money';
 import { resetOnboarding } from '@/lib/onboarding';
 import { manageSubscriptionsUrl, revenueCatSupported } from '@/lib/revenuecat';
 
@@ -63,6 +64,7 @@ export default function MeScreen() {
   const { signOut } = useClerk();
   const habits = useQuery(api.habits.list, { today: todayKey() });
   const loggedCount = useQuery(api.habits.loggedCount);
+  const stakeTotals = useQuery(api.goals.stakeTotals);
   const { isPro, summary } = useSubscription();
   const now = useNow();
   // Only on deployments that honour them (`ANTE_DEV_OVERRIDES`), never production.
@@ -93,23 +95,43 @@ export default function MeScreen() {
         </View>
       </View>
 
-      <View style={styles.statRow}>
-        <ThemedView type="backgroundElement" style={styles.statTile}>
-          <ThemedText style={styles.statValue} themeColor="text">
-            {streak === undefined ? ' ' : formatStreak(streak)}
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            Current streak
-          </ThemedText>
-        </ThemedView>
-        <ThemedView type="backgroundElement" style={styles.statTile}>
-          <ThemedText style={styles.statValue} themeColor="text">
-            {loggedCount === undefined ? ' ' : String(loggedCount)}
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            Habits logged
-          </ThemedText>
-        </ThemedView>
+      <View style={styles.stats}>
+        <View style={styles.statRow}>
+          <ThemedView type="backgroundElement" style={styles.statTile}>
+            <ThemedText style={styles.statValue} themeColor="text">
+              {streak === undefined ? ' ' : formatStreak(streak)}
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              Current streak
+            </ThemedText>
+          </ThemedView>
+          <ThemedView type="backgroundElement" style={styles.statTile}>
+            <ThemedText style={styles.statValue} themeColor="text">
+              {loggedCount === undefined ? ' ' : String(loggedCount)}
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              Habits logged
+            </ThemedText>
+          </ThemedView>
+        </View>
+        <View style={styles.statRow}>
+          <ThemedView type="backgroundElement" style={styles.statTile}>
+            <ThemedText style={styles.statValue} themeColor="text">
+              {stakeTotals === undefined ? ' ' : formatCents(stakeTotals.onTheLineCents)}
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              On the line
+            </ThemedText>
+          </ThemedView>
+          <ThemedView type="backgroundElement" style={styles.statTile}>
+            <ThemedText style={styles.statValue} themeColor="text">
+              {stakeTotals === undefined ? ' ' : formatCents(stakeTotals.keptCents)}
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              Put up and kept
+            </ThemedText>
+          </ThemedView>
+        </View>
       </View>
 
       <ThemedView type="backgroundElement" style={styles.settingsGroup}>
@@ -266,6 +288,9 @@ const styles = StyleSheet.create({
   },
   displayName: ScreenHeadingTypography,
   statValue: ScreenHeadingTypography,
+  stats: {
+    gap: Spacing.three,
+  },
   statRow: {
     flexDirection: 'row',
     gap: Spacing.three,
