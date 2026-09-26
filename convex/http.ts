@@ -208,6 +208,7 @@ function parseRevenueCatEvent(
           cancelReason: optionalString(raw.cancel_reason),
           expirationReason: optionalString(raw.expiration_reason),
           newProductId: optionalString(raw.new_product_id),
+          transactionId: optionalString(raw.transaction_id),
         },
       };
   }

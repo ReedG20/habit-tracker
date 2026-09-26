@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, type Href } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ActionButton } from './action-button';
@@ -17,6 +17,10 @@ import { formatCents } from '@/lib/money';
 export type GoalCardProps = {
   goal: GoalWithStatus;
   now: number;
+  /** Where the card itself leads; `null` makes it inert (the locked screen has no detail view). */
+  detailHref?: Href | null;
+  /** Where Submit leads; the locked screen has its own proof route. */
+  submitHref?: Href;
 };
 
 /** The one-word state of the money on a goal, for the pill next to the deadline. */
@@ -41,7 +45,7 @@ function describeStake(goal: GoalWithStatus): string | null {
   }
 }
 
-export function GoalCard({ goal, now }: GoalCardProps) {
+export function GoalCard({ goal, now, detailHref, submitHref }: GoalCardProps) {
   const theme = useTheme();
 
   const done = goal.completedAt !== undefined;
@@ -50,13 +54,15 @@ export function GoalCard({ goal, now }: GoalCardProps) {
   const verifying = !over && goal.submission?.status === 'pending';
   const countdown = !over && goal.dueAt - now <= COUNTDOWN_WINDOW_MS;
   const stake = describeStake(goal);
+  const detail = detailHref === undefined ? (`/goals/${goal._id}` as const) : detailHref;
 
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
       <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Open ${goal.title}`}
-        onPress={() => router.push(`/goals/${goal._id}`)}
+        accessibilityRole={detail === null ? undefined : 'button'}
+        accessibilityLabel={detail === null ? undefined : `Open ${goal.title}`}
+        disabled={detail === null}
+        onPress={detail === null ? undefined : () => router.push(detail)}
         style={({ pressed }) => [styles.main, pressed && styles.pressed]}>
         <View style={[styles.goalIcon, { backgroundColor: theme.background }]}>
           <Icon icon={GoalListIcon} size={26} themeColor={over ? 'textSecondary' : 'text'} />
@@ -114,7 +120,7 @@ export function GoalCard({ goal, now }: GoalCardProps) {
           accessibilityLabel={`Submit proof for ${goal.title}`}
           variant="primary"
           // `navigate` rather than `push`: a double tap must not stack two screens.
-          onPress={() => router.navigate(`/goals/${goal._id}/submit`)}
+          onPress={() => router.navigate(submitHref ?? `/goals/${goal._id}/submit`)}
           style={styles.action}
         />
       )}

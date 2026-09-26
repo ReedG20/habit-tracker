@@ -93,7 +93,12 @@ bunx convex env set --prod OPENROUTER_API_KEY sk-or-...
 bunx convex env set --prod STRIPE_SECRET_KEY sk_live_...
 bunx convex env set --prod STRIPE_WEBHOOK_SECRET whsec_...   # after step 3
 bunx convex env set --prod REVENUECAT_WEBHOOK_AUTH "Bearer $(openssl rand -hex 32)"   # see step 3b
+bunx convex env set --prod REVENUECAT_SECRET_API_KEY sk_...   # optional; see step 3b
 ```
+
+`ANTE_DEV_OVERRIDES=1` (force-delete, lock and unlock on demand) goes on the
+shared dev deployment only, which preview builds also use. **Never set it on
+production.**
 
 Then in the Convex dashboard → production deployment → Settings → **Deploy
 keys**, generate a key with only `deployment:deploy` for step 6.
@@ -171,6 +176,11 @@ _downgrade_ (deferred to the end of the paid month) and annual → monthly an
 _upgrade_ (immediate, prorated) — backwards. Same level makes either switch a
 crossgrade that takes effect at the next renewal.
 
+**App Store Connect** → the app → In-App Purchases → **Consumable**
+`ante_reentry` at **$9.99**: the re-entry fee that lifts a lockout
+(`convex/lockouts.ts`). It needs a localization and a review screenshot like
+the subscriptions. The price lives only here, so changing it is not a code change.
+
 Under Users and Access → Integrations, create an **In-App Purchase** key and
 note the app-specific shared secret for RevenueCat. Create a Sandbox tester
 (Users and Access → Sandbox) for device testing.
@@ -184,6 +194,13 @@ note the app-specific shared secret for RevenueCat. Create a Sandbox tester
 - Offerings: `default` (marked current) with packages `$rc_monthly` →
   `ante_pro_monthly` and `$rc_annual` → `ante_pro_annual`. The paywall reads
   `offering.monthly` / `offering.annual`.
+- Products: also import `ante_reentry`, attached to **no** entitlement and in
+  no offering; the locked screen buys it by product ID. Add it to the Test
+  Store too, for the simulator.
+- Project settings → API keys → a **secret** key (`sk_...`) in
+  `REVENUECAT_SECRET_API_KEY` on each Convex deployment. With it,
+  `lockouts.confirmReentry` unlocks the moment the purchase completes; without
+  it, unlocking waits for the webhook.
 - The app's **public API key** (`appl_...`) goes into
   `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` in every EAS environment (step 4) and
   `.env.local`.

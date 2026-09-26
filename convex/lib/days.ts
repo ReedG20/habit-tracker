@@ -17,6 +17,10 @@ export function previousDay(day: string): string {
   return toDayKey(shifted);
 }
 
+export function nextDay(day: string): string {
+  return daysBefore(day, -1);
+}
+
 export function daysBefore(day: string, count: number): string {
   const [year, month, date] = day.split('-').map(Number);
   const shifted = new Date(Date.UTC(year, month - 1, date - count));
@@ -60,6 +64,11 @@ export function dayOfWeek(day: string): number {
 /** The Monday that starts the week `day` falls in. */
 export function weekStart(day: string): string {
   return daysBefore(day, dayOfWeek(day));
+}
+
+/** The Sunday that ends the week `day` falls in. */
+export function weekEnd(day: string): string {
+  return daysBefore(weekStart(day), -6);
 }
 
 /** Days still open this week, counting `day` itself: 7 on a Monday, 1 on a Sunday. */

@@ -4,16 +4,37 @@ import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, internalQuery, mutation } from './_generated/server';
 import { getCurrentUser } from './lib/auth';
 import { authedMutation } from './lib/customFunctions';
+import { nextDay } from './lib/days';
+import { isValidTimeZone, localDay } from './lib/lockout';
 import schema, { onboardingValidator } from './schema';
+
+/**
+ * The fields that start the lockout check once the device's zone is known.
+ * The day it is first reported is free: nobody is judged on a day that began
+ * before the lockout existed for them.
+ */
+function timeZoneFields(
+  timeZone: string | undefined,
+  existing: Doc<'users'> | null,
+  now: number,
+): Partial<Doc<'users'>> {
+  if (timeZone === undefined || !isValidTimeZone(timeZone)) return {};
+  if (existing?.timeZone === timeZone) return {};
+  if (existing?.lastCheckedDay !== undefined) return { timeZone };
+
+  const today = localDay(now, timeZone);
+  return { timeZone, accountableFrom: nextDay(today), lastCheckedDay: today };
+}
 
 /**
  * Upserts the signed-in Clerk identity into the `users` table. Called on every
  * launch from the authenticated layout, so it only writes when something changed.
+ * `timeZone` is the device's IANA zone; older builds leave it out.
  */
 export const storeUser = mutation({
-  args: {},
+  args: { timeZone: v.optional(v.string()) },
   returns: v.id('users'),
-  handler: async (ctx): Promise<Id<'users'>> => {
+  handler: async (ctx, args): Promise<Id<'users'>> => {
     const identity = await ctx.auth.getUserIdentity();
     if (identity === null) {
       throw new Error('Not authenticated');
@@ -27,18 +48,23 @@ export const storeUser = mutation({
       .withIndex('by_token', (q) => q.eq('tokenIdentifier', identity.tokenIdentifier))
       .unique();
 
+    const now = Date.now();
+    const zone = timeZoneFields(args.timeZone, existing, now);
+
     if (existing !== null) {
       const changed =
         existing.name !== name ||
         existing.email !== email ||
-        existing.pictureUrl !== identity.pictureUrl;
+        existing.pictureUrl !== identity.pictureUrl ||
+        Object.keys(zone).length > 0;
 
       if (changed) {
         await ctx.db.patch('users', existing._id, {
           name,
           email,
           pictureUrl: identity.pictureUrl,
-          updatedAt: Date.now(),
+          ...zone,
+          updatedAt: now,
         });
       }
 
@@ -50,7 +76,8 @@ export const storeUser = mutation({
       name,
       email,
       pictureUrl: identity.pictureUrl,
-      createdAt: Date.now(),
+      ...zone,
+      createdAt: now,
     });
   },
 });

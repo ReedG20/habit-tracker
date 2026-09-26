@@ -9,8 +9,12 @@ import type { Streak } from '@/data/habits';
 import { useTheme } from '@/hooks/use-theme';
 
 export type StakesBannerProps = {
-  /** Already formatted, e.g. `$24.62`. */
-  fee: string;
+  /**
+   * The re-entry fee, already formatted (`$9.99`). `undefined` while the store
+   * is still answering; `null` when it has no price to give (web, or the
+   * product is not live), which states the lock itself instead.
+   */
+  fee: string | null | undefined;
   /** `undefined` while the habits are still loading. */
   streak: Streak | undefined;
 };
@@ -27,13 +31,13 @@ export function StakesBanner({ fee, streak }: StakesBannerProps) {
   return (
     <View style={styles.banner}>
       <ThemedText style={styles.caption} themeColor="text">
-        Skipping today will cost you
+        {fee === null ? 'Skipping today' : 'Skipping today will cost you'}
       </ThemedText>
       <ThemedText style={styles.fee} themeColor="text">
-        {fee}
+        {fee === null ? 'locks Ante' : (fee ?? ' ')}
       </ThemedText>
       <ThemedText style={styles.caption} themeColor="text">
-        to unfreeze your account
+        {fee === null ? 'until you pay to get back in' : 'to get back in'}
       </ThemedText>
 
       <View

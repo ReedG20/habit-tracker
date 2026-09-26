@@ -10,8 +10,9 @@ import { ThemedView } from './themed-view';
 import { FlameIcon, HabitIcon } from '@/constants/icons';
 import { ActionCardRadius, ControlHeight, Spacing } from '@/constants/theme';
 import { targetPerWeek } from '@/convex/lib/frequency';
-import { isDaily, isWeekDone, type HabitWithProgress } from '@/data/habits';
+import { describeEnding, isDaily, isWeekDone, type HabitWithProgress } from '@/data/habits';
 import { useTheme } from '@/hooks/use-theme';
+import { todayKey } from '@/lib/dates';
 
 export type HabitCardProps = {
   habit: HabitWithProgress;
@@ -26,6 +27,7 @@ export function HabitCard({ habit, deadlineAt }: HabitCardProps) {
   const weekDone = isWeekDone(habit);
   const logged = habit.completedToday || weekDone;
   const verifying = !logged && habit.verification?.status === 'pending';
+  const ending = describeEnding(habit, todayKey());
 
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
@@ -59,6 +61,11 @@ export function HabitCard({ habit, deadlineAt }: HabitCardProps) {
             <ThemedText type="small" themeColor="textSecondary">
               {daily ? 'Daily' : `${habit.weekCount} of ${targetPerWeek(habit)} this week`}
             </ThemedText>
+            {ending === null ? null : (
+              <ThemedText type="small" themeColor="accent">
+                {ending}
+              </ThemedText>
+            )}
           </View>
         </View>
       </Pressable>

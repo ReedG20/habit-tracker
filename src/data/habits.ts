@@ -1,6 +1,7 @@
 import type { Doc } from '@/convex/_generated/dataModel';
 import { daysLeftInWeek } from '@/convex/lib/days';
 import { DAILY, targetPerWeek } from '@/convex/lib/frequency';
+import { fromDayKey } from '@/lib/dates';
 
 export type Habit = Doc<'habits'>;
 export type HabitCompletion = Doc<'habitCompletions'>;
@@ -43,6 +44,18 @@ export function mustLogToday(habit: HabitWithProgress, today: string): boolean {
 
   const needed = targetPerWeek(habit) - habit.weekCount;
   return needed >= daysLeftInWeek(today);
+}
+
+const weekdayFormat = new Intl.DateTimeFormat(undefined, { weekday: 'long' });
+
+/**
+ * "Ends tonight" / "Ends Sunday" for a habit deleted while still owed (see
+ * `habits.remove`); `null` for one that is not ending.
+ */
+export function describeEnding(habit: Pick<Habit, 'endsAfter'>, today: string): string | null {
+  if (habit.endsAfter === undefined) return null;
+  if (habit.endsAfter <= today) return 'Ends tonight';
+  return `Ends ${weekdayFormat.format(fromDayKey(habit.endsAfter))}`;
 }
 
 /** Daily habits count streaks in days, weekly ones in weeks that hit the target. */
