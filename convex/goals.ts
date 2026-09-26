@@ -6,6 +6,7 @@ import { internalMutation, query, type MutationCtx, type QueryCtx } from './_gen
 import { getCurrentUserOrNull } from './lib/auth';
 import { requireCommitmentText } from './lib/commitmentText';
 import { authedAction, authedMutation, authedQuery } from './lib/customFunctions';
+import { requireDevOverrides, requireUnlocked } from './lib/lockout';
 import { stripeClient } from './lib/stripe';
 import schema, { submissionStatusValidator } from './schema';
 
@@ -124,6 +125,11 @@ export async function completeGoal(ctx: MutationCtx, goal: Doc<'goals'>): Promis
   await ctx.db.patch('goals', goal._id, fields);
 }
 
+/** Money is still riding on it: the card is ready to charge, or being charged. */
+export function isStakeLive(goal: Pick<Doc<'goals'>, 'stake'>): boolean {
+  return goal.stake?.status === 'armed' || goal.stake?.status === 'charging';
+}
+
 function requireLead(dueAt: number): void {
   if (!Number.isFinite(dueAt) || dueAt < Date.now() + MIN_LEAD_MS) {
     throw new Error('The deadline has to be at least a minute from now');
@@ -198,6 +204,7 @@ export const create = authedMutation({
   },
   returns: v.id('goals'),
   handler: async (ctx, args): Promise<Id<'goals'>> => {
+    await requireUnlocked(ctx, ctx.user._id);
     requireLead(args.dueAt);
     requireCommitmentText(args.title, args.description);
 
@@ -234,6 +241,13 @@ export const beginStake = authedAction({
     setupIntentId: string;
   }> => {
     requireStakeAmount(args.amountCents);
+    // Checked again when the goal is inserted; this only saves a Stripe round trip.
+    const locked: boolean = await ctx.runQuery(internal.lockouts.isLocked, {
+      userId: ctx.user._id,
+    });
+    if (locked) {
+      throw new Error('Ante is locked until the re-entry fee is paid');
+    }
     const stripe = stripeClient();
 
     let customerId = ctx.user.stripeCustomerId;
@@ -369,6 +383,7 @@ export const insertStaked = internalMutation({
   },
   returns: v.id('goals'),
   handler: async (ctx, args): Promise<Id<'goals'>> => {
+    await requireUnlocked(ctx, args.userId);
     requireLead(args.dueAt);
 
     const replay = await ctx.db
@@ -424,6 +439,7 @@ export const update = authedMutation({
   returns: v.null(),
   handler: async (ctx, args): Promise<null> => {
     const goal = await requireOwnedGoal(ctx, args.goalId);
+    await requireUnlocked(ctx, ctx.user._id);
     requireCommitmentText(args.title ?? goal.title, args.description);
 
     const fields: Partial<Doc<'goals'>> = {};
@@ -450,12 +466,23 @@ export const update = authedMutation({
   },
 });
 
-/** Deleting an armed goal simply calls the bet off: nothing is charged. */
+/**
+ * A goal with money on it runs to its deadline: deleting it would call the
+ * bet off, so that is refused until it settles (or is released by proof).
+ * `force` calls it off anyway, on dev and preview only.
+ */
 export const remove = authedMutation({
-  args: { goalId: v.id('goals') },
+  args: { goalId: v.id('goals'), force: v.optional(v.boolean()) },
   returns: v.null(),
   handler: async (ctx, args): Promise<null> => {
     const goal = await requireOwnedGoal(ctx, args.goalId);
+    await requireUnlocked(ctx, ctx.user._id);
+
+    if (args.force === true) {
+      requireDevOverrides();
+    } else if (isStakeLive(goal)) {
+      throw new Error('A goal with money on it runs to its deadline');
+    }
 
     if (goal.stake !== undefined) {
       await cancelSettlement(ctx, goal.stake);

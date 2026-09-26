@@ -105,6 +105,19 @@ export default defineSchema({
     stripeCustomerId: v.optional(v.string()),
     /** The first-run survey, saved once the new user signs in. */
     onboarding: v.optional(onboardingValidator),
+    /**
+     * The device's IANA zone (`America/Chicago`), reported on every launch. The
+     * lockout check needs it to know when the user's day has ended; nobody is
+     * checked until it is known.
+     */
+    timeZone: v.optional(v.string()),
+    /**
+     * The first day a miss can count (`lib/lockout.ts`). Set to tomorrow when the
+     * zone is first reported and again on re-entry, so today is always free.
+     */
+    accountableFrom: v.optional(v.string()),
+    /** Every day up to and including this one has been checked for misses. */
+    lastCheckedDay: v.optional(v.string()),
   })
     .index('by_token', ['tokenIdentifier'])
     .index('by_email', ['email']),
@@ -119,6 +132,13 @@ export default defineSchema({
      */
     timesPerWeek: v.optional(v.number()),
     order: v.number(),
+    /** The user's local day it was made; that day is never checked. Absent on older habits. */
+    startDay: v.optional(v.string()),
+    /**
+     * Set when it is deleted while still owed: the last day (daily) or the
+     * Sunday (weekly) that still counts. The lockout check removes it after that.
+     */
+    endsAfter: v.optional(v.string()),
   }).index('by_user', ['userId']),
 
   habitCompletions: defineTable({
@@ -234,6 +254,44 @@ export default defineSchema({
     lastEventType: v.string(),
     updatedAt: v.number(),
   }).index('by_user', ['userId']),
+
+  /**
+   * A missed habit locks the whole app until the re-entry fee is paid. One row
+   * per lock; every miss found by the same check shares it, and so one fee.
+   * `misses` is bounded: at most one entry per habit.
+   */
+  lockouts: defineTable({
+    userId: v.id('users'),
+    status: v.union(v.literal('active'), v.literal('paid')),
+    lockedAt: v.number(),
+    misses: v.array(
+      v.object({
+        habitId: v.id('habits'),
+        title: v.string(),
+        kind: v.union(v.literal('day'), v.literal('week')),
+        /** The missed day, or the Monday of the week that ended short. */
+        period: v.string(),
+      }),
+    ),
+    paidAt: v.optional(v.number()),
+    /** Set when a developer lifted it with `devUnlock` rather than a purchase. */
+    waived: v.optional(v.boolean()),
+  }).index('by_user_and_status', ['userId', 'status']),
+
+  /**
+   * Every re-entry fee purchase, by its store transaction id, so the webhook
+   * and `lockouts.confirmReentry` can both report one without applying it
+   * twice. `lockoutId` is the lock it paid for; absent means no lock was
+   * waiting for it (a duplicate report), and it is never applied later.
+   */
+  reentryPayments: defineTable({
+    userId: v.id('users'),
+    transactionId: v.string(),
+    productId: v.string(),
+    environment: v.union(v.literal('SANDBOX'), v.literal('PRODUCTION')),
+    receivedAt: v.number(),
+    lockoutId: v.optional(v.id('lockouts')),
+  }).index('by_transaction_id', ['transactionId']),
 
   /** Same role as `stripeEvents`: RevenueCat retries until 2xx and may deliver twice. */
   revenuecatEvents: defineTable({

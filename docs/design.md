@@ -93,7 +93,7 @@ review", "Start 7-day free trial"; busy states say "One momentâ€¦" or "Workingâ€
 
 > One-off commitments with a deadline. Put money on one to make it real.
 >
-> Miss one day and Ante locks. Your other commitments freeze with it.
+> Miss one day and Ante locks. Your habits freeze with it; goals keep their deadlines.
 
 Handwritten notes are the coach in the margin: lowercase, one line, dry.
 

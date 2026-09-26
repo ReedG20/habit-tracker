@@ -1,6 +1,6 @@
 import { useClerk, useUser } from '@clerk/expo';
 import type { IconSvgElement } from '@hugeicons/react-native';
-import { useQuery } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import * as Updates from 'expo-updates';
@@ -8,10 +8,13 @@ import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { Icon } from '@/components/icon';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
+import { Switch } from '@/components/switch';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
   ArrowRight01Icon,
+  Delete02Icon,
+  LockKeyholeIcon,
   Logout01Icon,
   Notification01Icon,
   Settings02Icon,
@@ -27,14 +30,9 @@ import { useNow } from '@/hooks/use-now';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useTheme } from '@/hooks/use-theme';
 import { todayKey } from '@/lib/dates';
+import { setForceDelete, showDevTools, useForceDelete } from '@/lib/dev-tools';
 import { resetOnboarding } from '@/lib/onboarding';
 import { manageSubscriptionsUrl, revenueCatSupported } from '@/lib/revenuecat';
-
-/**
- * Tools for working on the app itself. Always in a debug build; in a preview
- * or TestFlight build only when `EXPO_PUBLIC_DEV_TOOLS=1` is set for it.
- */
-const showDevTools = __DEV__ || process.env.EXPO_PUBLIC_DEV_TOOLS === '1';
 
 const settings: { id: string; label: string; icon: IconSvgElement; href?: '/preferences' }[] = [
   { id: 'reminders', label: 'Reminders', icon: Notification01Icon },
@@ -67,6 +65,10 @@ export default function MeScreen() {
   const loggedCount = useQuery(api.habits.loggedCount);
   const { isPro, summary } = useSubscription();
   const now = useNow();
+  // Only on deployments that honour them (`ANTE_DEV_OVERRIDES`), never production.
+  const devOverrides = useQuery(api.lockouts.devOverrides, showDevTools ? {} : 'skip');
+  const forceDelete = useForceDelete();
+  const devLock = useMutation(api.lockouts.devLock);
 
   const displayName =
     user?.firstName ?? user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? 'You';
@@ -199,6 +201,41 @@ export default function MeScreen() {
                 Signs out
               </ThemedText>
             </Pressable>
+            {devOverrides === true ? (
+              <>
+                {/* Deletes skip the wait for a habit still owed, and goals with
+                    money on them can go. Off again on the next launch. */}
+                <View
+                  style={[styles.settingRow, { borderTopWidth: 1, borderTopColor: theme.border }]}>
+                  <Icon icon={Delete02Icon} size={22} themeColor="textSecondary" />
+                  <ThemedText style={styles.settingLabel}>Force delete</ThemedText>
+                  <View style={styles.switchSlot}>
+                    <Switch
+                      value={forceDelete}
+                      onChange={setForceDelete}
+                      accessibilityLabel="Force delete"
+                    />
+                  </View>
+                </View>
+                {/* The root guard swaps the tabs for the locked screen, which
+                    has the matching "Unlock" row. */}
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    devLock().catch((error: unknown) => {
+                      console.error('Failed to lock', error);
+                    });
+                  }}
+                  style={({ pressed }) => [
+                    styles.settingRow,
+                    { borderTopWidth: 1, borderTopColor: theme.border },
+                    pressed && styles.pressed,
+                  ]}>
+                  <Icon icon={LockKeyholeIcon} size={22} themeColor="textSecondary" />
+                  <ThemedText style={styles.settingLabel}>Lock me now</ThemedText>
+                </Pressable>
+              </>
+            ) : null}
           </ThemedView>
         </View>
       ) : null}
@@ -251,6 +288,12 @@ const styles = StyleSheet.create({
   },
   settingLabel: {
     flex: 1,
+  },
+  // One text line tall: the switch overhangs it slightly instead of making its
+  // row taller than the others.
+  switchSlot: {
+    height: 24,
+    justifyContent: 'center',
   },
   pressed: {
     opacity: 0.7,

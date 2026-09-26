@@ -23,8 +23,9 @@ import type { SubmissionWithPhotos } from '@/convex/goalSubmissions';
 import { isMissed, type GoalWithStatus } from '@/data/goals';
 import { useNow } from '@/hooks/use-now';
 import { useTheme } from '@/hooks/use-theme';
-import { confirmDestructive } from '@/lib/confirm';
+import { confirmDestructive, notify } from '@/lib/confirm';
 import { formatCompletedAt, formatDueAt } from '@/lib/dates';
+import { useForceDelete } from '@/lib/dev-tools';
 import { formatCents } from '@/lib/money';
 
 function describeStake(goal: GoalWithStatus): string {
@@ -66,6 +67,7 @@ export default function GoalDetailScreen() {
   const goal = useQuery(api.goals.get, { goalId });
   const submissions = useQuery(api.goalSubmissions.list, goal ? { goalId } : 'skip');
   const remove = useMutation(api.goals.remove);
+  const forceDelete = useForceDelete();
 
   if (goal === undefined) {
     return <ScreenScrollView />;
@@ -93,6 +95,7 @@ export default function GoalDetailScreen() {
   const verifying = goal.submission?.status === 'pending';
   const canSubmit = !done && !missed && !verifying;
   const armed = goal.stake?.status === 'armed';
+  const stakeLive = armed || goal.stake?.status === 'charging';
 
   return (
     <ScreenScrollView>
@@ -101,21 +104,28 @@ export default function GoalDetailScreen() {
         description={goal.description}
         deleteLabel="Delete goal"
         onEdit={() => router.push(`/goals/${goalId}/edit`)}
-        onDelete={() =>
+        onDelete={() => {
+          if (stakeLive && !forceDelete) {
+            notify(
+              'This goal has money on it',
+              'It runs to its deadline. Submit proof before then and nothing is charged.',
+            );
+            return;
+          }
           confirmDestructive({
             title: 'Delete goal',
-            message: armed
-              ? 'The stake is called off and nothing is charged. This cannot be undone.'
+            message: stakeLive
+              ? 'Force delete is on: the stake is called off and nothing is charged.'
               : 'This cannot be undone.',
             confirmLabel: 'Delete',
             onConfirm: () => {
               router.back();
-              void remove({ goalId }).catch((error: unknown) => {
+              void remove({ goalId, force: forceDelete || undefined }).catch((error: unknown) => {
                 console.error('Failed to delete the goal', error);
               });
             },
-          })
-        }
+          });
+        }}
       />
 
       <ThemedView type="backgroundElement" style={styles.meta}>

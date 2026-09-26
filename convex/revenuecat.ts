@@ -2,6 +2,7 @@ import { v, type Infer } from 'convex/values';
 
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
+import { applyReentryPayment, REENTRY_PRODUCT_ID } from './lockouts';
 import type { subscriptionStatusValidator } from './schema';
 
 /** The RevenueCat entitlement every Ante Pro product is attached to. */
@@ -64,6 +65,8 @@ export const subscriptionEventValidator = v.object({
   cancelReason: v.optional(v.string()),
   expirationReason: v.optional(v.string()),
   newProductId: v.optional(v.string()),
+  /** The store's transaction id; what dedupes a re-entry purchase (`lockouts.ts`). */
+  transactionId: v.optional(v.string()),
 });
 
 /**
@@ -113,6 +116,10 @@ export const handleEvent = internalMutation({
     }
     if (event.type === 'TRANSFER') {
       await transfer(ctx, args.eventId, event);
+      return null;
+    }
+    if (event.type === 'NON_RENEWING_PURCHASE' && event.productId === REENTRY_PRODUCT_ID) {
+      await reentryPurchase(ctx, args.eventId, event);
       return null;
     }
     if (!event.entitlementIds.includes(PRO_ENTITLEMENT)) {
@@ -203,6 +210,25 @@ function statusFor(
     case 'EXPIRATION':
       return { status: 'expired', willRenew: false };
   }
+}
+
+/** The re-entry fee was paid: lift the lock (`lockouts.applyReentryPayment`). */
+async function reentryPurchase(
+  ctx: MutationCtx,
+  eventId: string,
+  event: SubscriptionEvent,
+): Promise<void> {
+  const userId = await resolveUser(ctx, [event.appUserId, ...event.aliases]);
+  if (userId === null || event.transactionId === undefined) {
+    console.warn(`RevenueCat re-entry purchase ${eventId} matched no user or transaction`);
+    return;
+  }
+  await applyReentryPayment(ctx, userId, {
+    transactionId: event.transactionId,
+    productId: REENTRY_PRODUCT_ID,
+    environment: event.environment,
+    purchasedAt: event.purchasedAtMs ?? event.eventTimestampMs,
+  });
 }
 
 /**

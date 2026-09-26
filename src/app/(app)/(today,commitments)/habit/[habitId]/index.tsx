@@ -6,15 +6,17 @@ import { DetailHeader } from '@/components/detail-header';
 import { EmptyState } from '@/components/empty-state';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
+import { showToast } from '@/components/toast';
 import { ThemedView } from '@/components/themed-view';
 import { CheckmarkCircle02Icon } from '@/constants/icons';
 import { CardRadius, Fonts, ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
-import { isDaily } from '@/data/habits';
+import { describeEnding, isDaily } from '@/data/habits';
 import { useTheme } from '@/hooks/use-theme';
 import { confirmDestructive } from '@/lib/confirm';
 import { formatCompletedAt, todayKey } from '@/lib/dates';
+import { useForceDelete } from '@/lib/dev-tools';
 
 const PAGE_SIZE = 30;
 
@@ -27,6 +29,7 @@ export default function HabitDetailScreen() {
   const habit = useQuery(api.habits.get, { habitId });
   const stats = useQuery(api.habits.stats, habit === null ? 'skip' : { habitId, today });
   const remove = useMutation(api.habits.remove);
+  const forceDelete = useForceDelete();
 
   const completions = usePaginatedQuery(
     api.habits.listCompletions,
@@ -66,18 +69,39 @@ export default function HabitDetailScreen() {
         onDelete={() =>
           confirmDestructive({
             title: 'Delete habit',
-            message: 'This also deletes its entire completion history. This cannot be undone.',
+            message: forceDelete
+              ? 'Force delete is on: it goes right away, with its entire completion history.'
+              : isDaily(habit)
+                ? 'If it isn’t logged today, you still owe today: it stays until tonight, then goes with its entire history.'
+                : 'If this week’s target isn’t met yet, you still owe this week: it stays until Sunday, then goes with its entire history.',
             confirmLabel: 'Delete',
             onConfirm: () => {
               // Leave first: the screen's queries resolve to null once the row is gone.
               router.back();
-              void remove({ habitId }).catch((error: unknown) => {
-                console.error('Failed to delete the habit', error);
-              });
+              remove({ habitId, force: forceDelete || undefined })
+                .then((result) => {
+                  if (result === 'scheduled') {
+                    showToast(
+                      `${habit.title} is ending`,
+                      isDaily(habit)
+                        ? 'Log it one last time today.'
+                        : 'Finish this week, and it goes after Sunday.',
+                    );
+                  }
+                })
+                .catch((error: unknown) => {
+                  console.error('Failed to delete the habit', error);
+                });
             },
           })
         }
       />
+
+      {habit.endsAfter !== undefined ? (
+        <ThemedText type="smallSemibold" themeColor="accent">
+          {describeEnding(habit, today)}. It still counts until then.
+        </ThemedText>
+      ) : null}
 
       <View style={styles.statRow}>
         <ThemedView type="backgroundElement" style={styles.statTile}>

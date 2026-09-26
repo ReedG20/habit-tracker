@@ -13,10 +13,8 @@ import { api } from '@/convex/_generated/api';
 import { currentStreak } from '@/data/habits';
 import { groupIntoHomeSections } from '@/data/home-sections';
 import { useNow } from '@/hooks/use-now';
+import { useReentryProduct } from '@/hooks/use-reentry-product';
 import { todayKey } from '@/lib/dates';
-
-/** Placeholder until stakes live in the backend. */
-const PLACEHOLDER_UNFREEZE_FEE = '$24.62';
 
 export default function TodayScreen() {
   // Recomputed every render, so the day rolls over on the next interaction
@@ -27,12 +25,19 @@ export default function TodayScreen() {
   const now = useNow();
   const goals = useQuery(api.goals.list);
   const sections = habits && goals ? groupIntoHomeSections(habits, goals, today, now) : undefined;
+  const reentry = useReentryProduct();
 
   return (
     <ScreenScrollView>
       <View style={styles.header}>
         <StakesBanner
-          fee={PLACEHOLDER_UNFREEZE_FEE}
+          fee={
+            reentry.status === 'ready'
+              ? reentry.product.priceString
+              : reentry.status === 'loading'
+                ? undefined
+                : null
+          }
           streak={habits === undefined ? undefined : currentStreak(habits)}
         />
       </View>

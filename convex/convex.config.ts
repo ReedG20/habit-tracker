@@ -36,6 +36,20 @@ const app = defineApp({
      *   bunx convex env set REVENUECAT_WEBHOOK_AUTH "Bearer $(openssl rand -hex 32)"
      */
     REVENUECAT_WEBHOOK_AUTH: v.string(),
+    /**
+     * RevenueCat secret API key (Project settings → API keys → Secret, `sk_...`),
+     * used by `lockouts.confirmReentry` to see a re-entry purchase without
+     * waiting for the webhook. Optional: without it unlocking waits for the
+     * webhook. Set with:
+     *   bunx convex env set REVENUECAT_SECRET_API_KEY sk_...
+     */
+    REVENUECAT_SECRET_API_KEY: v.optional(v.string()),
+    /**
+     * `1` turns on the developer bypasses (force-delete, lock and unlock on
+     * demand; `lib/lockout.ts`). Set on dev and preview only, never production:
+     *   bunx convex env set ANTE_DEV_OVERRIDES 1
+     */
+    ANTE_DEV_OVERRIDES: v.optional(v.string()),
   },
 });
 

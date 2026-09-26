@@ -5,6 +5,7 @@ import type { Doc, Id } from './_generated/dataModel';
 import { internalAction, internalMutation, type MutationCtx } from './_generated/server';
 import { requireOwnedHabit } from './habits';
 import { authedMutation } from './lib/customFunctions';
+import { localDay, requireUnlocked } from './lib/lockout';
 import {
   EXPIRE_AFTER_MS,
   FAILED_REASON,
@@ -51,14 +52,19 @@ export const generateUploadUrl = authedMutation({
 });
 
 /**
- * Records the submission and kicks off analysis. `day` comes from the client
- * for the same reason as everywhere else: the day boundary is the device's.
+ * Records the submission and kicks off analysis. The day is worked out here
+ * from the user's stored time zone, so a photo can never be filed under a day
+ * the lockout check has already judged. The client's `day` is only used for
+ * users whose zone is not known yet (builds from before the lockout).
  */
 export const submit = authedMutation({
   args: { habitId: v.id('habits'), day: v.string(), photoId: v.id('_storage') },
   returns: v.id('habitVerifications'),
   handler: async (ctx, args): Promise<Id<'habitVerifications'>> => {
     const habit = await requireOwnedHabit(ctx, args.habitId);
+    await requireUnlocked(ctx, ctx.user._id);
+    const day =
+      ctx.user.timeZone === undefined ? args.day : localDay(Date.now(), ctx.user.timeZone);
 
     // Cheap gate before spending a model call: the upload must really be an image.
     const file = await ctx.db.system.get('_storage', args.photoId);
@@ -68,7 +74,7 @@ export const submit = authedMutation({
 
     const completion = await ctx.db
       .query('habitCompletions')
-      .withIndex('by_habit_and_day', (q) => q.eq('habitId', args.habitId).eq('day', args.day))
+      .withIndex('by_habit_and_day', (q) => q.eq('habitId', args.habitId).eq('day', day))
       .unique();
     if (completion !== null) {
       throw new Error('This habit is already logged for today');
@@ -76,7 +82,7 @@ export const submit = authedMutation({
 
     const latest = await ctx.db
       .query('habitVerifications')
-      .withIndex('by_habit_and_day', (q) => q.eq('habitId', args.habitId).eq('day', args.day))
+      .withIndex('by_habit_and_day', (q) => q.eq('habitId', args.habitId).eq('day', day))
       .order('desc')
       .first();
     if (latest?.status === 'pending') {
@@ -86,7 +92,7 @@ export const submit = authedMutation({
     const verificationId = await ctx.db.insert('habitVerifications', {
       userId: ctx.user._id,
       habitId: args.habitId,
-      day: args.day,
+      day,
       photoId: args.photoId,
       status: 'pending',
       createdAt: Date.now(),

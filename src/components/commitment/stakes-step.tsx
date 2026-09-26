@@ -128,7 +128,7 @@ function GoalStakes({ draft, onChange, onNext, allowMoney = true }: StakesStepPr
       {/* Also the disclosure Stripe requires before saving a card for off-session use. */}
       <WhatHappens
         steps={[
-          'Your card is saved now. Nothing is charged today.',
+          'Your card is saved now. Nothing is charged today, and with money on it the goal can’t be deleted.',
           `Before ${formatDueAt(draft.dueAt)}, submit a photo. AI checks it against what you wrote.`,
           `Miss it, or the proof doesn’t hold up, and you’re charged ${formatCents(amountCents)} automatically. Make it and nothing happens.`,
         ]}
@@ -229,13 +229,13 @@ function HabitStakes({ timesPerWeek, onNext }: { timesPerWeek: number; onNext: (
         steps={
           daily
             ? [
-                'Every day, prove it with a photo before midnight.',
-                'Miss one day and Ante locks. Your other commitments freeze with it.',
+                'Every day, prove it with a photo before midnight. The day you start is free.',
+                'Miss one day and Ante locks. Your habits freeze with it; goals keep their deadlines.',
                 'To get back in, you pay a re-entry fee. The streak doesn’t come back.',
               ]
             : [
-                `Any ${days} a week, prove it with a photo. Weeks run Monday to Sunday.`,
-                'End a week short and Ante locks. Your other commitments freeze with it.',
+                `Any ${days} a week, prove it with a photo. Weeks run Monday to Sunday, from the first full one.`,
+                'End a week short and Ante locks. Your habits freeze with it; goals keep their deadlines.',
                 'To get back in, you pay a re-entry fee. The streak doesn’t come back.',
               ]
         }

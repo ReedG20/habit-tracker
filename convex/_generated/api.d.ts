@@ -9,6 +9,7 @@
  */
 
 import type * as commitmentChecks from "../commitmentChecks.js";
+import type * as crons from "../crons.js";
 import type * as goalSubmissions from "../goalSubmissions.js";
 import type * as goals from "../goals.js";
 import type * as habits from "../habits.js";
@@ -19,9 +20,11 @@ import type * as lib_customFunctions from "../lib/customFunctions.js";
 import type * as lib_days from "../lib/days.js";
 import type * as lib_entitlements from "../lib/entitlements.js";
 import type * as lib_frequency from "../lib/frequency.js";
+import type * as lib_lockout from "../lib/lockout.js";
 import type * as lib_openrouter from "../lib/openrouter.js";
 import type * as lib_stripe from "../lib/stripe.js";
 import type * as lib_vision from "../lib/vision.js";
+import type * as lockouts from "../lockouts.js";
 import type * as revenuecat from "../revenuecat.js";
 import type * as stripe from "../stripe.js";
 import type * as subscriptions from "../subscriptions.js";
@@ -36,6 +39,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   commitmentChecks: typeof commitmentChecks;
+  crons: typeof crons;
   goalSubmissions: typeof goalSubmissions;
   goals: typeof goals;
   habits: typeof habits;
@@ -46,9 +50,11 @@ declare const fullApi: ApiFromModules<{
   "lib/days": typeof lib_days;
   "lib/entitlements": typeof lib_entitlements;
   "lib/frequency": typeof lib_frequency;
+  "lib/lockout": typeof lib_lockout;
   "lib/openrouter": typeof lib_openrouter;
   "lib/stripe": typeof lib_stripe;
   "lib/vision": typeof lib_vision;
+  lockouts: typeof lockouts;
   revenuecat: typeof revenuecat;
   stripe: typeof stripe;
   subscriptions: typeof subscriptions;

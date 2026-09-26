@@ -12,8 +12,10 @@ import {
   streakLength,
   STREAK_WINDOW_DAYS,
   weeklyStreak,
+  weekStart,
 } from './lib/days';
 import { DAILY, isValidTimesPerWeek, targetPerWeek } from './lib/frequency';
+import { endOfPeriod, isOwed, localDay, requireDevOverrides, requireUnlocked } from './lib/lockout';
 
 const habitValidator = v.object({
   _id: v.id('habits'),
@@ -23,6 +25,8 @@ const habitValidator = v.object({
   description: v.optional(v.string()),
   timesPerWeek: v.optional(v.number()),
   order: v.number(),
+  startDay: v.optional(v.string()),
+  endsAfter: v.optional(v.string()),
 });
 
 /**
@@ -242,6 +246,7 @@ export const create = authedMutation({
   },
   returns: v.id('habits'),
   handler: async (ctx, args): Promise<Id<'habits'>> => {
+    await requireUnlocked(ctx, ctx.user._id);
     requireCommitmentText(args.title, args.description);
     const timesPerWeek = args.timesPerWeek ?? DAILY;
     if (!isValidTimesPerWeek(timesPerWeek)) {
@@ -261,6 +266,8 @@ export const create = authedMutation({
       description: args.description,
       timesPerWeek,
       order,
+      startDay:
+        ctx.user.timeZone === undefined ? undefined : localDay(Date.now(), ctx.user.timeZone),
     });
   },
 });
@@ -275,6 +282,7 @@ export const update = authedMutation({
   returns: v.null(),
   handler: async (ctx, args): Promise<null> => {
     const habit = await requireOwnedHabit(ctx, args.habitId);
+    await requireUnlocked(ctx, ctx.user._id);
     requireCommitmentText(args.title ?? habit.title, args.description);
 
     // `patch` removes fields set to `undefined`, so only send what was provided.
@@ -292,36 +300,70 @@ export const update = authedMutation({
   },
 });
 
+/**
+ * Deleting a habit that is still owed (not logged today, or short this week)
+ * only schedules it: it has to be done one last time, and the lockout check
+ * removes it once that period has been judged. Otherwise quitting on the night
+ * it is due would dodge the miss. `force` skips the wait, on dev and preview only.
+ */
 export const remove = authedMutation({
-  args: { habitId: v.id('habits') },
-  returns: v.null(),
-  handler: async (ctx, args): Promise<null> => {
-    await requireOwnedHabit(ctx, args.habitId);
+  args: { habitId: v.id('habits'), force: v.optional(v.boolean()) },
+  returns: v.union(v.literal('deleted'), v.literal('scheduled')),
+  handler: async (ctx, args): Promise<'deleted' | 'scheduled'> => {
+    const habit = await requireOwnedHabit(ctx, args.habitId);
+    await requireUnlocked(ctx, ctx.user._id);
 
-    const completions = await ctx.db
-      .query('habitCompletions')
-      .withIndex('by_habit_and_day', (q) => q.eq('habitId', args.habitId))
-      .collect();
+    if (args.force === true) {
+      requireDevOverrides();
+    } else if (habit.endsAfter !== undefined) {
+      return 'scheduled';
+    } else {
+      const { timeZone, accountableFrom } = ctx.user;
+      if (timeZone !== undefined && accountableFrom !== undefined) {
+        const today = localDay(Date.now(), timeZone);
+        const completions = await ctx.db
+          .query('habitCompletions')
+          .withIndex('by_habit_and_day', (q) =>
+            q.eq('habitId', args.habitId).gte('day', weekStart(today)).lte('day', today),
+          )
+          .collect();
+        const days = new Set(completions.map((completion) => completion.day));
 
-    for (const completion of completions) {
-      await ctx.db.delete('habitCompletions', completion._id);
+        if (isOwed(habit, days, today, accountableFrom)) {
+          await ctx.db.patch('habits', args.habitId, { endsAfter: endOfPeriod(habit, today) });
+          return 'scheduled';
+        }
+      }
     }
 
-    const verifications = await ctx.db
-      .query('habitVerifications')
-      .withIndex('by_habit_and_day', (q) => q.eq('habitId', args.habitId))
-      .collect();
-
-    for (const verification of verifications) {
-      await ctx.storage.delete(verification.photoId);
-      await ctx.db.delete('habitVerifications', verification._id);
-    }
-
-    await ctx.db.delete('habits', args.habitId);
-
-    return null;
+    await deleteHabit(ctx, args.habitId);
+    return 'deleted';
   },
 });
+
+/** The habit and everything logged against it, photos included. */
+export async function deleteHabit(ctx: MutationCtx, habitId: Id<'habits'>): Promise<void> {
+  const completions = await ctx.db
+    .query('habitCompletions')
+    .withIndex('by_habit_and_day', (q) => q.eq('habitId', habitId))
+    .collect();
+
+  for (const completion of completions) {
+    await ctx.db.delete('habitCompletions', completion._id);
+  }
+
+  const verifications = await ctx.db
+    .query('habitVerifications')
+    .withIndex('by_habit_and_day', (q) => q.eq('habitId', habitId))
+    .collect();
+
+  for (const verification of verifications) {
+    await ctx.storage.delete(verification.photoId);
+    await ctx.db.delete('habitVerifications', verification._id);
+  }
+
+  await ctx.db.delete('habits', habitId);
+}
 
 /**
  * Total completions across every habit. Used on Me; a full-table count is

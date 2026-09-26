@@ -27,3 +27,13 @@ export function confirmDestructive({
     { text: confirmLabel, style: 'destructive', onPress: onConfirm },
   ]);
 }
+
+/** A plain message with one OK button; `window.alert` on web, like `confirmDestructive`. */
+export function notify(title: string, message: string): void {
+  if (Platform.OS === 'web') {
+    window.alert(`${title}\n\n${message}`);
+    return;
+  }
+
+  Alert.alert(title, message);
+}

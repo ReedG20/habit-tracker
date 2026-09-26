@@ -29,7 +29,10 @@ import Home01Icon from '@hugeicons/core-free-icons/Home01Icon';
 import Image01Icon from '@hugeicons/core-free-icons/Image01Icon';
 import Location01Icon from '@hugeicons/core-free-icons/Location01Icon';
 import LockIcon from '@hugeicons/core-free-icons/LockIcon';
+import LockKeyholeIcon from '@hugeicons/core-free-icons/LockKeyholeIcon';
+import LockKeyholeOpenIcon from '@hugeicons/core-free-icons/LockKeyholeOpenIcon';
 import Logout01Icon from '@hugeicons/core-free-icons/Logout01Icon';
+import Mail01Icon from '@hugeicons/core-free-icons/Mail01Icon';
 import MinusSignIcon from '@hugeicons/core-free-icons/MinusSignIcon';
 import Money03Icon from '@hugeicons/core-free-icons/Money03Icon';
 import MoreHorizontalIcon from '@hugeicons/core-free-icons/MoreHorizontalIcon';
@@ -66,7 +69,10 @@ export {
   Image01Icon,
   Location01Icon,
   LockIcon,
+  LockKeyholeIcon,
+  LockKeyholeOpenIcon,
   Logout01Icon,
+  Mail01Icon,
   MinusSignIcon,
   Money03Icon,
   MoreHorizontalIcon,
