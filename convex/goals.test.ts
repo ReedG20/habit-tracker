@@ -36,6 +36,39 @@ describe('goals', () => {
     expect(await alice.as.query(api.goals.get, { goalId })).toMatchObject({ title: 'Ship' });
   });
 
+  test('stakeTotals sums armed stakes as on the line and released ones as kept', async () => {
+    const t = setup();
+    expect(await t.query(api.goals.stakeTotals, {})).toEqual({ onTheLineCents: 0, keptCents: 0 });
+
+    const alice = await signIn(t, 'alice');
+    const bob = await signIn(t, 'bob');
+
+    const stake = (amountCents: number, status: 'armed' | 'released' | 'charged') => ({
+      amountCents,
+      stripeCustomerId: 'cus_1',
+      stripePaymentMethodId: 'pm_1',
+      stripeSetupIntentId: `seti_${amountCents}_${status}`,
+      status,
+    });
+
+    await t.run(async (ctx) => {
+      const goal = (userId: typeof alice.userId, s?: ReturnType<typeof stake>) =>
+        ctx.db.insert('goals', { userId, title: 'Ship', dueAt: inAnHour(), order: 0, stake: s });
+
+      await goal(alice.userId, stake(500, 'armed'));
+      await goal(alice.userId, stake(1000, 'armed'));
+      await goal(alice.userId, stake(250, 'released'));
+      await goal(alice.userId, stake(2000, 'charged'));
+      await goal(alice.userId);
+      await goal(bob.userId, stake(5000, 'armed'));
+    });
+
+    expect(await alice.as.query(api.goals.stakeTotals, {})).toEqual({
+      onTheLineCents: 1500,
+      keptCents: 250,
+    });
+  });
+
   test('remove deletes the goal and its submissions', async () => {
     const t = setup();
     const alice = await signIn(t, 'alice');
