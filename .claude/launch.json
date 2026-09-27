@@ -3,24 +3,17 @@
   "configurations": [
     {
       "name": "metro",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": [
-        "expo",
-        "start",
-        "--dev-client"
-      ],
-      "port": 8081
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "exec bunx expo start --dev-client --port ${PORT:-8081}"],
+      "port": 8081,
+      "autoPort": true
     },
     {
       "name": "metro-tunnel",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": [
-        "expo",
-        "start",
-        "--dev-client",
-        "--tunnel"
-      ],
-      "port": 8081
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "exec bunx expo start --dev-client --tunnel --port ${PORT:-8081}"],
+      "port": 8081,
+      "autoPort": true
     }
   ]
 }
