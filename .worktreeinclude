@@ -1,0 +1,3 @@
+# Gitignored files copied into every new Claude worktree (desktop sessions,
+# --worktree, subagents). The worktree-setup skill then repoints Convex.
+.env.local

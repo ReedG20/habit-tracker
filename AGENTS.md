@@ -34,6 +34,18 @@ Run lint and typecheck before declaring any task done.
 Use EAS to build, sign, and submit the app in the cloud (`eas build`, `eas submit`) and to ship over-the-air updates (`eas update`) — no local Xcode or Android Studio required. Run EAS CLI as `bunx eas-cli <command>` in Bun projects, or `npx eas-cli@latest <command>` otherwise; substitute that for bare `eas` in docs examples.
 Docs: https://docs.expo.dev/eas/index.md
 
+## Parallel worktrees
+
+Several Claude sessions often run at once, each in its own git worktree under `.claude/worktrees/<name>/`.
+
+- **In a worktree, load the `worktree-setup` skill** before your first Convex command, before launching or screenshotting the app, before opening a PR, and when Reed says the feature is done. It gives the worktree its own Convex dev deployment, Metro port and iOS simulator. Never use the shared ones: Convex `cool-kiwi-961`, simulator `948E5A44…`.
+- The main checkout keeps using `cool-kiwi-961` and `948E5A44…`, as before.
+- Keep branches merge-friendly:
+  - one feature per branch, small PRs
+  - no drive-by refactors or reformatting of shared files (`src/app/_layout.tsx`, `convex/schema.ts`, theme, shared components)
+  - add new modules and components rather than growing big existing ones
+  - sync with `main` before opening the PR
+
 ## Rules
 
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
