@@ -4,6 +4,7 @@ import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { env, internalMutation, internalQuery, query } from './_generated/server';
 import { getCurrentUserOrNull } from './lib/auth';
+import { scheduleTrialNotice } from './accountNotices';
 import { authedAction, authedMutation } from './lib/customFunctions';
 import { isPro, isSubscriptionActive } from './lib/entitlements';
 import { requireDevOverrides } from './lib/lockout';
@@ -86,6 +87,7 @@ export const applySynced = internalMutation({
       await ctx.db.replace('subscriptions', existing._id, fields);
     }
     await touchReminders(ctx, args.userId);
+    await scheduleTrialNotice(ctx, args.userId, existing, fields);
     return null;
   },
 });

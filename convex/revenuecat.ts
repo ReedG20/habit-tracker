@@ -2,6 +2,7 @@ import { v, type Infer } from 'convex/values';
 
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
+import { scheduleTrialNotice } from './accountNotices';
 import { touchReminders } from './lib/notify';
 import { applyReentryPayment, REENTRY_PRODUCT_ID } from './lockouts';
 import type { subscriptionStatusValidator } from './schema';
@@ -150,6 +151,7 @@ export const handleEvent = internalMutation({
     }
     // Pro starting or ending pauses or resumes habits, and their reminders with them.
     await touchReminders(ctx, userId);
+    await scheduleTrialNotice(ctx, userId, existing, next);
     return null;
   },
 });

@@ -3,6 +3,7 @@ import { v } from 'convex/values';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { env, internalMutation, internalQuery, query, type MutationCtx } from './_generated/server';
+import { scheduleLockNotices } from './accountNotices';
 import { deleteHabit } from './habits';
 import { getCurrentUserOrNull } from './lib/auth';
 import { authedAction, authedMutation } from './lib/customFunctions';
@@ -191,12 +192,13 @@ export async function checkUser(ctx: MutationCtx, user: Doc<'users'>, now: numbe
   }
 
   if (misses.length > 0) {
-    await ctx.db.insert('lockouts', {
+    const lockoutId = await ctx.db.insert('lockouts', {
       userId: user._id,
       status: 'active',
       lockedAt: now,
       misses,
     });
+    await scheduleLockNotices(ctx, user, lockoutId, now);
   }
 }
 
@@ -397,10 +399,11 @@ export const devLock = authedMutation({
       .withIndex('by_user', (q) => q.eq('userId', ctx.user._id))
       .take(20);
 
-    await ctx.db.insert('lockouts', {
+    const lockedAt = Date.now();
+    const lockoutId = await ctx.db.insert('lockouts', {
       userId: ctx.user._id,
       status: 'active',
-      lockedAt: Date.now(),
+      lockedAt,
       misses: habits.map((habit) => ({
         habitId: habit._id,
         title: habit.title,
@@ -408,6 +411,7 @@ export const devLock = authedMutation({
         period: today,
       })),
     });
+    await scheduleLockNotices(ctx, ctx.user, lockoutId, lockedAt);
     return null;
   },
 });
