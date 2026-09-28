@@ -53,7 +53,13 @@ export default function TodayScreen() {
       </View>
 
       <View style={styles.sections}>
-        <NotificationsOffBanner habits={habits} goals={goals} today={today} now={now} />
+        {/* Paused habits can't lock anything, so only goals are worth the ask. */}
+        <NotificationsOffBanner
+          habits={paused && habits !== undefined ? [] : habits}
+          goals={goals}
+          today={today}
+          now={now}
+        />
 
         {sections?.length === 0 ? (
           <EmptyState
