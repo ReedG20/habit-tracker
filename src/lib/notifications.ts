@@ -14,7 +14,7 @@ export type PushPermission = 'granted' | 'provisional' | 'denied' | 'undetermine
 
 /** What a push carries in `data`, as set by `convex/reminders.ts` and `convex/lib/notify.ts`. */
 export type PushData = {
-  kind?: 'reminder' | 'lineup' | 'proof' | 'receipt' | 'test';
+  kind?: 'reminder' | 'lineup' | 'proof' | 'receipt' | 'account' | 'test';
   url?: string;
   final?: boolean;
 };
@@ -125,7 +125,9 @@ export async function currentPushToken(): Promise<string | null> {
 /**
  * What a push does while Ante is open. Early nudges and photo verdicts stay
  * quiet (the screen and the toasts already say it); a last call still shows,
- * since the app being open doesn't mean they've seen that screen. Never badges.
+ * since the app being open doesn't mean they've seen that screen. Receipts and
+ * account notices (still locked, trial ending) always show: they're about
+ * money, and hiding one leaves no trace of it in Notification Center. Never badges.
  */
 export function configureForegroundHandling() {
   if (!notificationsSupported) return;
@@ -135,6 +137,7 @@ export function configureForegroundHandling() {
       const show =
         data.kind === 'test' ||
         data.kind === 'receipt' ||
+        data.kind === 'account' ||
         (data.kind === 'reminder' && data.final === true);
       return {
         shouldShowBanner: show,
