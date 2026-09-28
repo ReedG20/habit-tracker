@@ -1,4 +1,5 @@
 import rateLimiter from '@convex-dev/rate-limiter/convex.config.js';
+import resend from '@convex-dev/resend/convex.config.js';
 import { defineApp } from 'convex/server';
 import { v } from 'convex/values';
 
@@ -63,10 +64,39 @@ const app = defineApp({
      *   bunx convex env set EXPO_ACCESS_TOKEN ...
      */
     EXPO_ACCESS_TOKEN: v.optional(v.string()),
+    /**
+     * Resend API key for emails to users' friends (`emails.ts`). Set with:
+     *   bunx convex env set RESEND_API_KEY re_...
+     */
+    RESEND_API_KEY: v.optional(v.string()),
+    /**
+     * Signing secret for the `/resend/webhook` endpoint (bounces and
+     * complaints), from the Resend dashboard. Set with:
+     *   bunx convex env set RESEND_WEBHOOK_SECRET whsec_...
+     */
+    RESEND_WEBHOOK_SECRET: v.optional(v.string()),
+    /**
+     * `on` lets emails actually leave through Resend. Anywhere else they are
+     * only logged, so a dev deployment never emails a real person. Set on
+     * production only:
+     *   bunx convex env set EMAIL_DELIVERY on
+     */
+    EMAIL_DELIVERY: v.optional(v.string()),
+    /** Overrides the sender, e.g. `Ante <hello@mail.useanteapp.com>`. */
+    EMAIL_FROM: v.optional(v.string()),
+    /**
+     * `on` switches habits from the old re-entry fee to per-habit stakes
+     * (`habitChecks.ts`). Flipped on production at cutover, alongside the
+     * app release; removed once every build is past it.
+     */
+    STAKES_V2: v.optional(v.string()),
   },
 });
 
 /** Bounds the wording check, which anyone in onboarding can call (`commitmentChecks.ts`). */
 app.use(rateLimiter);
+
+/** Queues and retries emails to users' friends (`emails.ts`). */
+app.use(resend);
 
 export default app;

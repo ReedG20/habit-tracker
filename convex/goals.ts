@@ -1,26 +1,42 @@
-import { v } from 'convex/values';
+import { v, type Infer } from 'convex/values';
 
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
+import { friendInputValidator, resolveFriend } from './friends';
 import { getCurrentUserOrNull } from './lib/auth';
 import { requireCommitmentText } from './lib/commitmentText';
 import { authedAction, authedMutation, authedQuery } from './lib/customFunctions';
-import { PRO_REQUIRED, requirePro } from './lib/entitlements';
+import { requirePro } from './lib/entitlements';
 import { requireDevOverrides, requireUnlocked } from './lib/lockout';
 import { touchReminders } from './lib/notify';
-import { stripeClient } from './lib/stripe';
-import schema, { submissionStatusValidator } from './schema';
+import {
+  isStakeLive as isStakeViewLive,
+  stakeView,
+  stakeViewValidator,
+  type StakeView,
+} from './lib/stakeRules';
+import { materializeGoalStake, releaseStake } from './lib/stakes';
+import { moneyFields } from './lib/stakeSchema';
+import schema, { stakeValidator, submissionStatusValidator } from './schema';
+import {
+  armStake,
+  cardSetupValidator,
+  dropGoalStake,
+  mintCardSetup,
+  moneyTotals,
+  verifySavedCard,
+  type CardSetup,
+} from './stakes';
 
 /**
- * Goals: one-off commitments with a deadline and, optionally, money on the
- * line. A goal is only ever completed through an approved submission
- * (`goalSubmissions.ts`); a staked goal that reaches `dueAt` uncompleted is
- * charged by `stripe.settle`.
+ * Goals: one-off commitments with a deadline and, optionally, a stake: money
+ * or a friend who hears about a miss. A goal is only ever completed through an
+ * approved submission (`goalSubmissions.ts`); a staked goal that reaches
+ * `dueAt` uncompleted comes due in `stakes.resolveGoal`.
  */
 
-export const MIN_STAKE_CENTS = 100;
-export const MAX_STAKE_CENTS = 5000;
+export { MAX_STAKE_CENTS, MIN_STAKE_CENTS } from './lib/stakeRules';
 
 /** A deadline has to be at least this far out, so a settlement is never scheduled in the past. */
 export const MIN_LEAD_MS = 60 * 1000;
@@ -38,6 +54,8 @@ const submissionSummaryValidator = v.object({
 
 const goalWithStatusValidator = goalValidator.extend({
   submission: v.union(submissionSummaryValidator, v.null()),
+  /** What's on the line; `null` means just their word. */
+  stakeView: v.union(stakeViewValidator, v.null()),
 });
 
 export type GoalSubmissionSummary = {
@@ -47,9 +65,10 @@ export type GoalSubmissionSummary = {
 
 export type GoalWithStatus = Doc<'goals'> & {
   submission: GoalSubmissionSummary | null;
+  stakeView: StakeView | null;
 };
 
-export type Stake = NonNullable<Doc<'goals'>['stake']>;
+type LegacyStake = Infer<typeof stakeValidator>;
 
 type AuthedCtx<T> = T & { user: Doc<'users'> };
 
@@ -84,69 +103,61 @@ async function withStatus(
   ctx: QueryCtx | MutationCtx,
   goal: Doc<'goals'>,
 ): Promise<GoalWithStatus> {
+  const stakeRow = goal.stakeId === undefined ? null : await ctx.db.get('stakes', goal.stakeId);
+  const base = {
+    ...goal,
+    // Builds from before the `stakes` table read money off `stake`.
+    stake: stakeRow === null ? goal.stake : legacyStake(stakeRow),
+    stakeView: stakeRow === null ? null : stakeView(stakeRow),
+  };
   if (goal.completedAt !== undefined) {
-    return { ...goal, submission: null };
+    return { ...base, submission: null };
   }
 
   const latest = await latestSubmission(ctx, goal._id);
 
   return {
-    ...goal,
+    ...base,
     submission: latest === null ? null : { status: latest.status, reason: latest.reason },
   };
 }
 
-/**
- * Cancels the pending settlement. `cancel` throws once the job has already
- * run, which is exactly the case where there is nothing left to cancel.
- */
-async function cancelSettlement(ctx: MutationCtx, stake: Stake): Promise<void> {
-  if (stake.settleJobId === undefined) return;
-
-  try {
-    await ctx.scheduler.cancel(stake.settleJobId);
-  } catch {
-    // Already ran or was cleaned up; the stake status is the source of truth.
-  }
+/** A money row in the shape `goals.stake` had, for older builds. */
+function legacyStake(stake: Doc<'stakes'>): LegacyStake | undefined {
+  if (stake.kind !== 'money') return undefined;
+  return {
+    amountCents: stake.amountCents,
+    stripeCustomerId: stake.stripeCustomerId,
+    stripePaymentMethodId: stake.stripePaymentMethodId,
+    stripeSetupIntentId: stake.stripeSetupIntentId ?? '',
+    status: stake.status,
+    stripePaymentIntentId: stake.stripePaymentIntentId,
+    chargedAt: stake.chargedAt,
+    failureReason: stake.failureReason,
+    refundedCents: stake.refundedCents,
+    refundedAt: stake.refundedAt,
+    stripeDisputeId: stake.stripeDisputeId,
+    disputedAt: stake.disputedAt,
+  };
 }
 
 /**
  * Marks the goal done and lets the stake go. Called from `goalSubmissions.resolve`
  * in the same transaction as the verdict, so an approval can never be charged.
- * A stake mid-`charging` is left alone: the charge is already in flight.
+ * A stake that already came due is left alone: the charge is already in flight.
  */
 export async function completeGoal(ctx: MutationCtx, goal: Doc<'goals'>): Promise<void> {
   if (goal.completedAt !== undefined) return;
 
-  const fields: Partial<Doc<'goals'>> = { completedAt: Date.now() };
-  if (goal.stake?.status === 'armed') {
-    await cancelSettlement(ctx, goal.stake);
-    fields.stake = { ...goal.stake, status: 'released', settleJobId: undefined };
-  }
+  const stake = await materializeGoalStake(ctx, goal);
+  if (stake !== null) await releaseStake(ctx, stake);
 
-  await ctx.db.patch('goals', goal._id, fields);
-}
-
-/** Money is still riding on it: the card is ready to charge, or being charged. */
-export function isStakeLive(goal: Pick<Doc<'goals'>, 'stake'>): boolean {
-  return goal.stake?.status === 'armed' || goal.stake?.status === 'charging';
+  await ctx.db.patch('goals', goal._id, { completedAt: Date.now() });
 }
 
 function requireLead(dueAt: number): void {
   if (!Number.isFinite(dueAt) || dueAt < Date.now() + MIN_LEAD_MS) {
     throw new Error('The deadline has to be at least a minute from now');
-  }
-}
-
-function requireStakeAmount(amountCents: number): void {
-  if (
-    !Number.isInteger(amountCents) ||
-    amountCents < MIN_STAKE_CENTS ||
-    amountCents > MAX_STAKE_CENTS
-  ) {
-    throw new Error(
-      `A stake has to be between $${MIN_STAKE_CENTS / 100} and $${MAX_STAKE_CENTS / 100}`,
-    );
   }
 }
 
@@ -184,36 +195,15 @@ export const list = query({
   },
 });
 
-/**
- * Money totals for the Me screen. On the line is every `armed` stake: a
- * deadline still ahead with the card ready to charge. Kept is every stake that
- * was `released` by an approved submission.
- */
+/** Kept for builds from before `stakes.totals`. */
 export const stakeTotals = query({
   args: {},
   returns: v.object({ onTheLineCents: v.number(), keptCents: v.number() }),
   handler: async (ctx): Promise<{ onTheLineCents: number; keptCents: number }> => {
-    const totals = { onTheLineCents: 0, keptCents: 0 };
-
     const user = await getCurrentUserOrNull(ctx);
-    if (user === null) {
-      return totals;
-    }
-
-    const goals = await ctx.db
-      .query('goals')
-      .withIndex('by_user', (q) => q.eq('userId', user._id))
-      .collect();
-
-    for (const { stake } of goals) {
-      if (stake?.status === 'armed') {
-        totals.onTheLineCents += stake.amountCents;
-      } else if (stake?.status === 'released') {
-        totals.keptCents += stake.amountCents;
-      }
-    }
-
-    return totals;
+    if (user === null) return { onTheLineCents: 0, keptCents: 0 };
+    const { onTheLineCents, keptCents } = await moneyTotals(ctx, user._id);
+    return { onTheLineCents, keptCents };
   },
 });
 
@@ -230,12 +220,16 @@ export const get = authedQuery({
   },
 });
 
-/** A goal with nothing on the line. Staked goals go through `createStaked`. */
+/**
+ * A goal on the user's word, or with a friend who hears about a miss. Money
+ * goes through `createStaked`, which has to check the card with Stripe first.
+ */
 export const create = authedMutation({
   args: {
     title: v.string(),
     description: v.optional(v.string()),
     dueAt: v.number(),
+    stake: v.optional(v.object({ kind: v.literal('friend'), friend: friendInputValidator })),
   },
   returns: v.id('goals'),
   handler: async (ctx, args): Promise<Id<'goals'>> => {
@@ -243,6 +237,8 @@ export const create = authedMutation({
     await requirePro(ctx, ctx.user._id);
     requireLead(args.dueAt);
     requireCommitmentText(args.title, args.description);
+    const friend =
+      args.stake === undefined ? null : await resolveFriend(ctx, ctx.user, args.stake.friend);
 
     const goalId = await ctx.db.insert('goals', {
       userId: ctx.user._id,
@@ -251,107 +247,26 @@ export const create = authedMutation({
       dueAt: args.dueAt,
       order: await nextOrder(ctx, ctx.user._id),
     });
+    if (friend !== null) {
+      const goal = await ctx.db.get('goals', goalId);
+      if (goal !== null) await armStake(ctx, { goal }, { kind: 'friend', friend });
+    }
     await touchReminders(ctx, ctx.user._id);
 
     return goalId;
   },
 });
 
-/**
- * Step one of putting money on a goal: mints what the PaymentSheet needs to
- * save a card for off-session use. Nothing is stored yet; the goal is created
- * by `createStaked` once the card is confirmed.
- */
+/** Kept for builds from before `stakes.beginMoney`. */
 export const beginStake = authedAction({
   args: { amountCents: v.number() },
-  returns: v.object({
-    customerId: v.string(),
-    customerSessionClientSecret: v.string(),
-    setupIntentClientSecret: v.string(),
-    setupIntentId: v.string(),
-  }),
-  handler: async (
-    ctx,
-    args,
-  ): Promise<{
-    customerId: string;
-    customerSessionClientSecret: string;
-    setupIntentClientSecret: string;
-    setupIntentId: string;
-  }> => {
-    requireStakeAmount(args.amountCents);
-    // Checked again when the goal is inserted; this only saves a Stripe round trip.
-    const locked: boolean = await ctx.runQuery(internal.lockouts.isLocked, {
-      userId: ctx.user._id,
-    });
-    if (locked) {
-      throw new Error('Ante is locked until the re-entry fee is paid');
-    }
-    const pro: boolean = await ctx.runQuery(internal.subscriptions.hasPro, {
-      userId: ctx.user._id,
-      now: Date.now(),
-    });
-    if (!pro) {
-      throw new Error(PRO_REQUIRED);
-    }
-    const stripe = stripeClient();
-
-    let customerId = ctx.user.stripeCustomerId;
-    if (customerId === undefined) {
-      const customer = await stripe.customers.create({
-        email: ctx.user.email.length > 0 ? ctx.user.email : undefined,
-        name: ctx.user.name,
-        metadata: { userId: ctx.user._id },
-      });
-      const stored: string = await ctx.runMutation(internal.users.setStripeCustomerId, {
-        userId: ctx.user._id,
-        stripeCustomerId: customer.id,
-      });
-      customerId = stored;
-    }
-
-    const session = await stripe.customerSessions.create({
-      customer: customerId,
-      components: {
-        mobile_payment_element: {
-          enabled: true,
-          features: {
-            // No "save for future purchases" checkbox: a SetupIntent with a
-            // customer attaches the card regardless, and the sheet copy
-            // already says the card is kept. Cards saved through
-            // `createStaked` are marked redisplayable, so they show up here.
-            payment_method_save: 'disabled',
-            payment_method_redisplay: 'enabled',
-            payment_method_remove: 'enabled',
-          },
-        },
-      },
-    });
-
-    const setupIntent = await stripe.setupIntents.create({
-      customer: customerId,
-      usage: 'off_session',
-      payment_method_types: ['card'],
-      // Checked again in `createStaked`, so the client cannot swap the amount
-      // after the card was saved.
-      metadata: { userId: ctx.user._id, amountCents: String(args.amountCents) },
-    });
-    if (setupIntent.client_secret === null) {
-      throw new Error('Stripe returned a SetupIntent without a client secret');
-    }
-
-    return {
-      customerId,
-      customerSessionClientSecret: session.client_secret,
-      setupIntentClientSecret: setupIntent.client_secret,
-      setupIntentId: setupIntent.id,
-    };
-  },
+  returns: cardSetupValidator,
+  handler: async (ctx, args): Promise<CardSetup> => await mintCardSetup(ctx, args.amountCents),
 });
 
 /**
- * Step two: the PaymentSheet reported success, but only Stripe's copy of the
- * SetupIntent is trusted. Everything the client claims is checked against it.
+ * A goal with money on it, once the PaymentSheet saved the card. Only
+ * Stripe's copy of the SetupIntent is trusted (`stakes.verifySavedCard`).
  */
 export const createStaked = authedAction({
   args: {
@@ -365,51 +280,18 @@ export const createStaked = authedAction({
   handler: async (ctx, args): Promise<Id<'goals'>> => {
     requireLead(args.dueAt);
     requireCommitmentText(args.title, args.description);
-    requireStakeAmount(args.amountCents);
-
-    const customerId = ctx.user.stripeCustomerId;
-    if (customerId === undefined) {
-      throw new Error('No card on file: start the stake again');
-    }
-
-    const stripe = stripeClient();
-    const setupIntent = await stripe.setupIntents.retrieve(args.setupIntentId);
-    if (setupIntent.status !== 'succeeded') {
-      throw new Error('The card was not saved');
-    }
-    if (setupIntent.customer !== customerId) {
-      throw new Error('This card belongs to another customer');
-    }
-    if (
-      setupIntent.metadata?.userId !== ctx.user._id ||
-      setupIntent.metadata.amountCents !== String(args.amountCents)
-    ) {
-      throw new Error('The stake does not match what the card was saved for');
-    }
-    if (typeof setupIntent.payment_method !== 'string') {
-      throw new Error('The saved card is missing its payment method');
-    }
-
-    // Without the save checkbox the card lands as `limited`, which the sheet
-    // would not offer again; the user has agreed to keep it, so it is safe to
-    // show next time. Best effort: a goal is worth more than a redisplay.
-    try {
-      await stripe.paymentMethods.update(setupIntent.payment_method, {
-        allow_redisplay: 'always',
-      });
-    } catch (error: unknown) {
-      console.error('Could not mark the card as redisplayable', error);
-    }
+    const { kind: _kind, ...card } = await verifySavedCard(
+      ctx,
+      args.setupIntentId,
+      args.amountCents,
+    );
 
     const goalId: Id<'goals'> = await ctx.runMutation(internal.goals.insertStaked, {
       userId: ctx.user._id,
       title: args.title,
       description: args.description,
       dueAt: args.dueAt,
-      amountCents: args.amountCents,
-      stripeCustomerId: customerId,
-      stripePaymentMethodId: setupIntent.payment_method,
-      stripeSetupIntentId: setupIntent.id,
+      ...card,
     });
 
     return goalId;
@@ -422,51 +304,32 @@ export const insertStaked = internalMutation({
     title: v.string(),
     description: v.optional(v.string()),
     dueAt: v.number(),
-    amountCents: v.number(),
-    stripeCustomerId: v.string(),
-    stripePaymentMethodId: v.string(),
-    stripeSetupIntentId: v.string(),
+    amountCents: moneyFields.amountCents,
+    stripeCustomerId: moneyFields.stripeCustomerId,
+    stripePaymentMethodId: moneyFields.stripePaymentMethodId,
+    stripeSetupIntentId: moneyFields.stripeSetupIntentId,
+    cardBrand: moneyFields.cardBrand,
+    cardLast4: moneyFields.cardLast4,
   },
   returns: v.id('goals'),
   handler: async (ctx, args): Promise<Id<'goals'>> => {
     await requireUnlocked(ctx, args.userId);
     await requirePro(ctx, args.userId);
     requireLead(args.dueAt);
-
-    const replay = await ctx.db
-      .query('goals')
-      .withIndex('by_setup_intent', (q) =>
-        q.eq('stake.stripeSetupIntentId', args.stripeSetupIntentId),
-      )
-      .first();
-    if (replay !== null) {
-      throw new Error('This card confirmation was already used for a goal');
-    }
+    const { userId, title, description, dueAt, ...card } = args;
 
     const goalId = await ctx.db.insert('goals', {
-      userId: args.userId,
-      title: args.title,
-      description: args.description,
-      dueAt: args.dueAt,
-      order: await nextOrder(ctx, args.userId),
-      stake: {
-        amountCents: args.amountCents,
-        stripeCustomerId: args.stripeCustomerId,
-        stripePaymentMethodId: args.stripePaymentMethodId,
-        stripeSetupIntentId: args.stripeSetupIntentId,
-        status: 'armed',
-      },
-    });
-
-    const settleJobId = await ctx.scheduler.runAt(args.dueAt, internal.stripe.settle, {
-      goalId,
-      attempt: 0,
+      userId,
+      title,
+      description,
+      dueAt,
+      order: await nextOrder(ctx, userId),
     });
     const goal = await ctx.db.get('goals', goalId);
-    if (goal?.stake !== undefined) {
-      await ctx.db.patch('goals', goalId, { stake: { ...goal.stake, settleJobId } });
-    }
-    await touchReminders(ctx, args.userId);
+    if (goal === null) throw new Error('Goal not found');
+    // Checks the cap and replays; throwing here rolls the goal back with it.
+    await armStake(ctx, { goal }, { kind: 'money', ...card });
+    await touchReminders(ctx, userId);
 
     return goalId;
   },
@@ -496,8 +359,8 @@ export const update = authedMutation({
       fields.description = args.description ?? undefined;
     }
     if (args.dueAt !== undefined && args.dueAt !== goal.dueAt) {
-      if (goal.stake !== undefined) {
-        throw new Error('The deadline is locked once money is on the goal');
+      if (goal.stake !== undefined || goal.stakeId !== undefined) {
+        throw new Error('The deadline is locked once something is staked on the goal');
       }
       if (goal.completedAt !== undefined) {
         throw new Error('The goal is already done');
@@ -519,9 +382,9 @@ export const update = authedMutation({
 });
 
 /**
- * A goal with money on it runs to its deadline: deleting it would call the
- * bet off, so that is refused until it settles (or is released by proof).
- * `force` calls it off anyway, on dev and preview only.
+ * A goal with something staked on it runs to its deadline: deleting it would
+ * call the bet off, so that is refused until it resolves (or is released by
+ * proof). `force` calls it off anyway, on dev and preview only.
  */
 export const remove = authedMutation({
   args: { goalId: v.id('goals'), force: v.optional(v.boolean()) },
@@ -530,14 +393,19 @@ export const remove = authedMutation({
     const goal = await requireOwnedGoal(ctx, args.goalId);
     await requireUnlocked(ctx, ctx.user._id);
 
+    const stake = await materializeGoalStake(ctx, goal);
     if (args.force === true) {
       requireDevOverrides();
-    } else if (isStakeLive(goal)) {
-      throw new Error('A goal with money on it runs to its deadline');
+    } else if (stake !== null && isStakeViewLive(stake)) {
+      throw new Error(
+        stake.kind === 'money'
+          ? 'A goal with money on it runs to its deadline'
+          : 'A goal with a friend on it runs to its deadline',
+      );
     }
 
-    if (goal.stake !== undefined) {
-      await cancelSettlement(ctx, goal.stake);
+    if (stake !== null) {
+      await dropGoalStake(ctx, stake);
     }
 
     const submissions = await ctx.db

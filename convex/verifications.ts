@@ -3,6 +3,7 @@ import { v } from 'convex/values';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalAction, internalMutation, type MutationCtx } from './_generated/server';
+import { requireHabitsUnfrozen } from './freezes';
 import { requireOwnedHabit } from './habits';
 import { authedMutation } from './lib/customFunctions';
 import { requirePro } from './lib/entitlements';
@@ -65,6 +66,10 @@ export const submit = authedMutation({
   handler: async (ctx, args): Promise<Id<'habitVerifications'>> => {
     const habit = await requireOwnedHabit(ctx, args.habitId);
     await requireUnlocked(ctx, ctx.user._id);
+    await requireHabitsUnfrozen(ctx, ctx.user._id);
+    if (habit.brokenAt !== undefined) {
+      throw new Error('This streak broke. Restart the habit to log it again.');
+    }
     // A paused habit (Pro ended) is not checked, so it takes no photos either.
     await requirePro(ctx, ctx.user._id);
     const day =

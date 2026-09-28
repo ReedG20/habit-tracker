@@ -152,6 +152,15 @@ export async function notifyHabitVerdict(
   ]);
 }
 
+/** The money on a goal, wherever it is stored. */
+async function goalStakeCents(ctx: MutationCtx, goal: Doc<'goals'>): Promise<number | null> {
+  if (goal.stakeId !== undefined) {
+    const stake = await ctx.db.get('stakes', goal.stakeId);
+    return stake?.kind === 'money' ? stake.amountCents : null;
+  }
+  return goal.stake?.amountCents ?? null;
+}
+
 /**
  * The verdict on goal proof. Replaces the goal's reminder in Notification
  * Center (same collapse id), so the latest word on a deadline is the only one.
@@ -174,7 +183,7 @@ export async function notifyGoalVerdict(
       kind: 'approved',
       subject: 'goal',
       title: goal.title,
-      stakeCents: goal.stake?.amountCents ?? null,
+      stakeCents: await goalStakeCents(ctx, goal),
     };
     await deliver(ctx, goal.userId, [
       eventPush(eventCopy(message), {
@@ -205,21 +214,134 @@ export async function notifyGoalVerdict(
   ]);
 }
 
+/** Where a push about a stake takes old builds (`url`) and new ones (`lossStakeId`). */
+function stakeLink(stake: Doc<'stakes'>): { url: string; lossStakeId: string } {
+  const url =
+    stake.goalId !== undefined
+      ? `/goals/${stake.goalId}`
+      : stake.habitId !== undefined
+        ? `/habit/${stake.habitId}`
+        : '/';
+  return { url, lossStakeId: stake._id };
+}
+
+/** One lock-screen slot per stake, so a later word on it replaces the earlier one. */
+function stakeCollapseId(stake: Doc<'stakes'>): string {
+  return `stake:${stake._id}`;
+}
+
 /**
  * A receipt when a stake is charged. Always sent, and quiet: money leaving a
  * card should never be a surprise, and a surprise is what turns into a dispute.
  */
-export async function notifyCharged(ctx: MutationCtx, goal: Doc<'goals'>): Promise<void> {
-  if (goal.stake === undefined) return;
+export async function notifyCharged(ctx: MutationCtx, stake: Doc<'stakes'>): Promise<void> {
+  if (stake.kind !== 'money') return;
   const message: EventMessage = {
     kind: 'charged',
-    title: goal.title,
-    amountCents: goal.stake.amountCents,
+    subject: stake.habitId !== undefined ? 'habit' : 'goal',
+    title: stake.title,
+    amountCents: stake.amountCents,
+    streak: stake.run?.streak,
   };
-  await deliver(ctx, goal.userId, [
+  await deliver(ctx, stake.userId, [
     eventPush(eventCopy(message), {
-      data: { kind: 'receipt', url: `/goals/${goal._id}` },
-      collapseId: `goals:${goal.dueAt}`,
+      data: { kind: 'receipt', ...stakeLink(stake) },
+      collapseId: stakeCollapseId(stake),
+      threadId: 'receipt',
+      quiet: true,
+      expiresAt: Date.now() + 72 * HOUR_MS,
+    }),
+  ]);
+}
+
+/** The card said no: they still owe it, and can't stake money again until it's settled. */
+export async function notifyDeclined(ctx: MutationCtx, stake: Doc<'stakes'>): Promise<void> {
+  if (stake.kind !== 'money') return;
+  const message: EventMessage = {
+    kind: 'declined',
+    title: stake.title,
+    amountCents: stake.amountCents,
+  };
+  await deliver(ctx, stake.userId, [
+    eventPush(eventCopy(message), {
+      data: { kind: 'receipt', ...stakeLink(stake) },
+      collapseId: stakeCollapseId(stake),
+      threadId: 'receipt',
+      quiet: false,
+      expiresAt: Date.now() + 72 * HOUR_MS,
+    }),
+  ]);
+}
+
+/** Their friend was just emailed about the miss. */
+export async function notifyFriendTold(ctx: MutationCtx, stake: Doc<'stakes'>): Promise<void> {
+  if (stake.kind !== 'friend') return;
+  const message: EventMessage = {
+    kind: 'friendTold',
+    title: stake.title,
+    friendName: stake.friendName,
+  };
+  await deliver(ctx, stake.userId, [
+    eventPush(eventCopy(message), {
+      data: { kind: 'receipt', ...stakeLink(stake) },
+      collapseId: stakeCollapseId(stake),
+      threadId: 'receipt',
+      quiet: false,
+      expiresAt: Date.now() + 72 * HOUR_MS,
+    }),
+  ]);
+}
+
+/** A lockout stake came due: every habit is frozen until `untilLabel`. */
+export async function notifyFrozen(
+  ctx: MutationCtx,
+  stake: Doc<'stakes'>,
+  untilLabel: string,
+): Promise<void> {
+  const message: EventMessage = { kind: 'frozen', title: stake.title, untilLabel };
+  await deliver(ctx, stake.userId, [
+    eventPush(eventCopy(message), {
+      data: { kind: 'receipt', ...stakeLink(stake) },
+      collapseId: 'freeze',
+      threadId: 'receipt',
+      quiet: false,
+      expiresAt: Date.now() + 72 * HOUR_MS,
+    }),
+  ]);
+}
+
+/** The freeze lifted: habits count again from tomorrow. */
+export async function notifyThawed(ctx: MutationCtx, userId: Id<'users'>): Promise<void> {
+  await deliver(ctx, userId, [
+    eventPush(eventCopy({ kind: 'thawed' }), {
+      data: { kind: 'receipt', url: '/' },
+      collapseId: 'freeze',
+      threadId: 'receipt',
+      quiet: true,
+      expiresAt: Date.now() + 24 * HOUR_MS,
+    }),
+  ]);
+}
+
+/** Their friend won't hear about misses any more; the stake is void until they pick someone. */
+export async function notifyFriendGone(
+  ctx: MutationCtx,
+  stake: Doc<'stakes'>,
+  why: 'opted_out' | 'bounced',
+): Promise<void> {
+  if (stake.kind !== 'friend') return;
+  const message: EventMessage = {
+    kind: 'friendGone',
+    title: stake.title,
+    friendName: stake.friendName,
+    why,
+  };
+  const url =
+    stake.habitId !== undefined ? `/habit/${stake.habitId}` : `/goals/${stake.goalId ?? ''}`;
+  await deliver(ctx, stake.userId, [
+    eventPush(eventCopy(message), {
+      data: { kind: 'receipt', url },
+      collapseId: stakeCollapseId(stake),
       threadId: 'receipt',
       quiet: true,
       expiresAt: Date.now() + 72 * HOUR_MS,
