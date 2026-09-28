@@ -14,6 +14,7 @@ import { SignStep } from '@/components/commitment/sign-step';
 import { StakesStep } from '@/components/commitment/stakes-step';
 import { WhatStep } from '@/components/commitment/what-step';
 import { Icon } from '@/components/icon';
+import { DismissKeyboardArea } from '@/components/keyboard/dismiss-keyboard-area';
 import { OnboardingProgress } from '@/components/onboarding/onboarding-progress';
 import { ThemedText } from '@/components/themed-text';
 import { ArrowLeft01Icon } from '@/constants/icons';
@@ -104,7 +105,8 @@ export default function OnboardingCommitmentScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top }]}>
-      <View style={styles.header}>
+      {/* A tap on the header is a tap outside the fields, so it closes the keyboard. */}
+      <DismissKeyboardArea style={styles.header}>
         <OnboardingProgress step={step} />
         <Pressable
           accessibilityRole="button"
@@ -123,7 +125,7 @@ export default function OnboardingCommitmentScreen() {
           </ThemedText>
           {step === 'what' ? <ThemedText themeColor="textSecondary">{reply}</ThemedText> : null}
         </View>
-      </View>
+      </DismissKeyboardArea>
 
       <Animated.View key={step} entering={FadeIn.duration(220)} style={styles.step}>
         {step === 'what' ? (

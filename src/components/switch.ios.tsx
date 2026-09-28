@@ -10,7 +10,7 @@ export function Switch({ value, onChange, accessibilityLabel: label }: SwitchPro
   const theme = useTheme();
 
   return (
-    <Host matchContents>
+    <Host matchContents ignoreSafeArea="all">
       <Toggle
         isOn={value}
         onIsOnChange={onChange}

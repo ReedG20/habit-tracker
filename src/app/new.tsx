@@ -18,6 +18,7 @@ import { StakesStep } from '@/components/commitment/stakes-step';
 import { StepProgress } from '@/components/commitment/step-progress';
 import { WhatStep } from '@/components/commitment/what-step';
 import { Icon } from '@/components/icon';
+import { DismissKeyboardArea } from '@/components/keyboard/dismiss-keyboard-area';
 import { ProPaywall } from '@/components/pro-paywall';
 import { ThemedText } from '@/components/themed-text';
 import { ArrowLeft01Icon, Cancel01Icon } from '@/constants/icons';
@@ -166,7 +167,8 @@ export default function NewCommitmentScreen() {
       {step === 'done' ? (
         <View style={styles.header} />
       ) : (
-        <View style={styles.header}>
+        // A tap on the header is a tap outside the fields, so it closes the keyboard.
+        <DismissKeyboardArea style={styles.header}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={step === 'what' ? 'Close' : 'Previous step'}
@@ -187,7 +189,7 @@ export default function NewCommitmentScreen() {
           <ThemedText style={styles.title} themeColor="text">
             {stepTitle(step, draft)}
           </ThemedText>
-        </View>
+        </DismissKeyboardArea>
       )}
 
       <Animated.View key={step} entering={FadeIn.duration(220)} style={styles.step}>

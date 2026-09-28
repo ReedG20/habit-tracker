@@ -46,7 +46,12 @@ export function ActionButton({
       : theme.text;
 
   return (
-    <Host matchContents={fill ? { vertical: true } : true} style={style}>
+    <Host
+      matchContents={fill ? { vertical: true } : true}
+      // Inline in RN layout: safe areas and the keyboard are RN's to handle.
+      // Left on, the hosting controller offsets the content inside its frame.
+      ignoreSafeArea="all"
+      style={style}>
       <Button
         role={variant === 'destructive' ? 'destructive' : 'default'}
         onPress={onPress}

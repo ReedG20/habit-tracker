@@ -1,14 +1,22 @@
 'use no memo';
 
-import { useEffect, useRef, type MutableRefObject } from 'react';
+import { useEffect, useImperativeHandle, useRef, type MutableRefObject, type Ref } from 'react';
 import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
 
+import { useFieldFocus } from './keyboard/keyboard-scroll-view';
 import { ThemedText } from './themed-text';
 
 import { ControlHeight, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
+/** What a parent can do to a field: move focus to it, e.g. from the field before it. */
+export type TextFieldHandle = {
+  focus: () => void;
+  blur: () => void;
+};
+
 export type TextFieldProps = TextInputProps & {
+  ref?: Ref<TextFieldHandle>;
   label: string;
   /**
    * Set to a function that returns the field's current text. Reading it at
@@ -18,9 +26,12 @@ export type TextFieldProps = TextInputProps & {
   readValueRef?: MutableRefObject<(() => string) | null>;
   /** Fires when the field gains or loses focus; the same on the SwiftUI field. */
   onFocusChange?: (focused: boolean) => void;
+  /** Fires on the Return key of a single-line field, e.g. to focus the next one. */
+  onSubmit?: () => void;
 };
 
 export function TextField({
+  ref,
   label,
   style,
   multiline,
@@ -28,17 +39,25 @@ export function TextField({
   onChangeText,
   readValueRef,
   onFocusChange,
+  onSubmit,
   ...rest
 }: TextFieldProps) {
   const theme = useTheme();
   const latest = useRef(defaultValue ?? '');
+  const input = useRef<TextInput>(null);
+  const fieldRef = useRef<View>(null);
+  const fieldFocus = useFieldFocus();
+  useImperativeHandle(ref, () => ({
+    focus: () => input.current?.focus(),
+    blur: () => input.current?.blur(),
+  }));
 
   useEffect(() => {
     if (readValueRef) readValueRef.current = () => latest.current;
   }, [readValueRef]);
 
   return (
-    <View style={styles.field}>
+    <View ref={fieldRef} style={styles.field}>
       <ThemedText type="small" themeColor="textSecondary">
         {label}
       </ThemedText>
@@ -48,6 +67,7 @@ export function TextField({
           { backgroundColor: theme.backgroundElement, borderColor: theme.border },
         ]}>
         <TextInput
+          ref={input}
           style={[styles.input, { color: theme.text }, multiline && styles.multiline, style]}
           placeholderTextColor={theme.textSecondary}
           multiline={multiline}
@@ -56,8 +76,17 @@ export function TextField({
             latest.current = value;
             onChangeText?.(value);
           }}
-          onFocus={() => onFocusChange?.(true)}
-          onBlur={() => onFocusChange?.(false)}
+          onFocus={() => {
+            if (fieldRef.current) fieldFocus.focus(fieldRef.current);
+            onFocusChange?.(true);
+          }}
+          onBlur={() => {
+            if (fieldRef.current) fieldFocus.blur(fieldRef.current);
+            onFocusChange?.(false);
+          }}
+          onSubmitEditing={onSubmit ? () => onSubmit() : undefined}
+          // Handing focus on keeps the keyboard up instead of blinking it away.
+          submitBehavior={onSubmit ? 'submit' : undefined}
           {...rest}
         />
       </View>

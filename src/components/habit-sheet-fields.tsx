@@ -1,6 +1,6 @@
-import type { MutableRefObject } from 'react';
+import { useRef, type MutableRefObject } from 'react';
 
-import { TextField } from '@/components/text-field';
+import { TextField, type TextFieldHandle } from '@/components/text-field';
 
 export type HabitDraft = {
   title: string;
@@ -13,6 +13,8 @@ export type HabitSheetFieldsProps = {
 };
 
 export function HabitSheetFields({ initial, draftRef }: HabitSheetFieldsProps) {
+  const proofRef = useRef<TextFieldHandle>(null);
+
   return (
     <>
       <TextField
@@ -24,8 +26,10 @@ export function HabitSheetFields({ initial, draftRef }: HabitSheetFieldsProps) {
         placeholder="Go to the gym"
         autoCapitalize="sentences"
         returnKeyType="next"
+        onSubmit={() => proofRef.current?.focus()}
       />
       <TextField
+        ref={proofRef}
         label="What does the photo need to show?"
         defaultValue={initial?.description ?? ''}
         onChangeText={(text) => {

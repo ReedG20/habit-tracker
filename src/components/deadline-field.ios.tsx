@@ -20,7 +20,7 @@ export function DeadlineField({ value, onChange, label = 'Deadline' }: DeadlineF
 
   return (
     <View style={styles.field}>
-      <Host matchContents={{ vertical: true }}>
+      <Host matchContents={{ vertical: true }} ignoreSafeArea="all">
         <DatePicker
           selection={new Date(value)}
           displayedComponents={['date', 'hourAndMinute']}

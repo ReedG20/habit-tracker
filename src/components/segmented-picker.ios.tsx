@@ -10,7 +10,7 @@ export function SegmentedPicker<T extends string>({
   onChange,
 }: SegmentedPickerProps<T>) {
   return (
-    <Host matchContents={{ vertical: true }}>
+    <Host matchContents={{ vertical: true }} ignoreSafeArea="all">
       <Picker<T>
         selection={value}
         onSelectionChange={onChange}
