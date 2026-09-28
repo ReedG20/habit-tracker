@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
+import { nextDay } from './lib/days';
+import { localDay } from './lib/lockout';
 import { grantPro, setup, type Harness } from './test.helpers';
 
 // 2026-09-21 is a Monday. Every user here lives in UTC, so local midnight is 00:00Z.
@@ -237,6 +239,10 @@ describe('while locked', () => {
     });
 
     expect(await alice.as.query(api.lockouts.current, {})).toBeNull();
+    // The day back is free, and the app can see that.
+    expect(await alice.as.query(api.lockouts.accountableFrom, {})).toBe(
+      nextDay(localDay(Date.now(), 'UTC')),
+    );
     // The fee is not a subscription event: the Pro row is left as it was.
     const subscription = await t.run(async (ctx) => await ctx.db.query('subscriptions').first());
     expect(subscription).toMatchObject({ productId: 'ante_pro_monthly', lastEventAt: 0 });
@@ -323,6 +329,17 @@ describe('deleting', () => {
     vi.stubEnv('ANTE_DEV_OVERRIDES', '1');
     await alice.as.mutation(api.goals.remove, { goalId, force: true });
     expect(await alice.as.query(api.goals.get, { goalId })).toBeNull();
+  });
+});
+
+describe('accountableFrom', () => {
+  test('is null signed out, and tomorrow once the time zone is first reported', async () => {
+    const t = setup();
+    expect(await t.query(api.lockouts.accountableFrom, {})).toBeNull();
+
+    const as = t.withIdentity({ tokenIdentifier: 'new', name: 'new' });
+    await as.mutation(api.users.storeUser, { timeZone: 'UTC' });
+    expect(await as.query(api.lockouts.accountableFrom, {})).toBe('2026-09-22');
   });
 });
 

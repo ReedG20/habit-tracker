@@ -1,5 +1,6 @@
 import { isMissed, type GoalWithStatus } from '@/data/goals';
-import { isDoneForToday, mustLogToday, type HabitWithProgress } from '@/data/habits';
+import { isDaily, isDoneForToday, mustLogToday, type HabitWithProgress } from '@/data/habits';
+import { weekEnd } from '@/convex/lib/days';
 import { endOfDay } from '@/lib/dates';
 
 /** `deadlineAt` is set on urgent habits only: the card counts down to it. */
@@ -7,7 +8,7 @@ export type HomeItem =
   | { kind: 'habit'; habit: HabitWithProgress; deadlineAt?: number }
   | { kind: 'goal'; goal: GoalWithStatus };
 
-export type HomeSectionId = 'urgent' | 'goals' | 'habits';
+export type HomeSectionId = 'today' | 'upcoming' | 'done' | 'missed';
 
 export type HomeSection = {
   id: HomeSectionId;
@@ -21,13 +22,27 @@ function isSetback(habit: HabitWithProgress): boolean {
   return !isDoneForToday(habit) && (status === 'rejected' || status === 'failed');
 }
 
+function isPending(habit: HabitWithProgress): boolean {
+  return !isDoneForToday(habit) && habit.verification?.status === 'pending';
+}
+
+type Sorted = { item: HomeItem; key: number };
+
+function byDeadline(entries: Sorted[]): HomeItem[] {
+  // `sort` is stable, so equal deadlines keep the order the lists arrived in.
+  return entries.sort((a, b) => a.key - b.key).map((entry) => entry.item);
+}
+
 /**
- * Urgent holds what needs acting on today: habits with a setback, and weekly
- * habits out of slack (skipping today would end the week short). Goals still
- * in play follow, soonest first, with missed ones after so a charge is never
- * hidden; done goals only show on Commitments. Everything else stays in the
- * habits list, with what is done for today, or for the week, sinking to the
- * bottom. Both inputs arrive already ordered.
+ * The home list is ordered by what needs thinking about now, not by kind:
+ *
+ * - today: what has to happen before midnight. Setbacks lead, then everything
+ *   else by deadline, so a goal due at 6 pm sits above tonight's habits.
+ * - coming up: weekly habits that still have slack, and goals due later.
+ * - done: done for today or the week, plus proof waiting on review (the
+ *   user's part is done; a rejection sends it back up).
+ * - missed: goals past their deadline, last but never hidden, since a charge
+ *   should always be visible.
  */
 export function groupIntoHomeSections(
   habits: HabitWithProgress[],
@@ -35,31 +50,44 @@ export function groupIntoHomeSections(
   today: string,
   now: number,
 ): HomeSection[] {
-  const urgent: HomeItem[] = [];
-  const upcoming: HomeItem[] = [];
-  const completed: HomeItem[] = [];
-  const activeGoals: HomeItem[] = [];
-  const missedGoals: HomeItem[] = [];
+  const midnight = endOfDay(today);
+  const sunday = endOfDay(weekEnd(today));
+  const dueToday: Sorted[] = [];
+  const upcoming: Sorted[] = [];
+  const done: HomeItem[] = [];
+  const missed: HomeItem[] = [];
 
   for (const habit of habits) {
-    if (isSetback(habit) || mustLogToday(habit, today)) {
-      urgent.push({ kind: 'habit', habit, deadlineAt: endOfDay(today) });
-    } else if (isDoneForToday(habit)) {
-      completed.push({ kind: 'habit', habit });
+    if (isDoneForToday(habit) || isPending(habit)) {
+      done.push({ kind: 'habit', habit });
+    } else if (isSetback(habit)) {
+      dueToday.push({ item: { kind: 'habit', habit, deadlineAt: midnight }, key: -Infinity });
+    } else if (mustLogToday(habit, today)) {
+      dueToday.push({ item: { kind: 'habit', habit, deadlineAt: midnight }, key: midnight });
+    } else if (isDaily(habit)) {
+      dueToday.push({ item: { kind: 'habit', habit }, key: midnight });
     } else {
-      upcoming.push({ kind: 'habit', habit });
+      upcoming.push({ item: { kind: 'habit', habit }, key: sunday });
     }
   }
 
   for (const goal of goals) {
     if (goal.completedAt !== undefined) continue;
-    (isMissed(goal, now) ? missedGoals : activeGoals).push({ kind: 'goal', goal });
+    const item: HomeItem = { kind: 'goal', goal };
+    if (isMissed(goal, now)) {
+      missed.push(item);
+    } else if (goal.submission?.status === 'pending') {
+      done.push(item);
+    } else {
+      (goal.dueAt < midnight ? dueToday : upcoming).push({ item, key: goal.dueAt });
+    }
   }
 
   const sections: HomeSection[] = [
-    { id: 'urgent', title: 'urgent', items: urgent },
-    { id: 'goals', title: 'goals', items: [...activeGoals, ...missedGoals] },
-    { id: 'habits', title: 'habits', items: [...upcoming, ...completed] },
+    { id: 'today', title: 'today', items: byDeadline(dueToday) },
+    { id: 'upcoming', title: 'coming up', items: byDeadline(upcoming) },
+    { id: 'done', title: 'done', items: done },
+    { id: 'missed', title: 'missed', items: missed },
   ];
 
   return sections.filter((section) => section.items.length > 0);

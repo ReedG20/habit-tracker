@@ -7,17 +7,17 @@ import { HabitCard } from '@/components/habit-card';
 import { ProPausedBanner } from '@/components/pro-paused-banner';
 import { NotificationsOffBanner } from '@/components/reminders/notifications-off-banner';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
-import { StakesBanner } from '@/components/stakes-banner';
 import { ThemedText } from '@/components/themed-text';
+import { TodayHero } from '@/components/today-hero';
 import { HabitIcon } from '@/constants/icons';
 import { Fonts, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
-import { currentStreak } from '@/data/habits';
-import { groupIntoHomeSections } from '@/data/home-sections';
+import { groupIntoHomeSections, type HomeSection } from '@/data/home-sections';
+import { formatHoursMinutes, pickTodayMoment, type Fee } from '@/data/today-moment';
 import { useNow } from '@/hooks/use-now';
 import { useReentryProduct } from '@/hooks/use-reentry-product';
 import { useSubscription } from '@/hooks/use-subscription';
-import { todayKey } from '@/lib/dates';
+import { endOfDay, todayKey } from '@/lib/dates';
 
 export default function TodayScreen() {
   // Recomputed every render, so the day rolls over on the next interaction
@@ -32,6 +32,30 @@ export default function TodayScreen() {
   // Without Pro nothing is checked, so there is no fee to warn about.
   const subscription = useSubscription();
   const paused = !subscription.isPro && !subscription.isLoading;
+  // Held back until the store answers, so the hero doesn't swap its headline mid-count.
+  const fee: Fee | null | undefined =
+    reentry.status === 'ready'
+      ? {
+          amount: reentry.product.price,
+          currency: reentry.product.currencyCode,
+          text: reentry.product.priceString,
+        }
+      : reentry.status === 'loading'
+        ? undefined
+        : null;
+  // The day back from a lock is free; the hero must not quote a fee on it.
+  const accountableFrom = useQuery(api.lockouts.accountableFrom);
+  const moment =
+    habits && goals && fee !== undefined && accountableFrom !== undefined
+      ? pickTodayMoment({ habits, goals, today, now, fee, accountableFrom })
+      : undefined;
+
+  /** "6h 12m left" beside today's title, while habits there can still lock Ante. */
+  const owesToday = !paused && moment != null && moment.kind !== 'clear';
+  const sectionMeta = (section: HomeSection) =>
+    section.id === 'today' && owesToday && section.items.some((item) => item.kind === 'habit')
+      ? `${formatHoursMinutes(endOfDay(today) - now)} left`
+      : null;
 
   return (
     <ScreenScrollView>
@@ -39,16 +63,10 @@ export default function TodayScreen() {
         {paused ? (
           <ProPausedBanner summary={subscription.summary} />
         ) : (
-          <StakesBanner
-            fee={
-              reentry.status === 'ready'
-                ? reentry.product.priceString
-                : reentry.status === 'loading'
-                  ? undefined
-                  : null
-            }
-            streak={habits === undefined ? undefined : currentStreak(habits)}
-          />
+          moment !== null && (
+            // Holds the hero's height while loading so the list doesn't jump.
+            <View style={styles.hero}>{moment && <TodayHero moment={moment} />}</View>
+          )
         )}
       </View>
 
@@ -70,9 +88,16 @@ export default function TodayScreen() {
 
         {sections?.map((section) => (
           <View key={section.id} style={styles.section}>
-            <ThemedText style={styles.sectionTitle} themeColor="text">
-              {section.title}
-            </ThemedText>
+            <View style={styles.sectionHeader}>
+              <ThemedText style={styles.sectionTitle} themeColor="text">
+                {section.title}
+              </ThemedText>
+              {sectionMeta(section) === null ? null : (
+                <ThemedText type="smallSemibold" themeColor="accent">
+                  {sectionMeta(section)}
+                </ThemedText>
+              )}
+            </View>
             <View style={styles.list}>
               {section.items.map((item) =>
                 item.kind === 'goal' ? (
@@ -108,11 +133,22 @@ const styles = StyleSheet.create({
   section: {
     gap: Spacing.two,
   },
+  // About the shortest a moment gets (kicker, figure, one line), so the list
+  // barely moves when the hero arrives.
+  hero: {
+    alignSelf: 'stretch',
+    minHeight: 150,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.one,
+  },
   sectionTitle: {
     fontFamily: Fonts.sectionHeading,
     fontSize: 22,
     lineHeight: 28,
-    paddingHorizontal: Spacing.one,
   },
   list: {
     gap: Spacing.three,

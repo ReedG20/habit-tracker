@@ -1,9 +1,14 @@
 import { describe, expect, test } from 'vitest';
 
+import type { GoalWithStatus } from './goals';
 import type { HabitWithProgress } from './habits';
 import { groupIntoHomeSections } from './home-sections';
 
 import type { Id } from '@/convex/_generated/dataModel';
+import { endOfDay } from '@/lib/dates';
+
+const HOUR = 60 * 60 * 1000;
+const DAY = 24 * HOUR;
 
 // A Saturday: two days left in the week, today included.
 const SATURDAY = '2026-09-26';
@@ -25,6 +30,20 @@ function habit(fields: Partial<HabitWithProgress>): HabitWithProgress {
   };
 }
 
+function goal(fields: Partial<GoalWithStatus>): GoalWithStatus {
+  nextId += 1;
+  return {
+    _id: `goal${nextId}` as Id<'goals'>,
+    _creationTime: 0,
+    userId: 'user' as Id<'users'>,
+    title: `Goal ${nextId}`,
+    order: nextId,
+    dueAt: 0,
+    submission: null,
+    ...fields,
+  };
+}
+
 function sectionOf(item: HabitWithProgress, today = SATURDAY) {
   const sections = groupIntoHomeSections([item], [], today, 0);
   const section = sections.find((candidate) =>
@@ -34,39 +53,83 @@ function sectionOf(item: HabitWithProgress, today = SATURDAY) {
 }
 
 describe('groupIntoHomeSections, weekly habits', () => {
-  test('is urgent once skipping today would end the week short', () => {
-    expect(sectionOf(habit({ timesPerWeek: 3, weekCount: 1 }))).toBe('urgent');
+  test('is due today once skipping today would end the week short', () => {
+    expect(sectionOf(habit({ timesPerWeek: 3, weekCount: 1 }))).toBe('today');
   });
 
-  test('stays in the list while there is slack', () => {
-    expect(sectionOf(habit({ timesPerWeek: 3, weekCount: 2 }))).toBe('habits');
-    expect(sectionOf(habit({ timesPerWeek: 3, weekCount: 0 }), '2026-09-22')).toBe('habits');
+  test('is coming up while there is slack', () => {
+    expect(sectionOf(habit({ timesPerWeek: 3, weekCount: 2 }))).toBe('upcoming');
+    expect(sectionOf(habit({ timesPerWeek: 3, weekCount: 0 }), '2026-09-22')).toBe('upcoming');
   });
 
   test('is done for the week once the target is met, even on a day not logged', () => {
-    const done = habit({ timesPerWeek: 3, weekCount: 3 });
-    const [section] = groupIntoHomeSections([habit({}), done], [], SATURDAY, 0);
-    expect(section.id).toBe('habits');
-    // Sinks below what still needs doing.
-    expect(section.items.at(-1)).toMatchObject({ kind: 'habit', habit: { _id: done._id } });
+    expect(sectionOf(habit({ timesPerWeek: 3, weekCount: 3 }))).toBe('done');
   });
 
-  test('is not urgent once logged today, even while still short', () => {
-    expect(sectionOf(habit({ timesPerWeek: 3, weekCount: 1, completedToday: true }))).toBe(
-      'habits',
-    );
+  test('is done once logged today, even while still short', () => {
+    expect(sectionOf(habit({ timesPerWeek: 3, weekCount: 1, completedToday: true }))).toBe('done');
   });
 
-  test('a rejected photo is still urgent', () => {
-    expect(
-      sectionOf(habit({ timesPerWeek: 3, weekCount: 2, verification: { status: 'rejected' } })),
-    ).toBe('urgent');
+  test('a rejected photo is due today, ahead of everything else', () => {
+    const setback = habit({ timesPerWeek: 3, weekCount: 2, verification: { status: 'rejected' } });
+    expect(sectionOf(setback)).toBe('today');
+    const [section] = groupIntoHomeSections([habit({}), setback], [], SATURDAY, 0);
+    expect(section.items[0]).toMatchObject({ kind: 'habit', habit: { _id: setback._id } });
   });
 });
 
 describe('groupIntoHomeSections, daily habits', () => {
-  test('are never urgent just for being unlogged', () => {
-    expect(sectionOf(habit({}))).toBe('habits');
-    expect(sectionOf(habit({ timesPerWeek: 7 }))).toBe('habits');
+  test('are due today until logged', () => {
+    expect(sectionOf(habit({}))).toBe('today');
+    expect(sectionOf(habit({ timesPerWeek: 7 }))).toBe('today');
+  });
+
+  test('only urgent ones count down', () => {
+    const [section] = groupIntoHomeSections([habit({})], [], SATURDAY, 0);
+    expect(section.items[0]).not.toHaveProperty('deadlineAt');
+  });
+
+  test('are done once logged, and while their proof is checked', () => {
+    expect(sectionOf(habit({ completedToday: true }))).toBe('done');
+    expect(sectionOf(habit({ verification: { status: 'pending' } }))).toBe('done');
+  });
+});
+
+describe('groupIntoHomeSections, goals', () => {
+  const midnight = endOfDay(SATURDAY);
+  const morning = midnight - 14 * HOUR;
+
+  function sectionOfGoal(item: GoalWithStatus) {
+    return groupIntoHomeSections([], [item], SATURDAY, morning).find((section) =>
+      section.items.some((entry) => entry.kind === 'goal' && entry.goal._id === item._id),
+    )?.id;
+  }
+
+  test("due before midnight is today, and sorts above tonight's habits", () => {
+    const soon = goal({ dueAt: midnight - 6 * HOUR });
+    expect(sectionOfGoal(soon)).toBe('today');
+    const [section] = groupIntoHomeSections([habit({})], [soon], SATURDAY, morning);
+    expect(section.items[0]).toMatchObject({ kind: 'goal' });
+  });
+
+  test('due after midnight is coming up, soonest first', () => {
+    const later = goal({ dueAt: midnight + 3 * DAY });
+    expect(sectionOfGoal(later)).toBe('upcoming');
+  });
+
+  test('missed goals are listed last', () => {
+    const missed = goal({ dueAt: morning - HOUR });
+    const sections = groupIntoHomeSections([habit({})], [missed], SATURDAY, morning);
+    expect(sections.at(-1)?.id).toBe('missed');
+  });
+
+  test('completed goals stay on Commitments', () => {
+    expect(sectionOfGoal(goal({ completedAt: morning, dueAt: midnight }))).toBeUndefined();
+  });
+
+  test('a submitted goal waits in done', () => {
+    expect(sectionOfGoal(goal({ dueAt: midnight, submission: { status: 'pending' } }))).toBe(
+      'done',
+    );
   });
 });
