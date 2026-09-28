@@ -126,7 +126,7 @@ export default function RemindersScreen() {
           onPress={() => router.back()}
           hitSlop={Spacing.three}
           style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
-          <Icon icon={ArrowLeft01Icon} size={18} themeColor="textSecondary" />
+          <Icon icon={ArrowLeft01Icon} size={20} strokeWidth={2} themeColor="textSecondary" />
           <ThemedText type="small" themeColor="textSecondary">
             Me
           </ThemedText>

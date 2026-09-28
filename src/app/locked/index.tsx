@@ -308,7 +308,7 @@ export default function LockedScreen() {
             ]}>
             <Icon icon={row.icon} size={22} themeColor="textSecondary" />
             <ThemedText style={styles.flex}>{row.label}</ThemedText>
-            <Icon icon={ArrowRight01Icon} size={18} themeColor="textSecondary" />
+            <Icon icon={ArrowRight01Icon} size={20} strokeWidth={2} themeColor="textSecondary" />
           </Pressable>
         ))}
       </ThemedView>

@@ -19,7 +19,7 @@ export function NotificationsStatusCard({ permission }: { permission: PushPermis
   if (permission === 'granted' || permission === 'provisional') {
     return (
       <View style={[styles.onPill, { backgroundColor: theme.backgroundElement }]}>
-        <Icon icon={CheckmarkCircle02Icon} size={16} themeColor="primary" />
+        <Icon icon={CheckmarkCircle02Icon} size={20} strokeWidth={2} themeColor="primary" />
         <ThemedText type="small" themeColor="textSecondary">
           On for this phone
         </ThemedText>

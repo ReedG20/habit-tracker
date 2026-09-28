@@ -69,7 +69,9 @@ export function GlassButton({
             tintColor={variant === 'primary' ? theme.primary : undefined}
           />
         ) : null}
-        {icon ? <Icon icon={icon} size={size === 'small' ? 18 : 20} color={textColor} /> : null}
+        {icon ? (
+          <Icon icon={icon} size={size === 'small' ? 20 : 22} strokeWidth={2} color={textColor} />
+        ) : null}
         <ThemedText type="smallSemibold" style={{ color: textColor }}>
           {label}
         </ThemedText>
