@@ -2,3 +2,7 @@
 # ignore them locally too so `eas update` computes the same runtime version.
 ios/**/*
 android/**/*
+
+# Only filters what EAS uploads (it mirrors .gitignore plus local worktrees),
+# so editing it shouldn't force a native build.
+.easignore

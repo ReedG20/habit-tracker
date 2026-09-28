@@ -1,0 +1,58 @@
+# EAS Build uploads the project directory filtered by this file INSTEAD of
+# .gitignore, and it ignores .git/info/exclude. Keep the .gitignore rules below
+# in sync with .gitignore; the extras at the bottom are the reason this exists.
+#
+# This lives here rather than in .gitignore because .gitignore is an input to
+# the native fingerprint: editing it forces a full native build on the next
+# merge. This file would be too, so .fingerprintignore lists it.
+
+# ---- mirrored from .gitignore ----
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env*.local
+
+# typescript
+*.tsbuildinfo
+
+example
+
+# generated native folders
+/ios
+/android
+
+# ---- EAS only ----
+
+# Parallel Claude worktrees (see AGENTS.md): each is a full checkout with its
+# own node_modules and ios/ build, several GB in all. Git skips them through
+# .git/info/exclude, which EAS doesn't read, so builds run from the main
+# checkout were uploading every one of them.
+.claude/worktrees/
