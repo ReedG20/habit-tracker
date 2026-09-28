@@ -121,9 +121,19 @@ export function hasPro(info: CustomerInfo | null): boolean {
 export async function loadProOffering(): Promise<ProOffering | null> {
   if (!revenueCatSupported) return null;
   const offerings = await Purchases.getOfferings();
-  const monthly = offerings.current?.monthly;
-  const annual = offerings.current?.annual;
-  if (!monthly || !annual) return null;
+  const { current } = offerings;
+  const monthly = current?.monthly;
+  const annual = current?.annual;
+  if (!monthly || !annual) {
+    // Usually dashboard setup: no offering marked current, or its packages
+    // carry only Test Store products, so the App Store build sees none.
+    console.warn(
+      current
+        ? `RevenueCat offering "${current.identifier}" lacks a monthly or annual package; it has [${current.availablePackages.map((pkg) => pkg.identifier).join(', ')}]`
+        : `RevenueCat has no current offering; found [${Object.keys(offerings.all).join(', ')}]`,
+    );
+    return null;
+  }
   return { monthly, annual };
 }
 
