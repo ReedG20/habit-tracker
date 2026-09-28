@@ -4,6 +4,7 @@ import Stripe from 'stripe';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalAction, internalMutation, type MutationCtx } from './_generated/server';
+import { notifyCharged } from './lib/notify';
 import { stripeClient } from './lib/stripe';
 
 /**
@@ -219,6 +220,7 @@ async function markCharged(
       failureReason: undefined,
     },
   });
+  await notifyCharged(ctx, goal);
 }
 
 /** `charging` → `charge_failed`. */

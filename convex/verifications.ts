@@ -7,6 +7,7 @@ import { requireOwnedHabit } from './habits';
 import { authedMutation } from './lib/customFunctions';
 import { requirePro } from './lib/entitlements';
 import { localDay, requireUnlocked } from './lib/lockout';
+import { notifyHabitVerdict } from './lib/notify';
 import {
   EXPIRE_AFTER_MS,
   FAILED_REASON,
@@ -182,6 +183,7 @@ export const resolve = internalMutation({
     if (args.status === 'approved') {
       await logCompletion(ctx, verification);
     }
+    await notifyHabitVerdict(ctx, verification, args.status, args.reason);
 
     return null;
   },

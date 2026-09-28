@@ -38,7 +38,7 @@ before the next one starts.
 
 ```bash
 bunx convex deployment select dev/wt-<name> \
-  || bunx convex deployment create dev/wt-<name> --type dev --select --expiration "in 14 days"
+  || bunx convex deployment create dev/wt-<name> --type dev --select --expiration "in 5 days"
 ```
 ```bash
 bunx convex env list --deployment cool-kiwi-961 > "$TMPDIR/wt-env-<name>"
@@ -58,7 +58,7 @@ bunx convex dev --once
   also run `bunx convex dev` in the background for watch mode.
 - The deployment starts empty. Signing in through the app creates the user row
   (same Clerk dev instance). Seed anything else through the app or `bunx convex run`.
-- If the deployment expired (after 14 days), `select` fails and `create` makes a fresh one.
+- If the deployment expired (after 5 days, the most Convex allows), `select` fails and `create` makes a fresh one.
 - Stripe webhooks: `stripe listen --forward-to https://<your-deployment>.convex.site/stripe/webhook`.
   The whsec is the same as the shared dev one and was copied over.
 - The RevenueCat sandbox webhook only reaches `cool-kiwi-961`. Ask Reed to test
@@ -149,7 +149,7 @@ Notes:
   `xcrun simctl shutdown "$udid"; xcrun simctl delete "$udid"`.
 - While you're at it, delete any `Ante · <other>` simulator whose worktree no
   longer appears in `git worktree list`.
-- The Convex deployment expires on its own. Don't delete other sessions' resources.
+- The Convex deployment expires on its own after 5 days. Don't delete other sessions' resources.
 
 ## Never, from a worktree
 

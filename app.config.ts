@@ -28,6 +28,11 @@ const config: ExpoConfig = {
       // Only HTTPS, so exempt from export compliance; stops EAS asking each build.
       ITSAppUsesNonExemptEncryption: false,
     },
+    entitlements: {
+      // Lets a deadline's last call through Focus modes, when the user allows it
+      // (Reminders → Break through Focus). EAS enables the capability on the App ID.
+      'com.apple.developer.usernotifications.time-sensitive': true,
+    },
   },
   android: {
     package: bundleIdentifier,
@@ -68,6 +73,8 @@ const config: ExpoConfig = {
     'expo-apple-authentication',
     // Card entry for goal stakes. No Apple Pay yet, so no merchant identifier.
     ['@stripe/stripe-react-native', { enableGooglePay: false }],
+    // Deadline reminders, pushed from Convex through the Expo Push Service.
+    'expo-notifications',
     // UIScene adoption, required by the iOS 27 SDK; see the plugin for details.
     './plugins/with-scene-lifecycle.js',
   ],

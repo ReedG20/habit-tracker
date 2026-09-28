@@ -15,6 +15,7 @@ import {
   localDay,
   requireDevOverrides,
 } from './lib/lockout';
+import { touchReminders } from './lib/notify';
 
 /**
  * The lockout: a missed habit locks the whole app until a re-entry fee is
@@ -239,6 +240,8 @@ async function unlock(
       lastCheckedDay: today,
     });
   }
+  // Habit reminders pause while locked; tomorrow's come back from here.
+  await touchReminders(ctx, user._id);
 }
 
 export type ReentryPayment = {

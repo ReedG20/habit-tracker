@@ -7,6 +7,7 @@ import { getCurrentUserOrNull } from './lib/auth';
 import { authedAction, authedMutation } from './lib/customFunctions';
 import { isPro, isSubscriptionActive } from './lib/entitlements';
 import { requireDevOverrides } from './lib/lockout';
+import { touchReminders } from './lib/notify';
 import { PRO_ENTITLEMENT } from './revenuecat';
 import schema from './schema';
 
@@ -84,6 +85,7 @@ export const applySynced = internalMutation({
     } else {
       await ctx.db.replace('subscriptions', existing._id, fields);
     }
+    await touchReminders(ctx, args.userId);
     return null;
   },
 });
@@ -204,6 +206,7 @@ export const devGrantPro = authedMutation({
     } else {
       await ctx.db.replace('subscriptions', existing._id, fields);
     }
+    await touchReminders(ctx, ctx.user._id);
     return null;
   },
 });
@@ -226,6 +229,7 @@ export const devEndPro = authedMutation({
         willRenew: false,
         updatedAt: now,
       });
+      await touchReminders(ctx, ctx.user._id);
     }
     return null;
   },

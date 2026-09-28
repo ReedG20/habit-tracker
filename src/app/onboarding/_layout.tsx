@@ -2,7 +2,8 @@ import { Stack } from 'expo-router';
 
 /**
  * The first-run flow: welcome → how it works → three questions → the first
- * commitment's contract (what, stakes, sign) → sign-in → paywall. Each step is
+ * commitment's contract (what, stakes, sign) → reminders (only if iOS hasn't
+ * been asked) → sign-in → paywall. Each step is
  * a push, so swipe-back works through the survey; the contract and paywall
  * turn it off.
  */

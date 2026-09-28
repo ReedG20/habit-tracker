@@ -17,6 +17,7 @@ import {
 import { DAILY, isValidTimesPerWeek, targetPerWeek } from './lib/frequency';
 import { requirePro } from './lib/entitlements';
 import { endOfPeriod, isOwed, localDay, requireDevOverrides, requireUnlocked } from './lib/lockout';
+import { touchReminders } from './lib/notify';
 
 const habitValidator = v.object({
   _id: v.id('habits'),
@@ -262,7 +263,7 @@ export const create = authedMutation({
 
     const order = existing.reduce((max, habit) => Math.max(max, habit.order), -1) + 1;
 
-    return await ctx.db.insert('habits', {
+    const habitId = await ctx.db.insert('habits', {
       userId: ctx.user._id,
       title: args.title,
       description: args.description,
@@ -271,6 +272,9 @@ export const create = authedMutation({
       startDay:
         ctx.user.timeZone === undefined ? undefined : localDay(Date.now(), ctx.user.timeZone),
     });
+    await touchReminders(ctx, ctx.user._id);
+
+    return habitId;
   },
 });
 

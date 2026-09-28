@@ -1,4 +1,4 @@
-import { useClerk, useUser } from '@clerk/expo';
+import { useUser } from '@clerk/expo';
 import type { IconSvgElement } from '@hugeicons/react-native';
 import { useMutation, useQuery } from 'convex/react';
 import Constants from 'expo-constants';
@@ -27,6 +27,7 @@ import { api } from '@/convex/_generated/api';
 import { currentStreak, formatStreak } from '@/data/habits';
 import { describeSubscription } from '@/data/subscription';
 import { useNow } from '@/hooks/use-now';
+import { useSignOut } from '@/hooks/use-sign-out';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useTheme } from '@/hooks/use-theme';
 import { todayKey } from '@/lib/dates';
@@ -35,8 +36,13 @@ import { formatCents } from '@/lib/money';
 import { resetOnboarding } from '@/lib/onboarding';
 import { manageSubscriptionsUrl, revenueCatSupported } from '@/lib/revenuecat';
 
-const settings: { id: string; label: string; icon: IconSvgElement; href?: '/preferences' }[] = [
-  { id: 'reminders', label: 'Reminders', icon: Notification01Icon },
+const settings: {
+  id: string;
+  label: string;
+  icon: IconSvgElement;
+  href?: '/preferences' | '/me/reminders';
+}[] = [
+  { id: 'reminders', label: 'Reminders', icon: Notification01Icon, href: '/me/reminders' },
   { id: 'preferences', label: 'Preferences', icon: Settings02Icon, href: '/preferences' },
 ];
 
@@ -61,7 +67,7 @@ function describeBuild(): string {
 export default function MeScreen() {
   const theme = useTheme();
   const { user } = useUser();
-  const { signOut } = useClerk();
+  const signOut = useSignOut();
   const habits = useQuery(api.habits.list, { today: todayKey() });
   const loggedCount = useQuery(api.habits.loggedCount);
   const stakeTotals = useQuery(api.goals.stakeTotals);

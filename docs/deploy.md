@@ -98,7 +98,13 @@ bunx convex env set --prod STRIPE_SECRET_KEY sk_live_...
 bunx convex env set --prod STRIPE_WEBHOOK_SECRET whsec_...   # after step 3
 bunx convex env set --prod REVENUECAT_WEBHOOK_AUTH "Bearer $(openssl rand -hex 32)"   # see step 3b
 bunx convex env set --prod REVENUECAT_SECRET_API_KEY sk_...   # optional; see step 3b
+bunx convex env set --prod PUSH_DELIVERY on   # deadline reminders; see below
 ```
+
+`PUSH_DELIVERY=on` lets the backend actually send reminder pushes. Set it on
+production and on the shared dev deployment (preview builds), and nowhere
+else: the per-worktree dev deployments leave it off, so they only log what
+they would have sent and never buzz a real phone.
 
 `ANTE_DEV_OVERRIDES=1` (force-delete, lock and unlock on demand) goes on the
 shared dev deployment only, which preview builds also use. **Never set it on
@@ -265,6 +271,11 @@ bunx eas-cli@latest env:create --environment production --scope project --visibi
   ASC → Users and Access → Integrations → App Store Connect API → generate a
   key with the **App Manager** role, then upload it with
   `bunx eas-cli@latest credentials -p ios` → App Store Connect API Key.
+- Push notifications (deadline reminders go through the Expo Push Service):
+  `bunx eas-cli@latest credentials -p ios` → Push Notifications → set up a
+  push key, which EAS generates and keeps. One key serves development and
+  production. The Time Sensitive Notifications capability comes from
+  `app.config.ts`; EAS enables it on the App ID at build time.
 
 ### 6. GitHub
 
