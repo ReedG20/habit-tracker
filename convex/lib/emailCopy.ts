@@ -37,6 +37,15 @@ export type LossInput = {
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
+/**
+ * Where a friend's reply goes: straight to the user, unless their address is
+ * Apple's private relay, which only accepts mail from registered senders.
+ */
+export function replyToFor(email: string): string | undefined {
+  if (email.length === 0 || email.endsWith('@privaterelay.appleid.com')) return undefined;
+  return email;
+}
+
 export function escapeHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')

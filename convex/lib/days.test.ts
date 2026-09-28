@@ -120,3 +120,27 @@ describe('weeklyStreak', () => {
     expect(weeklyStreak(days, '2026-01-06', 1)).toBe(3);
   });
 });
+
+describe('frozen days', () => {
+  test('bridge a daily streak without adding to it', () => {
+    const done = new Set(['2026-09-20', '2026-09-21', '2026-09-25']);
+    const frozen = new Set(['2026-09-22', '2026-09-23', '2026-09-24']);
+    expect(streakLength(done, '2026-09-25')).toBe(1);
+    expect(streakLength(done, '2026-09-25', frozen)).toBe(3);
+  });
+
+  test('skip a week that touches a freeze', () => {
+    // Two weeks met, one frozen between them, and this week met.
+    const done = new Set([
+      '2026-09-07',
+      '2026-09-08',
+      '2026-09-14',
+      '2026-09-15',
+      '2026-09-28',
+      '2026-09-29',
+    ]);
+    const frozen = new Set(['2026-09-23']);
+    expect(weeklyStreak(done, '2026-09-29', 2)).toBe(1);
+    expect(weeklyStreak(done, '2026-09-29', 2, frozen)).toBe(3);
+  });
+});

@@ -27,7 +27,6 @@ import {
   selectDue,
   type Group,
   type PlanGoal,
-  type PlanHabit,
   type PlanInput,
   type Slot,
 } from './lib/reminderPlan';

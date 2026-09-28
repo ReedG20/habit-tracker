@@ -5,7 +5,7 @@ import { components, internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { env, internalMutation, type MutationCtx } from './_generated/server';
 import { firstName, friendLimiter, normalizeEmail, suppress } from './friends';
-import { headsUpEmail, lossEmail, type EmailContent } from './lib/emailCopy';
+import { headsUpEmail, lossEmail, replyToFor, type EmailContent } from './lib/emailCopy';
 import { frequencyLabel } from './lib/frequency';
 import { notifyFriendTold } from './lib/notify';
 import { formatDueLabel } from './lib/reminderCopy';
@@ -32,11 +32,8 @@ export function resendClient(): Resend {
   return resend();
 }
 
-/** Apple's private relay only accepts mail from registered senders, so a friend's reply there bounces. */
 function replyAddress(user: Doc<'users'>): string | undefined {
-  const email = normalizeEmail(user.email);
-  if (email.length === 0 || email.endsWith('@privaterelay.appleid.com')) return undefined;
-  return email;
+  return replyToFor(normalizeEmail(user.email));
 }
 
 function optOutUrl(friend: Doc<'friends'>): string {
