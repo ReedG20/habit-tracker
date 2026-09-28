@@ -3,15 +3,25 @@ import * as Device from 'expo-device';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import { useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
+import {
+  ActionSheetIOS,
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
 
 import { ActionButton } from './action-button';
 import { Icon } from './icon';
+import { KeyboardDoneBar } from './keyboard/keyboard-done-bar';
 import { ScreenScrollView } from './screen-scroll-view';
 import { TextField } from './text-field';
 import { ThemedText } from './themed-text';
 
-import { ArrowLeft01Icon, Camera01Icon, Cancel01Icon, Image01Icon } from '@/constants/icons';
+import { Add01Icon, ArrowLeft01Icon, Camera01Icon, Cancel01Icon } from '@/constants/icons';
 import { BorderRadius, ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
@@ -25,6 +35,9 @@ type PickedPhoto = {
 
 /** Mirrors `MAX_SUBMISSION_PHOTOS` on the server. */
 const MAX_PHOTOS = 6;
+
+const COLUMNS = 3;
+const GRID_GAP = Spacing.two;
 
 /** The simulator has no camera. Unlike habits, the library is always a legitimate source here. */
 const CAN_TAKE_PHOTO = Device.isDevice;
@@ -55,6 +68,10 @@ export function SubmitProofForm({ goal, onSubmitted, onBack }: SubmitProofFormPr
 
   const [photos, setPhotos] = useState<PickedPhoto[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  // Tiles are sized in points from the measured width, so three squares sit
+  // flush with both edges (a percentage width with an aspect ratio doesn't).
+  const [gridWidth, setGridWidth] = useState(0);
+  const tileSize = gridWidth > 0 ? (gridWidth - GRID_GAP * (COLUMNS - 1)) / COLUMNS : 0;
   // Read at submit time rather than tracked per keystroke: the field is
   // uncontrolled, and the native value is what the user actually sees.
   const readNote = useRef<(() => string) | null>(null);
@@ -91,6 +108,30 @@ export function SubmitProofForm({ goal, onSubmitted, onBack }: SubmitProofFormPr
           ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
       }),
     );
+  };
+
+  /** One entry point for both sources; without a camera it goes straight to the library. */
+  const addPhotos = () => {
+    if (!CAN_TAKE_PHOTO) {
+      void pickFromLibrary();
+      return;
+    }
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Take photo', 'Choose from library', 'Cancel'], cancelButtonIndex: 2 },
+        (index) => {
+          if (index === 0) void takePhoto();
+          if (index === 1) void pickFromLibrary();
+        },
+      );
+    } else {
+      Alert.alert('Add a photo', undefined, [
+        { text: 'Take photo', onPress: () => void takePhoto() },
+        { text: 'Choose from library', onPress: () => void pickFromLibrary() },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    }
   };
 
   const acceptResult = (result: ImagePicker.ImagePickerResult) => {
@@ -156,103 +197,124 @@ export function SubmitProofForm({ goal, onSubmitted, onBack }: SubmitProofFormPr
     }
   };
 
+  const tile = { width: tileSize, height: tileSize };
+
   return (
-    <ScreenScrollView>
-      <View style={styles.header}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Go back"
-          onPress={onBack}
-          hitSlop={Spacing.three}
-          style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
-          <Icon icon={ArrowLeft01Icon} size={18} themeColor="textSecondary" />
-          <ThemedText type="small" themeColor="textSecondary">
-            Back
+    <View style={styles.screen}>
+      <ScreenScrollView>
+        <View style={styles.header}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            onPress={onBack}
+            hitSlop={Spacing.three}
+            style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
+            <Icon icon={ArrowLeft01Icon} size={18} themeColor="textSecondary" />
+            <ThemedText type="small" themeColor="textSecondary">
+              Back
+            </ThemedText>
+          </Pressable>
+          <ThemedText style={styles.title} themeColor="text">
+            Submit proof
           </ThemedText>
-        </Pressable>
-        <ThemedText style={styles.title} themeColor="text">
-          Submit proof
-        </ThemedText>
-        <ThemedText themeColor="textSecondary">
-          {goal.description
-            ? `You promised: ${goal.description}`
-            : `Show that "${goal.title}" is done.`}
-        </ThemedText>
-      </View>
+          <ThemedText themeColor="textSecondary">
+            {goal.description
+              ? `You promised: ${goal.description}`
+              : `Show that "${goal.title}" is done.`}
+          </ThemedText>
+        </View>
 
-      <View style={styles.grid}>
-        {photos.map((photo, index) => (
-          <View key={photo.uri} style={[styles.cell, { backgroundColor: theme.backgroundElement }]}>
-            <Image
-              source={{ uri: photo.uri }}
-              style={StyleSheet.absoluteFill}
-              contentFit="cover"
-              accessibilityLabel={`Photo ${index + 1}`}
-            />
-            {submitting ? null : (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Remove photo ${index + 1}`}
-                onPress={() => setPhotos((current) => current.filter((_, i) => i !== index))}
-                hitSlop={Spacing.two}
-                style={({ pressed }) => [styles.remove, pressed && styles.pressed]}>
-                <Icon icon={Cancel01Icon} size={14} color="#ffffff" />
-              </Pressable>
-            )}
-          </View>
-        ))}
-        {photos.length === 0 ? (
-          <View style={[styles.cell, { backgroundColor: theme.backgroundElement }]}>
-            <Icon icon={Camera01Icon} size={28} themeColor="textSecondary" />
-          </View>
-        ) : null}
-        {submitting ? (
-          <View style={[StyleSheet.absoluteFill, styles.overlay]}>
-            <ActivityIndicator color={theme.onPrimary} />
-          </View>
-        ) : null}
-      </View>
+        <View>
+          {photos.length === 0 ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Add a photo"
+              disabled={submitting}
+              onPress={addPhotos}
+              style={({ pressed }) => [
+                styles.empty,
+                { backgroundColor: theme.backgroundElement },
+                pressed && styles.pressed,
+              ]}>
+              <Icon icon={Camera01Icon} size={32} themeColor="textSecondary" />
+              <ThemedText type="smallSemibold" themeColor="textSecondary">
+                Add at least one photo
+              </ThemedText>
+            </Pressable>
+          ) : (
+            <View
+              style={styles.grid}
+              onLayout={(event) => setGridWidth(event.nativeEvent.layout.width)}>
+              {photos.map((photo, index) => (
+                <View
+                  key={photo.uri}
+                  style={[styles.cell, tile, { backgroundColor: theme.backgroundElement }]}>
+                  <Image
+                    source={{ uri: photo.uri }}
+                    style={StyleSheet.absoluteFill}
+                    contentFit="cover"
+                    accessibilityLabel={`Photo ${index + 1}`}
+                  />
+                  {submitting ? null : (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove photo ${index + 1}`}
+                      onPress={() => setPhotos((current) => current.filter((_, i) => i !== index))}
+                      hitSlop={Spacing.two}
+                      style={({ pressed }) => [styles.remove, pressed && styles.pressed]}>
+                      <Icon icon={Cancel01Icon} size={14} color="#ffffff" />
+                    </Pressable>
+                  )}
+                </View>
+              ))}
+              {remaining > 0 && !submitting ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Add another photo"
+                  onPress={addPhotos}
+                  style={({ pressed }) => [
+                    styles.cell,
+                    tile,
+                    { backgroundColor: theme.backgroundElement },
+                    pressed && styles.pressed,
+                  ]}>
+                  <Icon icon={Add01Icon} size={28} themeColor="textSecondary" />
+                </Pressable>
+              ) : null}
+            </View>
+          )}
+          {submitting ? (
+            <View style={[StyleSheet.absoluteFill, styles.overlay]}>
+              <ActivityIndicator color={theme.onPrimary} />
+            </View>
+          ) : null}
+        </View>
+        <ThemedText type="small" themeColor="textSecondary">
+          {remaining === 0
+            ? `That's the limit of ${MAX_PHOTOS} photos.`
+            : photos.length === 0
+              ? `Up to ${MAX_PHOTOS} photos.`
+              : `${remaining} more can go in.`}
+        </ThemedText>
 
-      <View style={styles.sources}>
-        {CAN_TAKE_PHOTO ? (
-          <ActionButton
-            icon={Camera01Icon}
-            label="Take photo"
-            disabled={submitting || remaining === 0}
-            onPress={() => void takePhoto()}
-            style={styles.source}
-          />
-        ) : null}
-        <ActionButton
-          icon={Image01Icon}
-          label="From library"
-          disabled={submitting || remaining === 0}
-          onPress={() => void pickFromLibrary()}
-          style={styles.source}
+        <TextField
+          label="Note (optional)"
+          defaultValue=""
+          readValueRef={readNote}
+          placeholder="Anything the photos don't show on their own"
+          multiline
         />
-      </View>
-      <ThemedText type="small" themeColor="textSecondary">
-        {remaining === 0
-          ? `That's the limit of ${MAX_PHOTOS} photos.`
-          : `Up to ${MAX_PHOTOS} photos. ${photos.length === 0 ? 'Add at least one.' : `${remaining} more can go in.`}`}
-      </ThemedText>
 
-      <TextField
-        label="Note (optional)"
-        defaultValue=""
-        readValueRef={readNote}
-        placeholder="Anything the photos don't show on their own"
-        multiline
-      />
-
-      <ActionButton
-        label={submitting ? 'Submitting…' : 'Submit for review'}
-        variant="primary"
-        fill
-        disabled={photos.length === 0 || submitting}
-        onPress={() => void onSubmit()}
-      />
-    </ScreenScrollView>
+        <ActionButton
+          label={submitting ? 'Submitting…' : 'Submit for review'}
+          variant="primary"
+          fill
+          disabled={photos.length === 0 || submitting}
+          onPress={() => void onSubmit()}
+        />
+      </ScreenScrollView>
+      <KeyboardDoneBar />
+    </View>
   );
 }
 
@@ -268,15 +330,22 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   title: ScreenHeadingTypography,
+  screen: {
+    flex: 1,
+  },
+  empty: {
+    height: 180,
+    borderRadius: BorderRadius,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.two,
+  },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.two,
+    gap: GRID_GAP,
   },
-  // Three across at phone widths; the gap is subtracted so three fit exactly.
   cell: {
-    width: '31%',
-    aspectRatio: 1,
     borderRadius: BorderRadius,
     overflow: 'hidden',
     alignItems: 'center',
@@ -298,13 +367,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.35)',
     borderRadius: BorderRadius,
-  },
-  sources: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  source: {
-    flex: 1,
   },
   pressed: {
     opacity: 0.7,

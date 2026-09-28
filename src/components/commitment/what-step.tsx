@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Keyboard, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { MIN_LEAD_MS, wordingSignature, type CommitmentDraft, type CommitmentKind } from './draft';
 import { FrequencyPicker } from './frequency-picker';
@@ -14,7 +14,7 @@ import { ActionButton } from '@/components/action-button';
 import { ChoiceChip } from '@/components/onboarding/choice-chip';
 import { DeadlineField } from '@/components/deadline-field';
 import { SegmentedPicker } from '@/components/segmented-picker';
-import { TextField } from '@/components/text-field';
+import { TextField, type TextFieldHandle } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 
@@ -60,26 +60,9 @@ export function WhatStep({ draft, onChange, onNext, suggestions }: WhatStepProps
   // Bumped when a suggestion is picked, remounting the fields with its text.
   const [fieldsKey, setFieldsKey] = useState(0);
 
-  // With the keyboard up the body is shorter than the step, so keep the field
-  // being typed in on screen: the name sits at the top, the proof at the bottom.
   const scrollRef = useRef<ScrollView>(null);
-  const focused = useRef<'title' | 'proof' | null>(null);
-  const revealFocused = () => {
-    if (focused.current === 'proof') scrollRef.current?.scrollToEnd({ animated: true });
-    if (focused.current === 'title') scrollRef.current?.scrollTo({ y: 0, animated: true });
-  };
-  useEffect(() => {
-    const subscription = Keyboard.addListener('keyboardDidShow', () => revealFocused());
-    return () => subscription.remove();
-  }, []);
-  const trackFocus = (field: 'title' | 'proof', isFocused: boolean) => {
-    if (isFocused) {
-      focused.current = field;
-      if (Keyboard.isVisible()) revealFocused();
-    } else if (focused.current === field) {
-      focused.current = null;
-    }
-  };
+  // Return on the name moves on to the proof, the field it's written against.
+  const proofRef = useRef<TextFieldHandle>(null);
 
   const readFields = () => ({
     title: readTitle.current?.() ?? draft.title,
@@ -194,11 +177,11 @@ export function WhatStep({ draft, onChange, onNext, suggestions }: WhatStepProps
         label="Name"
         defaultValue={draft.title}
         readValueRef={readTitle}
-        onFocusChange={(isFocused) => trackFocus('title', isFocused)}
         onChangeText={wording.dismiss}
         placeholder={placeholders[draft.kind].title}
         autoCapitalize="sentences"
         returnKeyType="next"
+        onSubmit={() => proofRef.current?.focus()}
       />
 
       {draft.kind === 'habit' ? (
@@ -218,11 +201,11 @@ export function WhatStep({ draft, onChange, onNext, suggestions }: WhatStepProps
 
       <View style={styles.proof}>
         <TextField
+          ref={proofRef}
           key={`proof-${fieldsKey}`}
           label={proofLabels[draft.kind]}
           defaultValue={draft.proof}
           readValueRef={readProof}
-          onFocusChange={(isFocused) => trackFocus('proof', isFocused)}
           onChangeText={wording.dismiss}
           placeholder={placeholders[draft.kind].proof}
           multiline

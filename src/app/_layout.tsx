@@ -7,6 +7,7 @@ import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { StripeProvider } from '@/components/stripe-provider';
 import { noteFontFamily, wisdomFontFamily } from '@/constants/custom-fonts';
@@ -68,7 +69,9 @@ export default function RootLayout() {
       <ConvexProviderWithClerk client={convex} useAuth={useAuth}>
         <StripeProvider>
           <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-            <RootNavigator />
+            <KeyboardProvider>
+              <RootNavigator />
+            </KeyboardProvider>
           </ThemeProvider>
         </StripeProvider>
       </ConvexProviderWithClerk>

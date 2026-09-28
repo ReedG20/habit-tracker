@@ -6,8 +6,17 @@ import { ActionButton } from '@/components/action-button';
 import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
 import { Alert02Icon } from '@/constants/icons';
-import { BorderRadius, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+
+/** A small `ActionButton` (SwiftUI's regular glass capsule), as drawn on iOS 26+. */
+const SMALL_BUTTON_HEIGHT = 32;
+
+// One level of nesting, so the curve never compounds: the card's corner is
+// concentric with the "Use this" capsule sitting in it, and the quoted
+// suggestion is inset by the same padding, so it follows the card's curve.
+const CARD_RADIUS = SMALL_BUTTON_HEIGHT / 2 + Spacing.three;
+const SUGGESTION_RADIUS = CARD_RADIUS - Spacing.three;
 
 export type WordingFeedbackProps = {
   revision: WordingRevision;
@@ -41,13 +50,15 @@ export function WordingFeedback({ revision, onUseSuggestion }: WordingFeedbackPr
       </ThemedText>
 
       {suggestion !== null ? (
-        <View style={[styles.suggestion, { backgroundColor: theme.background }]}>
-          <ThemedText type="smallBold" themeColor="text">
-            {suggestion.title}
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            {suggestion.proof}
-          </ThemedText>
+        <>
+          <View style={[styles.suggestion, { backgroundColor: theme.background }]}>
+            <ThemedText type="smallBold" themeColor="text">
+              {suggestion.title}
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              {suggestion.proof}
+            </ThemedText>
+          </View>
           <ActionButton
             label="Use this"
             size="small"
@@ -56,7 +67,7 @@ export function WordingFeedback({ revision, onUseSuggestion }: WordingFeedbackPr
             onPress={() => onUseSuggestion(suggestion)}
             style={styles.use}
           />
-        </View>
+        </>
       ) : null}
     </View>
   );
@@ -66,7 +77,7 @@ const styles = StyleSheet.create({
   card: {
     gap: Spacing.two,
     padding: Spacing.three,
-    borderRadius: BorderRadius,
+    borderRadius: CARD_RADIUS,
     borderWidth: 1,
   },
   header: {
@@ -77,10 +88,9 @@ const styles = StyleSheet.create({
   suggestion: {
     gap: Spacing.one,
     padding: Spacing.three,
-    borderRadius: BorderRadius - Spacing.one,
+    borderRadius: SUGGESTION_RADIUS,
   },
   use: {
     alignSelf: 'flex-start',
-    marginTop: Spacing.one,
   },
 });

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 
 import { DeadlineField } from '@/components/deadline-field';
-import { TextField } from '@/components/text-field';
+import { TextField, type TextFieldHandle } from '@/components/text-field';
 
 export type GoalDraft = {
   title: string;
@@ -24,6 +24,7 @@ export type GoalSheetFieldsProps = {
 export function GoalSheetFields({ initial, draftRef, showDeadline }: GoalSheetFieldsProps) {
   const readTitle = useRef<(() => string) | null>(null);
   const readDescription = useRef<(() => string) | null>(null);
+  const proofRef = useRef<TextFieldHandle>(null);
   const dueAtRef = useRef(initial.dueAt);
   const [dueAt, setDueAt] = useState(initial.dueAt);
 
@@ -44,8 +45,10 @@ export function GoalSheetFields({ initial, draftRef, showDeadline }: GoalSheetFi
         placeholder="Ship the landing page"
         autoCapitalize="sentences"
         returnKeyType="next"
+        onSubmit={() => proofRef.current?.focus()}
       />
       <TextField
+        ref={proofRef}
         label="What proof will you show?"
         defaultValue={initial.description}
         readValueRef={readDescription}

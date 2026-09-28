@@ -1,6 +1,7 @@
-import type { Ref } from 'react';
-import { Platform, ScrollView, StyleSheet, type ScrollViewProps } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { KeyboardScrollView, type KeyboardScrollViewProps } from './keyboard/keyboard-scroll-view';
 
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -11,11 +12,11 @@ import { useTheme } from '@/hooks/use-theme';
  * loading scroll view for the real one (the pushed screen also renders once
  * with zero insets), which left content under the status bar. Padding is
  * plain layout, so it always lands.
+ *
+ * Keyboard-aware, so a screen that grows a text field gets the same keyboard
+ * handling as the forms without doing anything.
  */
-export function ScreenScrollView({
-  contentContainerStyle,
-  ...rest
-}: ScrollViewProps & { ref?: Ref<ScrollView> }) {
+export function ScreenScrollView({ contentContainerStyle, ...rest }: KeyboardScrollViewProps) {
   const safeAreaInsets = useSafeAreaInsets();
   const theme = useTheme();
 
@@ -38,7 +39,7 @@ export function ScreenScrollView({
   });
 
   return (
-    <ScrollView
+    <KeyboardScrollView
       style={[styles.scrollView, { backgroundColor: theme.background }]}
       contentContainerStyle={[styles.contentContainer, contentPlatformStyle, contentContainerStyle]}
       {...rest}
