@@ -77,6 +77,9 @@ export default function MeScreen() {
   const devOverrides = useQuery(api.lockouts.devOverrides, showDevTools ? {} : 'skip');
   const forceDelete = useForceDelete();
   const devLock = useMutation(api.lockouts.devLock);
+  const devGrantPro = useMutation(api.subscriptions.devGrantPro);
+  const devEndPro = useMutation(api.subscriptions.devEndPro);
+  const devPreviewNotices = useMutation(api.accountNotices.devPreview);
 
   const displayName =
     user?.firstName ?? user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? 'You';
@@ -261,6 +264,40 @@ export default function MeScreen() {
                   ]}>
                   <Icon icon={LockKeyholeIcon} size={22} themeColor="textSecondary" />
                   <ThemedText style={styles.settingLabel}>Lock me now</ThemedText>
+                </Pressable>
+                {/* Pro without the App Store, or its end, to test both sides of the paywall. */}
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    (isPro ? devEndPro() : devGrantPro()).catch((error: unknown) => {
+                      console.error('Failed to change Pro', error);
+                    });
+                  }}
+                  style={({ pressed }) => [
+                    styles.settingRow,
+                    { borderTopWidth: 1, borderTopColor: theme.border },
+                    pressed && styles.pressed,
+                  ]}>
+                  <Icon icon={SparklesIcon} size={22} themeColor="textSecondary" />
+                  <ThemedText style={styles.settingLabel}>
+                    {isPro ? 'End Pro now' : 'Grant Pro for 30 days'}
+                  </ThemedText>
+                </Pressable>
+                {/* The still-locked and trial-ending pushes, now, rather than days out. */}
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    devPreviewNotices().catch((error: unknown) => {
+                      console.error('Failed to send account notices', error);
+                    });
+                  }}
+                  style={({ pressed }) => [
+                    styles.settingRow,
+                    { borderTopWidth: 1, borderTopColor: theme.border },
+                    pressed && styles.pressed,
+                  ]}>
+                  <Icon icon={Notification01Icon} size={22} themeColor="textSecondary" />
+                  <ThemedText style={styles.settingLabel}>Send account notices</ThemedText>
                 </Pressable>
               </>
             ) : null}

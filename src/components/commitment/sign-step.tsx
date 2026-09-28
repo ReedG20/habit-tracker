@@ -11,6 +11,7 @@ import { StepLayout } from './step-layout';
 
 import { ThemedText } from '@/components/themed-text';
 import { CardRadius, Spacing } from '@/constants/theme';
+import { useReentryPrice } from '@/hooks/use-reentry-product';
 import { useTheme } from '@/hooks/use-theme';
 
 const signedDate = new Intl.DateTimeFormat(undefined, { dateStyle: 'long' });
@@ -26,6 +27,7 @@ export type SignStepProps = {
 /** Step 3: the whole commitment as a contract, signed by finger and locked in by holding. */
 export function SignStep({ draft, busy, onConfirm }: SignStepProps) {
   const theme = useTheme();
+  const reentryPrice = useReentryPrice();
   const [signed, setSigned] = useState(false);
   const [padKey, setPadKey] = useState(0);
   const [drawing, setDrawing] = useState(false);
@@ -65,7 +67,7 @@ export function SignStep({ draft, busy, onConfirm }: SignStepProps) {
         </ThemedText>
 
         <ThemedText style={styles.body} themeColor="text">
-          {contractRuns(draft).map((run, index) => (
+          {contractRuns(draft, reentryPrice).map((run, index) => (
             <ThemedText
               key={index}
               style={[styles.body, run.strong && styles.strong]}

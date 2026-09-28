@@ -34,7 +34,7 @@ describe('describeSubscription', () => {
   test('a past expiry reads as expired whatever the status says', () => {
     expect(
       describeSubscription({ status: 'cancelled', expiresAt: NOW - 1, willRenew: false }, NOW),
-    ).toBe('Expired');
-    expect(describeSubscription({ status: 'expired', willRenew: false }, NOW)).toBe('Expired');
+    ).toBe('Resubscribe');
+    expect(describeSubscription({ status: 'expired', willRenew: false }, NOW)).toBe('Resubscribe');
   });
 });

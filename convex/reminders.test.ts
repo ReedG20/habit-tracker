@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
-import { setup, type Harness } from './test.helpers';
+import { grantPro, setup, type Harness } from './test.helpers';
 
 // 2026-09-21 is a Monday. Everyone here lives in UTC, so local midnight is 00:00Z.
 const at = (value: string) => Date.parse(value);
@@ -52,6 +52,8 @@ afterEach(() => {
 async function signIn(t: Harness, name: string, token: string | null = TOKEN) {
   const as = t.withIdentity({ tokenIdentifier: name, name });
   const userId: Id<'users'> = await as.mutation(api.users.storeUser, { timeZone: 'UTC' });
+  // Commitments need Pro, and only Pro's habits are held to (and reminded of).
+  await grantPro(t, userId);
   if (token !== null) {
     await as.mutation(api.push.register, { token, permission: 'granted' });
   }
@@ -155,6 +157,20 @@ describe('habit reminders', () => {
         misses: [],
       });
     });
+
+    await runUntil(t, '2026-09-23T00:00:00Z');
+    expect(titles()).toEqual(['Essay · due tomorrow 8pm', 'Essay: 5h left', 'Last call: Essay']);
+  });
+
+  test('Pro ended: habits pause and go quiet, goals keep going', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    await alice.as.mutation(api.habits.create, { title: 'Run' });
+    await alice.as.mutation(api.goals.create, {
+      title: 'Essay',
+      dueAt: at('2026-09-22T20:00:00Z'),
+    });
+    await grantPro(t, alice.userId, Date.now() - 1);
 
     await runUntil(t, '2026-09-23T00:00:00Z');
     expect(titles()).toEqual(['Essay · due tomorrow 8pm', 'Essay: 5h left', 'Last call: Essay']);

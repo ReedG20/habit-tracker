@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 
 import {
   eventCopy,
+  formatDayLabel,
   formatDueLabel,
   formatMoney,
   formatTimeLeft,
@@ -33,6 +34,14 @@ describe('formatting', () => {
     expect(formatDueLabel(Date.parse('2026-09-22T22:30:00Z'), now, zone)).toBe('tomorrow 5:30pm');
     expect(formatDueLabel(Date.parse('2026-09-25T22:00:00Z'), now, zone)).toBe('Fri 5pm');
     expect(formatDueLabel(Date.parse('2026-10-03T05:00:00Z'), now, zone)).toBe('Oct 3, 12am');
+  });
+
+  test('day labels name the day, not the time', () => {
+    const now = Date.parse('2026-09-21T15:00:00Z'); // Monday, 10 AM in Chicago
+    const zone = 'America/Chicago';
+    expect(formatDayLabel(Date.parse('2026-09-22T15:00:00Z'), now, zone)).toBe('tomorrow');
+    expect(formatDayLabel(Date.parse('2026-09-24T15:00:00Z'), now, zone)).toBe('Thursday');
+    expect(formatDayLabel(Date.parse('2026-10-12T15:00:00Z'), now, zone)).toBe('Oct 12');
   });
 });
 
@@ -141,6 +150,22 @@ describe('events', () => {
       msLeft: 2 * HOUR,
     });
     expect(copy.body).toBe('This looks like a screenshot. 2h left to retry.');
+  });
+
+  test('a lock that is still billing says so, then warns before the renewal', () => {
+    expect(eventCopy({ kind: 'stillLocked', renewsLabel: 'Oct 12', renewal: false })).toEqual({
+      title: 'Ante is still locked',
+      body: 'Your Ante Pro subscription is still active and renews Oct 12. Pay the fee to get back in, or manage your subscription.',
+    });
+    expect(eventCopy({ kind: 'stillLocked', renewsLabel: 'Thursday', renewal: true }).title).toBe(
+      'Ante Pro renews Thursday',
+    );
+  });
+
+  test('a trial names the day it ends', () => {
+    expect(eventCopy({ kind: 'trialEnding', endsLabel: 'Thursday' }).title).toBe(
+      'Your free week ends Thursday',
+    );
   });
 
   test('a charge is plain about it', () => {

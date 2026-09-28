@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
-import { setup, type Harness } from './test.helpers';
+import { grantPro, setup, type Harness } from './test.helpers';
 
 // 2026-09-21 is a Monday. Every user here lives in UTC, so local midnight is 00:00Z.
 const at = (day: string, hour = 12) => new Date(`${day}T${String(hour).padStart(2, '0')}:00:00Z`);
@@ -10,6 +10,7 @@ const at = (day: string, hour = 12) => new Date(`${day}T${String(hour).padStart(
 async function signIn(t: Harness, tokenIdentifier: string) {
   const as = t.withIdentity({ tokenIdentifier, name: tokenIdentifier });
   const userId: Id<'users'> = await as.mutation(api.users.storeUser, { timeZone: 'UTC' });
+  await grantPro(t, userId);
   return { as, userId };
 }
 
@@ -57,7 +58,7 @@ describe('lockout check', () => {
   test('nobody is checked until their time zone is known', async () => {
     const t = setup();
     const as = t.withIdentity({ tokenIdentifier: 'old', name: 'old' });
-    await as.mutation(api.users.storeUser, {});
+    await grantPro(t, await as.mutation(api.users.storeUser, {}));
     await as.mutation(api.habits.create, { title: 'Run' });
 
     await runCheck(t, '2026-09-25');
@@ -236,8 +237,9 @@ describe('while locked', () => {
     });
 
     expect(await alice.as.query(api.lockouts.current, {})).toBeNull();
+    // The fee is not a subscription event: the Pro row is left as it was.
     const subscription = await t.run(async (ctx) => await ctx.db.query('subscriptions').first());
-    expect(subscription).toBeNull();
+    expect(subscription).toMatchObject({ productId: 'ante_pro_monthly', lastEventAt: 0 });
   });
 
   test('a payment made with no lock active is not carried over', async () => {

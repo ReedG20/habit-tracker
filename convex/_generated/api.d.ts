@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as accountNotices from "../accountNotices.js";
 import type * as commitmentChecks from "../commitmentChecks.js";
 import type * as crons from "../crons.js";
 import type * as goalSubmissions from "../goalSubmissions.js";
@@ -46,6 +47,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  accountNotices: typeof accountNotices;
   commitmentChecks: typeof commitmentChecks;
   crons: typeof crons;
   goalSubmissions: typeof goalSubmissions;

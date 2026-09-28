@@ -18,9 +18,11 @@ export type HabitCardProps = {
   habit: HabitWithProgress;
   /** When set, the card counts down to it (urgent items). */
   deadlineAt?: number;
+  /** Ante Pro has ended: nothing is checked, so logging leads to the paywall. */
+  paused?: boolean;
 };
 
-export function HabitCard({ habit, deadlineAt }: HabitCardProps) {
+export function HabitCard({ habit, deadlineAt, paused = false }: HabitCardProps) {
   const theme = useTheme();
 
   const daily = isDaily(habit);
@@ -74,6 +76,13 @@ export function HabitCard({ habit, deadlineAt }: HabitCardProps) {
         <ActionButton label="Done this week" disabled onPress={() => {}} style={styles.logAction} />
       ) : logged ? (
         <ActionButton label="Logged" disabled onPress={() => {}} style={styles.logAction} />
+      ) : paused ? (
+        <ActionButton
+          label="Paused"
+          accessibilityLabel={`${habit.title} is paused. Resubscribe to Ante Pro`}
+          onPress={() => router.navigate('/pro')}
+          style={styles.logAction}
+        />
       ) : verifying ? (
         <ActionButton
           label="Verifying…"

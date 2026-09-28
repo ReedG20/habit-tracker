@@ -14,6 +14,7 @@ import { api } from '@/convex/_generated/api';
 import { groupGoals, type GoalWithStatus } from '@/data/goals';
 import type { HabitWithProgress } from '@/data/habits';
 import { useNow } from '@/hooks/use-now';
+import { useSubscription } from '@/hooks/use-subscription';
 import { todayKey } from '@/lib/dates';
 
 type Section =
@@ -25,6 +26,8 @@ export default function CommitmentsScreen() {
   const now = useNow();
   const goals = useQuery(api.goals.list);
   const habits = useQuery(api.habits.list, { today: todayKey() });
+  const subscription = useSubscription();
+  const paused = !subscription.isPro && !subscription.isLoading;
 
   // Goals first, in their active, missed, done order; then every habit.
   const sections: Section[] | undefined =
@@ -67,7 +70,9 @@ export default function CommitmentsScreen() {
             <View style={styles.list}>
               {section.id === 'goals'
                 ? section.items.map((goal) => <GoalCard key={goal._id} goal={goal} now={now} />)
-                : section.items.map((habit) => <HabitCard key={habit._id} habit={habit} />)}
+                : section.items.map((habit) => (
+                    <HabitCard key={habit._id} habit={habit} paused={paused} />
+                  ))}
             </View>
           </View>
         ))}

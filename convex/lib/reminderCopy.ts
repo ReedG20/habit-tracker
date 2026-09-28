@@ -64,6 +64,12 @@ export type EventMessage =
   | { kind: 'unchecked'; title: string; msLeft: number | null }
   | { kind: 'approved'; subject: 'habit' | 'goal'; title: string; stakeCents: number | null }
   | { kind: 'charged'; title: string; amountCents: number }
+  /**
+   * Locked, and the subscription is still billing. `renewal` is the heads-up
+   * before a renewal; otherwise it's the one a few days into the lock.
+   */
+  | { kind: 'stillLocked'; renewsLabel: string; renewal: boolean }
+  | { kind: 'trialEnding'; endsLabel: string }
   | { kind: 'test' };
 
 const MINUTE = 60 * 1000;
@@ -134,6 +140,19 @@ export function formatDueLabel(dueAt: number, now: number, timeZone: string): st
     day: 'numeric',
   }).format(new Date(dueAt));
   return `${date}, ${clock}`;
+}
+
+/** A day to name in a sentence: "tomorrow", "Thursday" this week, "Oct 12" beyond. */
+export function formatDayLabel(at: number, now: number, timeZone: string): string {
+  const day = zonedDay(at, timeZone);
+  if (day === zonedDay(now, timeZone)) return 'today';
+  if (day === zonedDay(now + 24 * HOUR, timeZone) && at - now < 48 * HOUR) return 'tomorrow';
+  if (at - now < 6 * 24 * HOUR) {
+    return new Intl.DateTimeFormat('en-US', { timeZone, weekday: 'long' }).format(new Date(at));
+  }
+  return new Intl.DateTimeFormat('en-US', { timeZone, month: 'short', day: 'numeric' }).format(
+    new Date(at),
+  );
 }
 
 /** "Run", "Run, Read, Stretch", "Run, Read, Stretch +2". */
@@ -331,6 +350,22 @@ export function eventCopy(message: EventMessage): PushCopy {
       return {
         title: `${message.title}: deadline passed`,
         body: `No proof came in, so ${formatMoney(message.amountCents)} was charged.`,
+      };
+    case 'stillLocked':
+      if (message.renewal) {
+        return {
+          title: `Ante Pro renews ${message.renewsLabel}`,
+          body: 'Ante is still locked. Pay the fee to get back in, or cancel in Settings before then if you’re done.',
+        };
+      }
+      return {
+        title: 'Ante is still locked',
+        body: `Your Ante Pro subscription is still active and renews ${message.renewsLabel}. Pay the fee to get back in, or manage your subscription.`,
+      };
+    case 'trialEnding':
+      return {
+        title: `Your free week ends ${message.endsLabel}`,
+        body: 'Ante Pro renews then. If it’s not for you, cancel in Settings before it does.',
       };
     case 'test':
       return {

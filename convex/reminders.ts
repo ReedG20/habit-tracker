@@ -5,6 +5,7 @@ import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import { authedMutation, authedQuery } from './lib/customFunctions';
 import { weekStart } from './lib/days';
+import { isPro } from './lib/entitlements';
 import { activeLockout } from './lib/lockout';
 import {
   deliver,
@@ -127,6 +128,8 @@ async function loadPlanInput(
     habits: [],
   };
   if (user.timeZone === undefined) return input;
+  // Without Ante Pro habits are paused (`lockouts.checkUser`): nothing to remind about.
+  if (!(await isPro(ctx, user._id, now))) return input;
 
   const today = zonedDay(now, user.timeZone);
   const from = weekStart(today);

@@ -69,7 +69,7 @@ export async function deliver(
 const HOUR_MS = 60 * 60 * 1000;
 const seconds = (ms: number) => Math.floor(ms / 1000);
 
-function eventPush(
+export function eventPush(
   copy: PushCopy,
   fields: Pick<PushMessage, 'collapseId' | 'threadId' | 'data'> & {
     quiet: boolean;
