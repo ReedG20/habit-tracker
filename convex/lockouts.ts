@@ -64,6 +64,20 @@ export const current = query({
   },
 });
 
+/**
+ * The first day a miss can count against the signed-in user, so Today never
+ * quotes a fee on a free day (the day back from a lock, or the first day).
+ * `null` until it is set, or before the user row exists.
+ */
+export const accountableFrom = query({
+  args: {},
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx) => {
+    const user = await getCurrentUserOrNull(ctx);
+    return user?.accountableFrom ?? null;
+  },
+});
+
 export const isLocked = internalQuery({
   args: { userId: v.id('users') },
   returns: v.boolean(),

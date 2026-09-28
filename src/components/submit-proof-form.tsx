@@ -209,7 +209,7 @@ export function SubmitProofForm({ goal, onSubmitted, onBack }: SubmitProofFormPr
             onPress={onBack}
             hitSlop={Spacing.three}
             style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
-            <Icon icon={ArrowLeft01Icon} size={18} themeColor="textSecondary" />
+            <Icon icon={ArrowLeft01Icon} size={20} strokeWidth={2} themeColor="textSecondary" />
             <ThemedText type="small" themeColor="textSecondary">
               Back
             </ThemedText>
@@ -262,7 +262,7 @@ export function SubmitProofForm({ goal, onSubmitted, onBack }: SubmitProofFormPr
                       onPress={() => setPhotos((current) => current.filter((_, i) => i !== index))}
                       hitSlop={Spacing.two}
                       style={({ pressed }) => [styles.remove, pressed && styles.pressed]}>
-                      <Icon icon={Cancel01Icon} size={14} color="#ffffff" />
+                      <Icon icon={Cancel01Icon} size={16} strokeWidth={2} color="#ffffff" />
                     </Pressable>
                   )}
                 </View>

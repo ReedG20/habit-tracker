@@ -39,7 +39,7 @@ export function WordingFeedback({ revision, onUseSuggestion }: WordingFeedbackPr
       accessibilityLiveRegion="polite"
       style={[styles.card, { backgroundColor: theme.accentElement, borderColor: theme.accent }]}>
       <View style={styles.header}>
-        <Icon icon={Alert02Icon} size={18} themeColor="accent" />
+        <Icon icon={Alert02Icon} size={20} strokeWidth={2} themeColor="accent" />
         <ThemedText type="smallBold" themeColor="text">
           Make it provable
         </ThemedText>

@@ -113,7 +113,7 @@ export function NotificationsOffBanner({ habits, goals, today, now }: Notificati
           hitSlop={Spacing.three}
           onPress={() => snooze(now)}
           style={({ pressed }) => pressed && styles.pressed}>
-          <Icon icon={Cancel01Icon} size={18} themeColor="textSecondary" />
+          <Icon icon={Cancel01Icon} size={20} strokeWidth={2} themeColor="textSecondary" />
         </Pressable>
       </View>
       <ThemedText type="small" themeColor="text">

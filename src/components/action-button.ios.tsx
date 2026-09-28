@@ -78,7 +78,12 @@ export function ActionButton({
           modifiers={fill ? [frame({ maxWidth: 100_000 })] : undefined}>
           {icon ? (
             <RNHostView matchContents>
-              <Icon icon={icon} size={size === 'small' ? 18 : 20} color={textColor} />
+              <Icon
+                icon={icon}
+                size={size === 'small' ? 20 : 22}
+                strokeWidth={2}
+                color={textColor}
+              />
             </RNHostView>
           ) : null}
           <Text modifiers={[font({ size: 15, weight: 'semibold' }), foregroundStyle(textColor)]}>
