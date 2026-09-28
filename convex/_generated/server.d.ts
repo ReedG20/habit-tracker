@@ -32,7 +32,9 @@ type Env = {
   readonly CONVEX_SITE_URL: string;
   readonly ANTE_DEV_OVERRIDES: string | undefined;
   readonly CLERK_JWT_ISSUER_DOMAIN: string;
+  readonly EXPO_ACCESS_TOKEN: string | undefined;
   readonly OPENROUTER_API_KEY: string;
+  readonly PUSH_DELIVERY: string | undefined;
   readonly REVENUECAT_SECRET_API_KEY: string | undefined;
   readonly REVENUECAT_WEBHOOK_AUTH: string;
   readonly STRIPE_SECRET_KEY: string;

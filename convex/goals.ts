@@ -7,6 +7,7 @@ import { getCurrentUserOrNull } from './lib/auth';
 import { requireCommitmentText } from './lib/commitmentText';
 import { authedAction, authedMutation, authedQuery } from './lib/customFunctions';
 import { requireDevOverrides, requireUnlocked } from './lib/lockout';
+import { touchReminders } from './lib/notify';
 import { stripeClient } from './lib/stripe';
 import schema, { submissionStatusValidator } from './schema';
 
@@ -241,13 +242,16 @@ export const create = authedMutation({
     requireLead(args.dueAt);
     requireCommitmentText(args.title, args.description);
 
-    return await ctx.db.insert('goals', {
+    const goalId = await ctx.db.insert('goals', {
       userId: ctx.user._id,
       title: args.title,
       description: args.description,
       dueAt: args.dueAt,
       order: await nextOrder(ctx, ctx.user._id),
     });
+    await touchReminders(ctx, ctx.user._id);
+
+    return goalId;
   },
 });
 
@@ -452,6 +456,7 @@ export const insertStaked = internalMutation({
     if (goal?.stake !== undefined) {
       await ctx.db.patch('goals', goalId, { stake: { ...goal.stake, settleJobId } });
     }
+    await touchReminders(ctx, args.userId);
 
     return goalId;
   },
@@ -493,6 +498,10 @@ export const update = authedMutation({
 
     if (Object.keys(fields).length > 0) {
       await ctx.db.patch('goals', args.goalId, fields);
+    }
+    // A new deadline re-arms its reminders; the old one's simply stop matching.
+    if (fields.dueAt !== undefined) {
+      await touchReminders(ctx, ctx.user._id);
     }
 
     return null;

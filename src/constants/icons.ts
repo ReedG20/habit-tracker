@@ -35,10 +35,13 @@ import Logout01Icon from '@hugeicons/core-free-icons/Logout01Icon';
 import Mail01Icon from '@hugeicons/core-free-icons/Mail01Icon';
 import MinusSignIcon from '@hugeicons/core-free-icons/MinusSignIcon';
 import Money03Icon from '@hugeicons/core-free-icons/Money03Icon';
+import Moon02Icon from '@hugeicons/core-free-icons/Moon02Icon';
 import MoreHorizontalIcon from '@hugeicons/core-free-icons/MoreHorizontalIcon';
 import Notification01Icon from '@hugeicons/core-free-icons/Notification01Icon';
+import NotificationOff01Icon from '@hugeicons/core-free-icons/NotificationOff01Icon';
 import Settings02Icon from '@hugeicons/core-free-icons/Settings02Icon';
 import SparklesIcon from '@hugeicons/core-free-icons/SparklesIcon';
+import Sun03Icon from '@hugeicons/core-free-icons/Sun03Icon';
 import Target02Icon from '@hugeicons/core-free-icons/Target02Icon';
 import Tick02Icon from '@hugeicons/core-free-icons/Tick02Icon';
 import Timer02Icon from '@hugeicons/core-free-icons/Timer02Icon';
@@ -75,10 +78,13 @@ export {
   Mail01Icon,
   MinusSignIcon,
   Money03Icon,
+  Moon02Icon,
   MoreHorizontalIcon,
   Notification01Icon,
+  NotificationOff01Icon,
   Settings02Icon,
   SparklesIcon,
+  Sun03Icon,
   Target02Icon,
   Tick02Icon,
   Timer02Icon,

@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { EmptyState } from '@/components/empty-state';
 import { GoalCard } from '@/components/goal-card';
 import { HabitCard } from '@/components/habit-card';
+import { NotificationsOffBanner } from '@/components/reminders/notifications-off-banner';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { StakesBanner } from '@/components/stakes-banner';
 import { ThemedText } from '@/components/themed-text';
@@ -43,6 +44,8 @@ export default function TodayScreen() {
       </View>
 
       <View style={styles.sections}>
+        <NotificationsOffBanner habits={habits} goals={goals} today={today} now={now} />
+
         {sections?.length === 0 ? (
           <EmptyState
             icon={HabitIcon}

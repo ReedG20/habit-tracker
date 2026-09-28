@@ -28,7 +28,9 @@ export default function AppTabs() {
         />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="me">
+      {/* The tab would otherwise inset its first scroll view for the status
+          bar, on top of the safe-area padding `ScreenScrollView` already adds. */}
+      <NativeTabs.Trigger name="me" disableAutomaticContentInsets>
         <NativeTabs.Trigger.Label>Me</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           src={require('@/assets/images/tabIcons/me.png')}

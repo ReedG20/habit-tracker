@@ -14,6 +14,7 @@ import { sheetScreenOptions } from '@/constants/sheet-screen-options';
 import { api } from '@/convex/_generated/api';
 import { shouldShowOnboarding } from '@/data/onboarding';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useNotifications } from '@/hooks/use-notifications';
 import { useSignedInSession } from '@/hooks/use-signed-in-session';
 import { loadOnboarding, markExistingUserOnboarded, useOnboarding } from '@/lib/onboarding';
 import { configureRevenueCat } from '@/lib/revenuecat';
@@ -91,6 +92,7 @@ function RootNavigator() {
   const locked = isAuthenticated && lockout != null;
 
   useSignedInSession(isAuthenticated);
+  useNotifications({ ready: !isLoading && !lockPending && isAuthenticated && !onboarding, locked });
 
   useEffect(() => {
     if (!isLoading && !lockPending) {
