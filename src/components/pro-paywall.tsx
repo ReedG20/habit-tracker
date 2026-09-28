@@ -1,4 +1,5 @@
 import { useAction } from 'convex/react';
+import * as Updates from 'expo-updates';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import type { PurchasesPackage } from 'react-native-purchases';
@@ -21,6 +22,10 @@ import {
   revenueCatSupported,
   type ProOffering,
 } from '@/lib/revenuecat';
+
+// Store errors on the paywall are for us, not customers: a debug build or
+// Reed's internal preview build shows them; the App Store build never does.
+const showDiagnostics = __DEV__ || Updates.channel === 'preview';
 
 // TODO: replace with the real URLs before the App Store listing goes live.
 const TERMS_URL = 'https://useanteapp.com/terms';
@@ -80,7 +85,7 @@ export function ProPaywall({
   const [trialEligible, setTrialEligible] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Why the offering failed to load; shown only in a debug build.
+  // Why the offering failed to load; shown only in debug and preview builds.
   const [loadError, setLoadError] = useState<string | null>(null);
 
   // Bumped by Retry; the effect re-runs and the loading state shows again.
@@ -100,7 +105,7 @@ export function ProPaywall({
       .catch((caught: unknown) => {
         console.error('Failed to load the Pro offering', caught);
         if (!cancelled) {
-          setLoadError(describeError(caught, 'Unknown error'));
+          setLoadError(describeLoadError(caught));
           setOffering(null);
         }
       });
@@ -232,9 +237,9 @@ export function ProPaywall({
           <ThemedText themeColor="textSecondary">
             Plans aren&apos;t available right now. Check your connection and try again.
           </ThemedText>
-          {__DEV__ && (
-            <ThemedText type="small" themeColor="accent">
-              {loadError ?? 'No current offering with monthly and annual packages (see logs).'}
+          {showDiagnostics && loadError !== null && (
+            <ThemedText type="small" themeColor="accent" selectable>
+              {loadError}
             </ThemedText>
           )}
           <ActionButton label="Retry" onPress={retry} />
@@ -325,6 +330,18 @@ export function ProPaywall({
 function perMonth(annual: PurchasesPackage): string | undefined {
   const { pricePerMonthString } = annual.product;
   return pricePerMonthString ? `≈ ${pricePerMonthString} / month` : undefined;
+}
+
+/** A RevenueCat error's message plus the store's own reason, which says far more. */
+function describeLoadError(error: unknown): string {
+  const message = describeError(error, 'Unknown error');
+  if (typeof error === 'object' && error !== null && 'underlyingErrorMessage' in error) {
+    const { underlyingErrorMessage } = error as { underlyingErrorMessage: unknown };
+    if (typeof underlyingErrorMessage === 'string' && underlyingErrorMessage.length > 0) {
+      return `${message} (${underlyingErrorMessage})`;
+    }
+  }
+  return message;
 }
 
 function describeError(error: unknown, fallback: string): string {

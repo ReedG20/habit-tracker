@@ -117,7 +117,11 @@ export function hasPro(info: CustomerInfo | null): boolean {
   return info?.entitlements.active[PRO_ENTITLEMENT] !== undefined;
 }
 
-/** The current offering's monthly and annual packages, or `null` if either is missing (offline, products not live yet). */
+/**
+ * The current offering's monthly and annual packages, or `null` where no store
+ * is configured. Throws, saying which, when either package is missing (offline,
+ * products not live yet) so the paywall can show why.
+ */
 export async function loadProOffering(): Promise<ProOffering | null> {
   if (!revenueCatSupported) return null;
   const offerings = await Purchases.getOfferings();
@@ -127,12 +131,11 @@ export async function loadProOffering(): Promise<ProOffering | null> {
   if (!monthly || !annual) {
     // Usually dashboard setup: no offering marked current, or its packages
     // carry only Test Store products, so the App Store build sees none.
-    console.warn(
+    throw new Error(
       current
-        ? `RevenueCat offering "${current.identifier}" lacks a monthly or annual package; it has [${current.availablePackages.map((pkg) => pkg.identifier).join(', ')}]`
-        : `RevenueCat has no current offering; found [${Object.keys(offerings.all).join(', ')}]`,
+        ? `Offering "${current.identifier}" lacks a monthly or annual package; it has [${current.availablePackages.map((pkg) => pkg.identifier).join(', ')}]`
+        : `No current offering; found [${Object.keys(offerings.all).join(', ')}]`,
     );
-    return null;
   }
   return { monthly, annual };
 }
