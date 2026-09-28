@@ -203,7 +203,11 @@ note the app-specific shared secret for RevenueCat. Create a Sandbox tester
   this identifier (`PRO_ENTITLEMENT`).
 - Offerings: `default` (marked current) with packages `$rc_monthly` →
   `ante_pro_monthly` and `$rc_annual` → `ante_pro_annual`. The paywall reads
-  `offering.monthly` / `offering.annual`.
+  `offering.monthly` / `offering.annual`. Attach the **App Store** product to
+  each package, not only the Test Store one: EAS builds ignore the test key, so
+  a package with only a Test Store product is empty there and the paywall shows
+  "Plans aren't available" even though the re-entry fee (bought by product ID,
+  no offering) still loads.
 - Products: also import `ante_reentry`, attached to **no** entitlement and in
   no offering; the locked screen buys it by product ID. Add it to the Test
   Store too, for the simulator.

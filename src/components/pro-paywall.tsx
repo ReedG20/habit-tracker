@@ -80,6 +80,8 @@ export function ProPaywall({
   const [trialEligible, setTrialEligible] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Why the offering failed to load; shown only in a debug build.
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Bumped by Retry; the effect re-runs and the loading state shows again.
   const [attempt, setAttempt] = useState(0);
@@ -97,7 +99,10 @@ export function ProPaywall({
       })
       .catch((caught: unknown) => {
         console.error('Failed to load the Pro offering', caught);
-        if (!cancelled) setOffering(null);
+        if (!cancelled) {
+          setLoadError(describeError(caught, 'Unknown error'));
+          setOffering(null);
+        }
       });
     return () => {
       cancelled = true;
@@ -117,6 +122,7 @@ export function ProPaywall({
   const retry = () => {
     setOffering(undefined);
     setError(null);
+    setLoadError(null);
     setAttempt((n) => n + 1);
   };
 
@@ -226,6 +232,11 @@ export function ProPaywall({
           <ThemedText themeColor="textSecondary">
             Plans aren&apos;t available right now. Check your connection and try again.
           </ThemedText>
+          {__DEV__ && (
+            <ThemedText type="small" themeColor="accent">
+              {loadError ?? 'No current offering with monthly and annual packages (see logs).'}
+            </ThemedText>
+          )}
           <ActionButton label="Retry" onPress={retry} />
           {secondary}
         </>
