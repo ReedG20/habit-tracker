@@ -3,10 +3,12 @@ import { v } from 'convex/values';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { env, internalMutation, internalQuery, query, type MutationCtx } from './_generated/server';
+import { scheduleLockNotices } from './accountNotices';
 import { deleteHabit } from './habits';
 import { getCurrentUserOrNull } from './lib/auth';
 import { authedAction, authedMutation } from './lib/customFunctions';
 import { daysBefore, nextDay, previousDay, STREAK_WINDOW_DAYS, weekStart } from './lib/days';
+import { isSubscriptionActive } from './lib/entitlements';
 import {
   activeLockout,
   devOverridesEnabled,
@@ -14,6 +16,7 @@ import {
   localDay,
   requireDevOverrides,
 } from './lib/lockout';
+import { touchReminders } from './lib/notify';
 
 /**
  * The lockout: a missed habit locks the whole app until a re-entry fee is
@@ -97,6 +100,10 @@ export const checkAll = internalMutation({
  * Checks every day from the user's last check through their local yesterday,
  * so a skipped cron run is caught up by the next one. Waits while a photo from
  * that span is still being judged, so a photo taken at 11:59 PM gets its verdict first.
+ *
+ * Only Pro is held to its habits. Without it they pause: the days that ended
+ * while Pro was still active are judged, and nothing after. While paused the
+ * cursor keeps moving, so resubscribing makes that day free, as paying does.
  */
 export async function checkUser(ctx: MutationCtx, user: Doc<'users'>, now: number): Promise<void> {
   const { timeZone, lastCheckedDay, accountableFrom } = user;
@@ -107,8 +114,15 @@ export async function checkUser(ctx: MutationCtx, user: Doc<'users'>, now: numbe
   if ((await activeLockout(ctx, user._id)) !== null) return;
 
   const today = localDay(now, timeZone);
-  const to = previousDay(today);
-  if (lastCheckedDay >= to) return;
+  const yesterday = previousDay(today);
+  if (lastCheckedDay >= yesterday) return;
+
+  const pausedFrom = await pausedFromDay(ctx, user._id, timeZone, now);
+  const paused = pausedFrom !== null;
+  // Judged through yesterday, or, once Pro has ended, the last day it covered.
+  let to = yesterday;
+  if (pausedFrom === 'always') to = lastCheckedDay;
+  else if (pausedFrom !== null && pausedFrom <= yesterday) to = previousDay(pausedFrom);
 
   const oldest = daysBefore(to, STREAK_WINDOW_DAYS);
   const next = nextDay(lastCheckedDay);
@@ -162,23 +176,50 @@ export async function checkUser(ctx: MutationCtx, user: Doc<'users'>, now: numbe
 
   const misses = findMisses({ habits, completedDays, excusedDays, accountableFrom, from, to });
 
-  await ctx.db.patch('users', user._id, { lastCheckedDay: to });
+  await ctx.db.patch(
+    'users',
+    user._id,
+    paused
+      ? { lastCheckedDay: yesterday, accountableFrom: nextDay(today) }
+      : { lastCheckedDay: to },
+  );
 
   // A habit deleted while still owed stays until its last period has been checked.
   for (const habit of habits) {
-    if (habit.endsAfter !== undefined && habit.endsAfter <= to) {
+    if (habit.endsAfter !== undefined && habit.endsAfter <= yesterday) {
       await deleteHabit(ctx, habit._id);
     }
   }
 
   if (misses.length > 0) {
-    await ctx.db.insert('lockouts', {
+    const lockoutId = await ctx.db.insert('lockouts', {
       userId: user._id,
       status: 'active',
       lockedAt: now,
       misses,
     });
+    await scheduleLockNotices(ctx, user, lockoutId, now);
   }
+}
+
+/**
+ * The user's local day their habits paused on (the day Pro ended), or `null`
+ * while Pro is active. `'always'` when there is no end date to go by: they
+ * never had Pro, or an open-ended grant was revoked, so nothing is judged.
+ */
+async function pausedFromDay(
+  ctx: MutationCtx,
+  userId: Id<'users'>,
+  timeZone: string,
+  now: number,
+): Promise<string | 'always' | null> {
+  const subscription = await ctx.db
+    .query('subscriptions')
+    .withIndex('by_user', (q) => q.eq('userId', userId))
+    .unique();
+  if (subscription !== null && isSubscriptionActive(subscription, now)) return null;
+  if (subscription?.expiresAt === undefined) return 'always';
+  return localDay(subscription.expiresAt, timeZone);
 }
 
 /**
@@ -201,6 +242,8 @@ async function unlock(
       lastCheckedDay: today,
     });
   }
+  // Habit reminders pause while locked; tomorrow's come back from here.
+  await touchReminders(ctx, user._id);
 }
 
 export type ReentryPayment = {
@@ -356,10 +399,11 @@ export const devLock = authedMutation({
       .withIndex('by_user', (q) => q.eq('userId', ctx.user._id))
       .take(20);
 
-    await ctx.db.insert('lockouts', {
+    const lockedAt = Date.now();
+    const lockoutId = await ctx.db.insert('lockouts', {
       userId: ctx.user._id,
       status: 'active',
-      lockedAt: Date.now(),
+      lockedAt,
       misses: habits.map((habit) => ({
         habitId: habit._id,
         title: habit.title,
@@ -367,6 +411,7 @@ export const devLock = authedMutation({
         period: today,
       })),
     });
+    await scheduleLockNotices(ctx, ctx.user, lockoutId, lockedAt);
     return null;
   },
 });

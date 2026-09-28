@@ -2,6 +2,8 @@ import { v, type Infer } from 'convex/values';
 
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
+import { scheduleTrialNotice } from './accountNotices';
+import { touchReminders } from './lib/notify';
 import { applyReentryPayment, REENTRY_PRODUCT_ID } from './lockouts';
 import type { subscriptionStatusValidator } from './schema';
 
@@ -147,6 +149,9 @@ export const handleEvent = internalMutation({
     } else {
       await ctx.db.replace('subscriptions', existing._id, next);
     }
+    // Pro starting or ending pauses or resumes habits, and their reminders with them.
+    await touchReminders(ctx, userId);
+    await scheduleTrialNotice(ctx, userId, existing, next);
     return null;
   },
 });
@@ -262,6 +267,8 @@ async function transfer(
     lastEventType: event.type,
     updatedAt: Date.now(),
   });
+  await touchReminders(ctx, fromUserId);
+  await touchReminders(ctx, toUserId);
 }
 
 /**

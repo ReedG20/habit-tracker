@@ -32,3 +32,16 @@ export async function isPro(
     .unique();
   return subscription !== null && isSubscriptionActive(subscription, now);
 }
+
+export const PRO_REQUIRED = 'Ante Pro is required to make a new commitment';
+
+/**
+ * Refuses anything that starts a new commitment (or a check-in on a habit)
+ * without Pro. What was made while subscribed keeps running without it: goals
+ * to their deadline, and habits pause (`lockouts.checkUser`).
+ */
+export async function requirePro(ctx: QueryCtx | MutationCtx, userId: Id<'users'>): Promise<void> {
+  if (!(await isPro(ctx, userId))) {
+    throw new Error(PRO_REQUIRED);
+  }
+}

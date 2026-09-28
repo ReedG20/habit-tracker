@@ -9,6 +9,7 @@ import { Countdown } from '@/components/countdown';
 import { ThemedText } from '@/components/themed-text';
 import { CardRadius, ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { DAILY, frequencyLabel } from '@/convex/lib/frequency';
+import { useReentryPrice } from '@/hooks/use-reentry-product';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDueAt } from '@/lib/dates';
 import { formatCents } from '@/lib/money';
@@ -21,13 +22,15 @@ export type LockedInProps = {
 /** The confirmation after locking in: what was just agreed to, in one card. */
 export function LockedIn({ draft, onDone }: LockedInProps) {
   const theme = useTheme();
+  const reentryPrice = useReentryPrice();
 
   const daily = draft.timesPerWeek >= DAILY;
+  const lockTerms = reentryPrice === null ? '' : ` until you pay ${reentryPrice}`;
   const stakes =
     draft.kind === 'habit'
       ? daily
-        ? 'Miss a day and Ante locks'
-        : 'End a week short and Ante locks'
+        ? `Miss a day and Ante locks${lockTerms}`
+        : `End a week short and Ante locks${lockTerms}`
       : draft.amountCents === null
         ? 'Your word'
         : `${formatCents(draft.amountCents)} on your card`;

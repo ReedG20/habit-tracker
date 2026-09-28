@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as accountNotices from "../accountNotices.js";
 import type * as commitmentChecks from "../commitmentChecks.js";
 import type * as crons from "../crons.js";
 import type * as goalSubmissions from "../goalSubmissions.js";
@@ -21,10 +22,18 @@ import type * as lib_days from "../lib/days.js";
 import type * as lib_entitlements from "../lib/entitlements.js";
 import type * as lib_frequency from "../lib/frequency.js";
 import type * as lib_lockout from "../lib/lockout.js";
+import type * as lib_notify from "../lib/notify.js";
 import type * as lib_openrouter from "../lib/openrouter.js";
+import type * as lib_reminderCopy from "../lib/reminderCopy.js";
+import type * as lib_reminderPlan from "../lib/reminderPlan.js";
+import type * as lib_reminderPresets from "../lib/reminderPresets.js";
+import type * as lib_reminderTimes from "../lib/reminderTimes.js";
 import type * as lib_stripe from "../lib/stripe.js";
 import type * as lib_vision from "../lib/vision.js";
+import type * as lib_zonedTime from "../lib/zonedTime.js";
 import type * as lockouts from "../lockouts.js";
+import type * as push from "../push.js";
+import type * as reminders from "../reminders.js";
 import type * as revenuecat from "../revenuecat.js";
 import type * as stripe from "../stripe.js";
 import type * as subscriptions from "../subscriptions.js";
@@ -38,6 +47,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  accountNotices: typeof accountNotices;
   commitmentChecks: typeof commitmentChecks;
   crons: typeof crons;
   goalSubmissions: typeof goalSubmissions;
@@ -51,10 +61,18 @@ declare const fullApi: ApiFromModules<{
   "lib/entitlements": typeof lib_entitlements;
   "lib/frequency": typeof lib_frequency;
   "lib/lockout": typeof lib_lockout;
+  "lib/notify": typeof lib_notify;
   "lib/openrouter": typeof lib_openrouter;
+  "lib/reminderCopy": typeof lib_reminderCopy;
+  "lib/reminderPlan": typeof lib_reminderPlan;
+  "lib/reminderPresets": typeof lib_reminderPresets;
+  "lib/reminderTimes": typeof lib_reminderTimes;
   "lib/stripe": typeof lib_stripe;
   "lib/vision": typeof lib_vision;
+  "lib/zonedTime": typeof lib_zonedTime;
   lockouts: typeof lockouts;
+  push: typeof push;
+  reminders: typeof reminders;
   revenuecat: typeof revenuecat;
   stripe: typeof stripe;
   subscriptions: typeof subscriptions;

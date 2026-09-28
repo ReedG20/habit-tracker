@@ -5,7 +5,9 @@ import type { Doc, Id } from './_generated/dataModel';
 import { internalAction, internalMutation, type MutationCtx } from './_generated/server';
 import { requireOwnedHabit } from './habits';
 import { authedMutation } from './lib/customFunctions';
+import { requirePro } from './lib/entitlements';
 import { localDay, requireUnlocked } from './lib/lockout';
+import { notifyHabitVerdict } from './lib/notify';
 import {
   EXPIRE_AFTER_MS,
   FAILED_REASON,
@@ -63,6 +65,8 @@ export const submit = authedMutation({
   handler: async (ctx, args): Promise<Id<'habitVerifications'>> => {
     const habit = await requireOwnedHabit(ctx, args.habitId);
     await requireUnlocked(ctx, ctx.user._id);
+    // A paused habit (Pro ended) is not checked, so it takes no photos either.
+    await requirePro(ctx, ctx.user._id);
     const day =
       ctx.user.timeZone === undefined ? args.day : localDay(Date.now(), ctx.user.timeZone);
 
@@ -179,6 +183,7 @@ export const resolve = internalMutation({
     if (args.status === 'approved') {
       await logCompletion(ctx, verification);
     }
+    await notifyHabitVerdict(ctx, verification, args.status, args.reason);
 
     return null;
   },

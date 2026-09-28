@@ -1,4 +1,4 @@
-import { useClerk, useUser } from '@clerk/expo';
+import { useUser } from '@clerk/expo';
 import type { IconSvgElement } from '@hugeicons/react-native';
 import { useMutation, useQuery } from 'convex/react';
 import Constants from 'expo-constants';
@@ -27,6 +27,7 @@ import { api } from '@/convex/_generated/api';
 import { currentStreak, formatStreak } from '@/data/habits';
 import { describeSubscription } from '@/data/subscription';
 import { useNow } from '@/hooks/use-now';
+import { useSignOut } from '@/hooks/use-sign-out';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useTheme } from '@/hooks/use-theme';
 import { todayKey } from '@/lib/dates';
@@ -35,8 +36,13 @@ import { formatCents } from '@/lib/money';
 import { resetOnboarding } from '@/lib/onboarding';
 import { manageSubscriptionsUrl, revenueCatSupported } from '@/lib/revenuecat';
 
-const settings: { id: string; label: string; icon: IconSvgElement; href?: '/preferences' }[] = [
-  { id: 'reminders', label: 'Reminders', icon: Notification01Icon },
+const settings: {
+  id: string;
+  label: string;
+  icon: IconSvgElement;
+  href?: '/preferences' | '/me/reminders';
+}[] = [
+  { id: 'reminders', label: 'Reminders', icon: Notification01Icon, href: '/me/reminders' },
   { id: 'preferences', label: 'Preferences', icon: Settings02Icon, href: '/preferences' },
 ];
 
@@ -61,7 +67,7 @@ function describeBuild(): string {
 export default function MeScreen() {
   const theme = useTheme();
   const { user } = useUser();
-  const { signOut } = useClerk();
+  const signOut = useSignOut();
   const habits = useQuery(api.habits.list, { today: todayKey() });
   const loggedCount = useQuery(api.habits.loggedCount);
   const stakeTotals = useQuery(api.goals.stakeTotals);
@@ -71,6 +77,9 @@ export default function MeScreen() {
   const devOverrides = useQuery(api.lockouts.devOverrides, showDevTools ? {} : 'skip');
   const forceDelete = useForceDelete();
   const devLock = useMutation(api.lockouts.devLock);
+  const devGrantPro = useMutation(api.subscriptions.devGrantPro);
+  const devEndPro = useMutation(api.subscriptions.devEndPro);
+  const devPreviewNotices = useMutation(api.accountNotices.devPreview);
 
   const displayName =
     user?.firstName ?? user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? 'You';
@@ -255,6 +264,40 @@ export default function MeScreen() {
                   ]}>
                   <Icon icon={LockKeyholeIcon} size={22} themeColor="textSecondary" />
                   <ThemedText style={styles.settingLabel}>Lock me now</ThemedText>
+                </Pressable>
+                {/* Pro without the App Store, or its end, to test both sides of the paywall. */}
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    (isPro ? devEndPro() : devGrantPro()).catch((error: unknown) => {
+                      console.error('Failed to change Pro', error);
+                    });
+                  }}
+                  style={({ pressed }) => [
+                    styles.settingRow,
+                    { borderTopWidth: 1, borderTopColor: theme.border },
+                    pressed && styles.pressed,
+                  ]}>
+                  <Icon icon={SparklesIcon} size={22} themeColor="textSecondary" />
+                  <ThemedText style={styles.settingLabel}>
+                    {isPro ? 'End Pro now' : 'Grant Pro for 30 days'}
+                  </ThemedText>
+                </Pressable>
+                {/* The still-locked and trial-ending pushes, now, rather than days out. */}
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    devPreviewNotices().catch((error: unknown) => {
+                      console.error('Failed to send account notices', error);
+                    });
+                  }}
+                  style={({ pressed }) => [
+                    styles.settingRow,
+                    { borderTopWidth: 1, borderTopColor: theme.border },
+                    pressed && styles.pressed,
+                  ]}>
+                  <Icon icon={Notification01Icon} size={22} themeColor="textSecondary" />
+                  <ThemedText style={styles.settingLabel}>Send account notices</ThemedText>
                 </Pressable>
               </>
             ) : null}

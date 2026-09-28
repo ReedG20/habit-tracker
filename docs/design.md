@@ -115,5 +115,5 @@ Handwritten notes are the coach in the margin: lowercase, one line, dry.
 
 - Paywall benefits are placeholder copy until the free/Pro split is decided.
 - No illustration beyond the brand mark (`assets/brand/`).
-- Reminders row on the Me screen has no destination yet.
+- No Live Activity countdown for a staked deadline yet (reminders are push only).
 - The web build fails on `Appearance.setColorScheme` (theme preference).

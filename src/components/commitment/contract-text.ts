@@ -7,8 +7,19 @@ import { formatCents } from '@/lib/money';
 /** A run of contract text; `strong` runs are the terms the user filled in. */
 export type ContractRun = { text: string; strong?: boolean };
 
-/** The contract as one "I will…" paragraph, with the user's own terms marked. */
-export function contractRuns(draft: CommitmentDraft): ContractRun[] {
+/**
+ * The contract as one "I will…" paragraph, with the user's own terms marked.
+ * `reentryPrice` is the fee as the store sells it (`$9.99`), when known.
+ */
+export function contractRuns(draft: CommitmentDraft, reentryPrice: string | null): ContractRun[] {
+  const lock = {
+    text:
+      reentryPrice === null
+        ? 'Ante locks until I pay to get back in'
+        : `Ante locks until I pay ${reentryPrice} to get back in`,
+    strong: true,
+  };
+
   if (draft.kind === 'habit' && draft.timesPerWeek < DAILY) {
     return [
       { text: 'I will ' },
@@ -18,7 +29,7 @@ export function contractRuns(draft: CommitmentDraft): ContractRun[] {
       { text: '. Each time I’ll prove it with a photo showing ' },
       { text: lowerFirst(draft.proof), strong: true },
       { text: '. If I end a week short, ' },
-      { text: 'Ante locks until I pay to get back in', strong: true },
+      lock,
       { text: '.' },
     ];
   }
@@ -30,7 +41,7 @@ export function contractRuns(draft: CommitmentDraft): ContractRun[] {
       { text: ', every day. Each day I’ll prove it with a photo showing ' },
       { text: lowerFirst(draft.proof), strong: true },
       { text: '. If I miss a day, ' },
-      { text: 'Ante locks until I pay to get back in', strong: true },
+      lock,
       { text: '.' },
     ];
   }
