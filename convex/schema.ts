@@ -299,4 +299,54 @@ export default defineSchema({
     type: v.string(),
     receivedAt: v.number(),
   }).index('by_event_id', ['eventId']),
+
+  /**
+   * How hard deadline reminders push (`lib/reminderPresets.ts`). At most one
+   * row per user; none means the defaults.
+   */
+  notificationSettings: defineTable({
+    userId: v.id('users'),
+    preset: v.union(v.literal('gentle'), v.literal('firm'), v.literal('relentless')),
+    morningLineup: v.boolean(),
+    breakThroughFocus: v.boolean(),
+    approvals: v.boolean(),
+    updatedAt: v.number(),
+  }).index('by_user', ['userId']),
+
+  /**
+   * One Expo push token per device, owned by whoever signed in on it last.
+   * `permission` is what iOS last told the app; only granted or provisional
+   * devices are sent to.
+   */
+  pushTokens: defineTable({
+    userId: v.id('users'),
+    token: v.string(),
+    permission: v.union(
+      v.literal('granted'),
+      v.literal('provisional'),
+      v.literal('denied'),
+      v.literal('undetermined'),
+    ),
+    updatedAt: v.number(),
+  })
+    .index('by_token', ['token'])
+    .index('by_user', ['userId']),
+
+  /**
+   * Where each user's reminder schedule is up to (`reminders.runUser`). Kept
+   * off `users` because it is written on every run.
+   */
+  reminderState: defineTable({
+    userId: v.id('users'),
+    /** Bumped by every re-plan; a run carrying an older one stops. */
+    generation: v.number(),
+    /** The next scheduled run, so a re-plan can cancel it. */
+    jobId: v.optional(v.id('_scheduled_functions')),
+    /** Every planned slot at or before this has been sent or passed over. */
+    sentThrough: v.number(),
+    lastPushAt: v.optional(v.number()),
+    /** The local day `sentToday` counts, for the daily cap. */
+    day: v.optional(v.string()),
+    sentToday: v.number(),
+  }).index('by_user', ['userId']),
 });

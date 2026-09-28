@@ -21,6 +21,7 @@ import { ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { DAILY } from '@/convex/lib/frequency';
 import { historyReply, suggestionsFor, suggestKind } from '@/data/onboarding';
 import { useTheme } from '@/hooks/use-theme';
+import { useNotificationPermission } from '@/lib/notifications';
 import { getOnboarding, setDraft as saveDraft } from '@/lib/onboarding';
 
 type Step = 'what' | 'stakes' | 'sign';
@@ -47,6 +48,7 @@ function stepTitle(step: Step): string {
  */
 export default function OnboardingCommitmentScreen() {
   const { isAuthenticated } = useConvexAuth();
+  const permission = useNotificationPermission();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
 
@@ -92,7 +94,12 @@ export default function OnboardingCommitmentScreen() {
   const lockIn = () => {
     // No money in onboarding: a goal is on the user's word until they have an account.
     saveDraft({ ...draft, amountCents: null, card: null });
-    router.push(isAuthenticated ? '/onboarding/paywall' : '/onboarding/save');
+    // Right after signing is when a heads-up makes the most sense; only asked once.
+    if (permission === 'undetermined') {
+      router.push('/onboarding/reminders');
+    } else {
+      router.push(isAuthenticated ? '/onboarding/paywall' : '/onboarding/save');
+    }
   };
 
   return (

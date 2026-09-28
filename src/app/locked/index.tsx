@@ -1,4 +1,3 @@
-import { useClerk } from '@clerk/expo';
 import type { IconSvgElement } from '@hugeicons/react-native';
 import { useAction, useMutation, useQuery } from 'convex/react';
 import { useState } from 'react';
@@ -26,6 +25,7 @@ import { isMissed } from '@/data/goals';
 import { useNow } from '@/hooks/use-now';
 import { useReentryProduct } from '@/hooks/use-reentry-product';
 import { useSessionUserId } from '@/hooks/use-signed-in-session';
+import { useSignOut } from '@/hooks/use-sign-out';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useTheme } from '@/hooks/use-theme';
 import { notify } from '@/lib/confirm';
@@ -63,7 +63,7 @@ function describeMiss(miss: Miss): string {
 export default function LockedScreen() {
   const theme = useTheme();
   const now = useNow();
-  const { signOut } = useClerk();
+  const signOut = useSignOut();
   const lockout = useQuery(api.lockouts.current);
   const goals = useQuery(api.goals.list);
   const reentry = useReentryProduct();

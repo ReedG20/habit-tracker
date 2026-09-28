@@ -6,6 +6,7 @@ import { getCurrentUser } from './lib/auth';
 import { authedMutation } from './lib/customFunctions';
 import { nextDay } from './lib/days';
 import { isValidTimeZone, localDay } from './lib/lockout';
+import { touchReminders } from './lib/notify';
 import schema, { onboardingValidator } from './schema';
 
 /**
@@ -66,6 +67,10 @@ export const storeUser = mutation({
           ...zone,
           updatedAt: now,
         });
+      }
+      // A new zone moves tonight's midnight, and every reminder with it.
+      if (zone.timeZone !== undefined) {
+        await touchReminders(ctx, existing._id);
       }
 
       return existing._id;

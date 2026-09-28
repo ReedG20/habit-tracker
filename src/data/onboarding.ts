@@ -225,6 +225,7 @@ export const progressSteps = [
   'what',
   'stakes',
   'sign',
+  'reminders',
   'save',
 ] as const;
 

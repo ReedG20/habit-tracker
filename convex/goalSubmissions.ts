@@ -5,6 +5,7 @@ import type { Doc, Id } from './_generated/dataModel';
 import { internalAction, internalMutation } from './_generated/server';
 import { completeGoal, requireOwnedGoal } from './goals';
 import { authedMutation, authedQuery } from './lib/customFunctions';
+import { notifyGoalVerdict } from './lib/notify';
 import {
   EXPIRE_AFTER_MS,
   FAILED_REASON,
@@ -210,11 +211,12 @@ export const resolve = internalMutation({
       resolvedAt: Date.now(),
     });
 
-    if (args.status === 'approved') {
-      const goal = await ctx.db.get('goals', submission.goalId);
-      if (goal !== null) {
+    const goal = await ctx.db.get('goals', submission.goalId);
+    if (goal !== null) {
+      if (args.status === 'approved') {
         await completeGoal(ctx, goal);
       }
+      await notifyGoalVerdict(ctx, goal, args.status, args.reason);
     }
 
     return null;
@@ -235,6 +237,10 @@ export const expire = internalMutation({
       reason: TIMED_OUT_REASON,
       resolvedAt: Date.now(),
     });
+    const goal = await ctx.db.get('goals', submission.goalId);
+    if (goal !== null) {
+      await notifyGoalVerdict(ctx, goal, 'failed', TIMED_OUT_REASON);
+    }
 
     return null;
   },

@@ -50,6 +50,19 @@ const app = defineApp({
      *   bunx convex env set ANTE_DEV_OVERRIDES 1
      */
     ANTE_DEV_OVERRIDES: v.optional(v.string()),
+    /**
+     * `on` lets `push.send` actually deliver through Expo. Anywhere else pushes
+     * are only logged, so a stray dev deployment never buzzes a real phone. Set
+     * on preview and production:
+     *   bunx convex env set PUSH_DELIVERY on
+     */
+    PUSH_DELIVERY: v.optional(v.string()),
+    /**
+     * Expo access token, needed only once "Enhanced push security" is turned on
+     * for the project in the EAS dashboard. Set with:
+     *   bunx convex env set EXPO_ACCESS_TOKEN ...
+     */
+    EXPO_ACCESS_TOKEN: v.optional(v.string()),
   },
 });
 
