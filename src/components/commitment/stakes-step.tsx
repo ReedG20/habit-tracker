@@ -13,6 +13,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Cancel01Icon, LockIcon, Tick02Icon } from '@/constants/icons';
 import { PillRadius, Spacing } from '@/constants/theme';
 import { DAILY } from '@/convex/lib/frequency';
+import { useReentryPrice } from '@/hooks/use-reentry-product';
 import { useStakePayment } from '@/hooks/use-stake-payment';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDueAt } from '@/lib/dates';
@@ -166,6 +167,8 @@ function HabitStakes({ timesPerWeek, onNext }: { timesPerWeek: number; onNext: (
   const theme = useTheme();
   const daily = timesPerWeek >= DAILY;
   const strip = daily ? DAILY_STRIP : weeklyStrip(timesPerWeek);
+  const reentryPrice = useReentryPrice();
+  const getBackIn = `To get back in, you pay a ${reentryPrice === null ? '' : `${reentryPrice} `}re-entry fee, separate from your subscription. The streak doesn’t come back.`;
   // Daily counts forward from today; weekly shows the week as it is laid out.
   const firstDay = daily ? new Date() : A_MONDAY;
   const days = timesPerWeek === 1 ? 'one day' : `${timesPerWeek} days`;
@@ -231,12 +234,12 @@ function HabitStakes({ timesPerWeek, onNext }: { timesPerWeek: number; onNext: (
             ? [
                 'Every day, prove it with a photo before midnight. The day you start is free.',
                 'Miss one day and Ante locks. Your habits freeze with it; goals keep their deadlines.',
-                'To get back in, you pay a re-entry fee. The streak doesn’t come back.',
+                getBackIn,
               ]
             : [
                 `Any ${days} a week, prove it with a photo. Weeks run Monday to Sunday, from the first full one.`,
                 'End a week short and Ante locks. Your habits freeze with it; goals keep their deadlines.',
-                'To get back in, you pay a re-entry fee. The streak doesn’t come back.',
+                getBackIn,
               ]
         }
       />

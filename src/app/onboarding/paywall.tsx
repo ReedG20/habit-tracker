@@ -1,4 +1,4 @@
-import { useConvexAuth, useMutation } from 'convex/react';
+import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { Redirect } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -7,7 +7,7 @@ import { ActionButton } from '@/components/action-button';
 import { Icon } from '@/components/icon';
 import { CommitmentSummary } from '@/components/onboarding/commitment-summary';
 import { OnboardingScreen } from '@/components/onboarding/onboarding-screen';
-import { ProPaywall } from '@/components/pro-paywall';
+import { ProPaywall, type PaywallOutcome } from '@/components/pro-paywall';
 import { ThemedText } from '@/components/themed-text';
 import { showToast } from '@/components/toast';
 import { SparklesIcon } from '@/constants/icons';
@@ -16,15 +16,18 @@ import { api } from '@/convex/_generated/api';
 import type { CommitmentDraft } from '@/components/commitment/draft';
 import { commitmentNoun, freshDueAt } from '@/data/onboarding';
 import { useSessionUserId } from '@/hooks/use-signed-in-session';
+import { showDevTools } from '@/lib/dev-tools';
 import { successHaptic } from '@/lib/haptics';
 import { completeOnboarding, getOnboarding, markDraftSaved } from '@/lib/onboarding';
 
-type Phase = 'saving' | 'saved' | 'failed';
+type Phase = 'offer' | 'saving' | 'failed';
 
 /**
- * The last step: saves the drafted commitment and the survey to the new
- * account, then offers Pro. "Not now" is always there; nothing in the app is
- * gated yet. Finishing flips the root guard, which swaps this stack for the tabs.
+ * The last step, and a hard one: the drafted commitment only starts once Ante
+ * Pro does (a trial counts). The survey is saved on arrival since it is not
+ * gated; the commitment after the purchase, then onboarding completes, which
+ * flips the root guard and swaps this stack for the tabs. Closing the app here
+ * comes back here. Dev and preview builds get a skip that grants Pro.
  */
 export default function OnboardingPaywallScreen() {
   const { isAuthenticated } = useConvexAuth();
@@ -32,19 +35,20 @@ export default function OnboardingPaywallScreen() {
   const saveOnboarding = useMutation(api.users.saveOnboarding);
   const createHabit = useMutation(api.habits.create);
   const createGoal = useMutation(api.goals.create);
+  const devOverrides = useQuery(api.lockouts.devOverrides, showDevTools ? {} : 'skip');
+  const devGrantPro = useMutation(api.subscriptions.devGrantPro);
 
-  // Read once: the draft doesn't change on this screen. A relaunch after it
-  // was saved lands here with `draftSaved`, and goes straight to the offer.
+  // Read once: the draft doesn't change on this screen.
   const [draft] = useState<CommitmentDraft | null>(() => getOnboarding().draft);
-  const [phase, setPhase] = useState<Phase>(() =>
-    draft === null || getOnboarding().draftSaved ? 'saved' : 'saving',
-  );
+  const [phase, setPhase] = useState<Phase>('offer');
+  const [outcome, setOutcome] = useState<PaywallOutcome>('purchased');
+  const surveySaved = useRef(false);
   const started = useRef(false);
 
   useEffect(() => {
     // Waits for the session so the `users` row exists before anything is written to it.
-    if (userId === null || phase !== 'saving' || started.current) return;
-    started.current = true;
+    if (userId === null || surveySaved.current) return;
+    surveySaved.current = true;
 
     const { answers } = getOnboarding();
     void saveOnboarding({
@@ -55,6 +59,13 @@ export default function OnboardingPaywallScreen() {
       // The survey is nice to have; it never blocks the commitment.
       console.error('Failed to save the onboarding answers', error);
     });
+  }, [userId, saveOnboarding]);
+
+  const noun = draft === null ? null : commitmentNoun(draft.kind);
+
+  useEffect(() => {
+    if (userId === null || phase !== 'saving' || started.current) return;
+    started.current = true;
 
     const pending = getOnboarding().draftSaved ? null : getOnboarding().draft;
     const save =
@@ -75,39 +86,43 @@ export default function OnboardingPaywallScreen() {
     save
       .then(() => {
         markDraftSaved();
+        completeOnboarding();
         successHaptic();
-        setPhase('saved');
+        const live = noun === null ? 'You’re all set.' : `Your first ${noun} is live.`;
+        showToast(
+          outcome === 'restored' ? 'Ante Pro restored' : 'Welcome to Ante Pro',
+          live,
+          'success',
+        );
       })
       .catch((error: unknown) => {
         console.error('Failed to save the first commitment', error);
         started.current = false;
         setPhase('failed');
       });
-  }, [userId, phase, saveOnboarding, createHabit, createGoal]);
+  }, [userId, phase, outcome, noun, createHabit, createGoal]);
 
   if (!isAuthenticated) {
     return <Redirect href="/onboarding/save" />;
   }
 
-  const noun = draft === null ? null : commitmentNoun(draft.kind);
+  const start = (result: PaywallOutcome) => {
+    setOutcome(result);
+    setPhase('saving');
+  };
 
-  const finish = (outcome: 'skipped' | 'purchased' | 'restored') => {
-    completeOnboarding();
-    const live = noun === null ? 'You’re all set.' : `Your first ${noun} is live.`;
-    if (outcome === 'skipped') {
-      showToast(live, 'Check in with a photo to keep it going.', 'success');
-    } else {
-      successHaptic();
-      showToast('Welcome to Ante Pro', live, 'success');
-    }
+  const skipForDev = () => {
+    devGrantPro()
+      .then(() => start('purchased'))
+      .catch((error: unknown) => console.error('Failed to grant Pro', error));
   };
 
   const title =
     phase === 'saving'
-      ? `Saving your ${noun ?? 'plan'}…`
+      ? `Starting your ${noun ?? 'plan'}…`
       : phase === 'failed'
         ? `Couldn’t save your ${noun ?? 'plan'}`
-        : 'It’s on.';
+        : 'Last step: start it.';
 
   return (
     <OnboardingScreen title={title} hideBack>
@@ -126,24 +141,30 @@ export default function OnboardingPaywallScreen() {
             onPress={() => setPhase('saving')}
           />
         </View>
-      ) : phase === 'saved' ? (
+      ) : phase === 'offer' ? (
         <ProPaywall
           header={
             <View style={styles.proHeader}>
               <View style={styles.proTitleRow}>
                 <Icon icon={SparklesIcon} size={24} themeColor="primary" />
                 <ThemedText style={styles.proTitle} themeColor="text">
-                  Now make it stick
+                  Start Ante Pro
                 </ThemedText>
               </View>
               <ThemedText themeColor="textSecondary">
-                Ante Pro gives your {noun ?? 'plan'} everything it needs, with nothing held back.
+                Your {noun ?? 'plan'} starts the moment you do. Try a week free on the yearly plan.
               </ThemedText>
             </View>
           }
-          onDismiss={() => finish('skipped')}
-          onFinished={finish}
-          secondaryAction={{ label: 'Not now', onPress: () => finish('skipped') }}
+          // Only reachable already subscribed (a restore, or a relaunch after buying).
+          onDismiss={() => start('restored')}
+          doneLabel="Continue"
+          onFinished={start}
+          secondaryAction={
+            devOverrides === true
+              ? { label: 'Skip paywall (developer)', onPress: skipForDev }
+              : undefined
+          }
         />
       ) : null}
     </OnboardingScreen>

@@ -23,13 +23,14 @@ import { CardRadius, Fonts, PillRadius, ScreenHeadingTypography, Spacing } from 
 import { api } from '@/convex/_generated/api';
 import type { Doc } from '@/convex/_generated/dataModel';
 import { isMissed } from '@/data/goals';
+import { describeSubscription } from '@/data/subscription';
 import { useNow } from '@/hooks/use-now';
 import { useReentryProduct } from '@/hooks/use-reentry-product';
 import { useSessionUserId } from '@/hooks/use-signed-in-session';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useTheme } from '@/hooks/use-theme';
 import { notify } from '@/lib/confirm';
-import { fromDayKey } from '@/lib/dates';
+import { formatShortDate, fromDayKey } from '@/lib/dates';
 import { showDevTools } from '@/lib/dev-tools';
 import {
   manageSubscriptionsUrl,
@@ -71,7 +72,7 @@ export default function LockedScreen() {
   // A purchase made before RevenueCat is logged in as this user would land on
   // an anonymous customer, and the server would never hear of it.
   const sessionReady = useSessionUserId() !== null;
-  const { isPro, customerInfo } = useSubscription();
+  const { isPro, customerInfo, summary } = useSubscription();
   const devOverrides = useQuery(api.lockouts.devOverrides, showDevTools ? {} : 'skip');
   const devUnlock = useMutation(api.lockouts.devUnlock);
   const [busy, setBusy] = useState<'buying' | 'checking' | null>(null);
@@ -136,17 +137,6 @@ export default function LockedScreen() {
       icon: CoinsDollarIcon,
       onPress: () => void checkAgain(),
     },
-    // Apple owns cancellation; a locked subscriber must still be able to reach it.
-    ...(isPro && revenueCatSupported
-      ? [
-          {
-            id: 'subscription',
-            label: 'Manage subscription',
-            icon: SparklesIcon,
-            onPress: () => void Linking.openURL(manageSubscriptionsUrl),
-          },
-        ]
-      : []),
     {
       id: 'support',
       label: 'Contact support',
@@ -178,7 +168,8 @@ export default function LockedScreen() {
           Ante is locked
         </ThemedText>
         <ThemedText themeColor="textSecondary">
-          You fell short on a habit, so your habits are frozen until you pay to get back in.
+          You fell short on a habit, so your habits are frozen until you pay the{' '}
+          {reentry.status === 'ready' ? `${reentry.product.priceString} ` : ''}re-entry fee.
         </ThemedText>
       </View>
 
@@ -235,10 +226,52 @@ export default function LockedScreen() {
         )}
         {paid ? null : (
           <ThemedText type="small" themeColor="textSecondary" style={styles.center}>
-            Your streaks start over. The day you come back is free.
+            A one-time fee, separate from your subscription: it’s the stake you agreed to when you
+            signed. Your streaks start over, and the day you come back is free.
           </ThemedText>
         )}
       </View>
+
+      {/* Locked is not cancelled: say so, and keep Apple's cancel page one tap away. */}
+      {summary === null ? null : isPro ? (
+        <ThemedView type="backgroundElement" style={styles.subscription}>
+          <View style={styles.subscriptionTitle}>
+            <Icon icon={SparklesIcon} size={20} themeColor="primary" />
+            <ThemedText type="smallSemibold" style={styles.flex}>
+              Ante Pro is still active
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              {describeSubscription(summary, now)}
+            </ThemedText>
+          </View>
+          <ThemedText type="small" themeColor="textSecondary">
+            Your account is locked, not cancelled. Your subscription keeps renewing until you cancel
+            it.
+          </ThemedText>
+          {revenueCatSupported ? (
+            <ActionButton
+              label="Manage subscription"
+              size="small"
+              onPress={() => void Linking.openURL(manageSubscriptionsUrl)}
+            />
+          ) : null}
+        </ThemedView>
+      ) : (
+        <ThemedView type="backgroundElement" style={styles.subscription}>
+          <View style={styles.subscriptionTitle}>
+            <Icon icon={SparklesIcon} size={20} themeColor="textSecondary" />
+            <ThemedText type="smallSemibold" style={styles.flex}>
+              Ante Pro has ended
+            </ThemedText>
+          </View>
+          <ThemedText type="small" themeColor="textSecondary">
+            {summary.expiresAt === undefined
+              ? 'Nothing is renewing'
+              : `It ended ${formatShortDate(summary.expiresAt)}, and nothing is renewing`}
+            , so you aren’t being charged while locked.
+          </ThemedText>
+        </ThemedView>
+      )}
 
       {dueGoals.length > 0 ? (
         <View style={styles.section}>
@@ -307,6 +340,16 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
   },
   pay: {
+    gap: Spacing.two,
+  },
+  subscription: {
+    borderRadius: CardRadius,
+    padding: Spacing.three,
+    gap: Spacing.two,
+  },
+  subscriptionTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: Spacing.two,
   },
   center: {

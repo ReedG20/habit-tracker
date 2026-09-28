@@ -9,9 +9,13 @@ import { OnboardingScreen } from '@/components/onboarding/onboarding-screen';
 import { ThemedText } from '@/components/themed-text';
 import { Camera01Icon, LockIcon, Target02Icon } from '@/constants/icons';
 import { BorderRadius, ControlHeight, Spacing, type ThemeColor } from '@/constants/theme';
+import { useReentryPrice } from '@/hooks/use-reentry-product';
 import { useTheme } from '@/hooks/use-theme';
 
-const rules: { icon: IconSvgElement; tint: ThemeColor; title: string; body: string }[] = [
+type Rule = { icon: IconSvgElement; tint: ThemeColor; title: string; body: string };
+
+/** The rules, quoting the re-entry fee once the store has priced it. */
+const rulesFor = (reentryPrice: string | null): Rule[] => [
   {
     icon: Target02Icon,
     tint: 'primary',
@@ -28,12 +32,13 @@ const rules: { icon: IconSvgElement; tint: ThemeColor; title: string; body: stri
     icon: LockIcon,
     tint: 'accent',
     title: 'Miss it, and it costs you',
-    body: 'Fall short on a habit and Ante locks until you pay to get back in. Miss a goal you put money on, and it’s charged.',
+    body: `Fall short on a habit and Ante locks until you pay ${reentryPrice ?? 'a fee'} to get back in. Miss a goal you put money on, and it’s charged. Both are separate from your subscription.`,
   },
 ];
 
 export default function HowScreen() {
   const theme = useTheme();
+  const rules = rulesFor(useReentryPrice());
 
   return (
     <OnboardingScreen

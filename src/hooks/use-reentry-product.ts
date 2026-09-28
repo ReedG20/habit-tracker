@@ -42,3 +42,12 @@ export function useReentryProduct(): ReentryProduct {
 
   return state;
 }
+
+/**
+ * Just the fee's localized price (`$9.99`), or `null` until the store answers
+ * or when it can't: copy that quotes the fee says "a re-entry fee" instead.
+ */
+export function useReentryPrice(): string | null {
+  const reentry = useReentryProduct();
+  return reentry.status === 'ready' ? reentry.product.priceString : null;
+}

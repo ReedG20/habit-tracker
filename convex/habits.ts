@@ -15,6 +15,7 @@ import {
   weekStart,
 } from './lib/days';
 import { DAILY, isValidTimesPerWeek, targetPerWeek } from './lib/frequency';
+import { requirePro } from './lib/entitlements';
 import { endOfPeriod, isOwed, localDay, requireDevOverrides, requireUnlocked } from './lib/lockout';
 
 const habitValidator = v.object({
@@ -247,6 +248,7 @@ export const create = authedMutation({
   returns: v.id('habits'),
   handler: async (ctx, args): Promise<Id<'habits'>> => {
     await requireUnlocked(ctx, ctx.user._id);
+    await requirePro(ctx, ctx.user._id);
     requireCommitmentText(args.title, args.description);
     const timesPerWeek = args.timesPerWeek ?? DAILY;
     if (!isValidTimesPerWeek(timesPerWeek)) {

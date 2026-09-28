@@ -1,7 +1,7 @@
 import { useAction, useMutation } from 'convex/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -18,11 +18,13 @@ import { StakesStep } from '@/components/commitment/stakes-step';
 import { StepProgress } from '@/components/commitment/step-progress';
 import { WhatStep } from '@/components/commitment/what-step';
 import { Icon } from '@/components/icon';
+import { ProPaywall } from '@/components/pro-paywall';
 import { ThemedText } from '@/components/themed-text';
 import { ArrowLeft01Icon, Cancel01Icon } from '@/constants/icons';
 import { ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { DAILY } from '@/convex/lib/frequency';
+import { useSubscription } from '@/hooks/use-subscription';
 import { useTheme } from '@/hooks/use-theme';
 
 type Step = 'what' | 'stakes' | 'sign' | 'done';
@@ -44,13 +46,16 @@ function stepTitle(step: Step, draft: CommitmentDraft): string {
 /**
  * Making a commitment is three deliberate steps (what and how it's proven,
  * what it costs to miss, and a signed contract) and nothing is created until
- * the last one is held down.
+ * the last one is held down. It takes Ante Pro: without it, this screen is
+ * the paywall, and the steps appear the moment a purchase goes through.
  */
 export default function NewCommitmentScreen() {
   const params = useLocalSearchParams<{ kind?: string }>();
   const createHabit = useMutation(api.habits.create);
   const createGoal = useMutation(api.goals.create);
   const createStaked = useAction(api.goals.createStaked);
+  const syncSubscription = useAction(api.subscriptions.sync);
+  const subscription = useSubscription();
 
   const insets = useSafeAreaInsets();
   const theme = useTheme();
@@ -95,6 +100,12 @@ export default function NewCommitmentScreen() {
 
     setBusy(true);
     try {
+      // Pro as far as the store knows, but the server has not heard yet.
+      if (subscription.source === 'revenuecat') {
+        await syncSubscription({}).catch((error: unknown) => {
+          console.warn('Subscription sync failed; creating anyway', error);
+        });
+      }
       if (draft.kind === 'habit') {
         await createHabit({ title, description, timesPerWeek: draft.timesPerWeek });
       } else if (draft.amountCents === null) {
@@ -125,6 +136,30 @@ export default function NewCommitmentScreen() {
       setBusy(false);
     }
   };
+
+  if (!subscription.isPro && !subscription.isLoading && step !== 'done') {
+    return (
+      <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+        <View style={styles.header}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+            onPress={() => router.back()}
+            hitSlop={Spacing.three}
+            style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
+            <Icon icon={Cancel01Icon} size={18} themeColor="textSecondary" />
+            <ThemedText type="small" themeColor="textSecondary">
+              Close
+            </ThemedText>
+          </Pressable>
+        </View>
+        <ScrollView contentContainerStyle={styles.paywall} alwaysBounceVertical={false}>
+          {/* A purchase flips `isPro`, and the first step takes this one's place. */}
+          <ProPaywall onDismiss={() => router.back()} onFinished={() => {}} />
+        </ScrollView>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top }]}>
@@ -183,6 +218,10 @@ const styles = StyleSheet.create({
   },
   step: {
     flex: 1,
+  },
+  paywall: {
+    paddingHorizontal: Spacing.three,
+    paddingBottom: Spacing.five,
   },
   back: {
     flexDirection: 'row',

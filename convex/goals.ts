@@ -6,6 +6,7 @@ import { internalMutation, query, type MutationCtx, type QueryCtx } from './_gen
 import { getCurrentUserOrNull } from './lib/auth';
 import { requireCommitmentText } from './lib/commitmentText';
 import { authedAction, authedMutation, authedQuery } from './lib/customFunctions';
+import { PRO_REQUIRED, requirePro } from './lib/entitlements';
 import { requireDevOverrides, requireUnlocked } from './lib/lockout';
 import { stripeClient } from './lib/stripe';
 import schema, { submissionStatusValidator } from './schema';
@@ -238,6 +239,7 @@ export const create = authedMutation({
   returns: v.id('goals'),
   handler: async (ctx, args): Promise<Id<'goals'>> => {
     await requireUnlocked(ctx, ctx.user._id);
+    await requirePro(ctx, ctx.user._id);
     requireLead(args.dueAt);
     requireCommitmentText(args.title, args.description);
 
@@ -280,6 +282,13 @@ export const beginStake = authedAction({
     });
     if (locked) {
       throw new Error('Ante is locked until the re-entry fee is paid');
+    }
+    const pro: boolean = await ctx.runQuery(internal.subscriptions.hasPro, {
+      userId: ctx.user._id,
+      now: Date.now(),
+    });
+    if (!pro) {
+      throw new Error(PRO_REQUIRED);
     }
     const stripe = stripeClient();
 
@@ -417,6 +426,7 @@ export const insertStaked = internalMutation({
   returns: v.id('goals'),
   handler: async (ctx, args): Promise<Id<'goals'>> => {
     await requireUnlocked(ctx, args.userId);
+    await requirePro(ctx, args.userId);
     requireLead(args.dueAt);
 
     const replay = await ctx.db

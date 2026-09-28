@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { EmptyState } from '@/components/empty-state';
 import { GoalCard } from '@/components/goal-card';
 import { HabitCard } from '@/components/habit-card';
+import { ProPausedBanner } from '@/components/pro-paused-banner';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { StakesBanner } from '@/components/stakes-banner';
 import { ThemedText } from '@/components/themed-text';
@@ -14,6 +15,7 @@ import { currentStreak } from '@/data/habits';
 import { groupIntoHomeSections } from '@/data/home-sections';
 import { useNow } from '@/hooks/use-now';
 import { useReentryProduct } from '@/hooks/use-reentry-product';
+import { useSubscription } from '@/hooks/use-subscription';
 import { todayKey } from '@/lib/dates';
 
 export default function TodayScreen() {
@@ -26,20 +28,27 @@ export default function TodayScreen() {
   const goals = useQuery(api.goals.list);
   const sections = habits && goals ? groupIntoHomeSections(habits, goals, today, now) : undefined;
   const reentry = useReentryProduct();
+  // Without Pro nothing is checked, so there is no fee to warn about.
+  const subscription = useSubscription();
+  const paused = !subscription.isPro && !subscription.isLoading;
 
   return (
     <ScreenScrollView>
       <View style={styles.header}>
-        <StakesBanner
-          fee={
-            reentry.status === 'ready'
-              ? reentry.product.priceString
-              : reentry.status === 'loading'
-                ? undefined
-                : null
-          }
-          streak={habits === undefined ? undefined : currentStreak(habits)}
-        />
+        {paused ? (
+          <ProPausedBanner summary={subscription.summary} />
+        ) : (
+          <StakesBanner
+            fee={
+              reentry.status === 'ready'
+                ? reentry.product.priceString
+                : reentry.status === 'loading'
+                  ? undefined
+                  : null
+            }
+            streak={habits === undefined ? undefined : currentStreak(habits)}
+          />
+        )}
       </View>
 
       <View style={styles.sections}>
@@ -60,7 +69,12 @@ export default function TodayScreen() {
                 item.kind === 'goal' ? (
                   <GoalCard key={item.goal._id} goal={item.goal} now={now} />
                 ) : (
-                  <HabitCard key={item.habit._id} habit={item.habit} deadlineAt={item.deadlineAt} />
+                  <HabitCard
+                    key={item.habit._id}
+                    habit={item.habit}
+                    deadlineAt={paused ? undefined : item.deadlineAt}
+                    paused={paused}
+                  />
                 ),
               )}
             </View>

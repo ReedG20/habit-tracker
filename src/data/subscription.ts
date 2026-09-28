@@ -20,7 +20,7 @@ export function describeSubscription(summary: SubscriptionSummary | null, now: n
 
   const { status, expiresAt, willRenew } = summary;
   const ended = expiresAt !== undefined && expiresAt <= now;
-  if (status === 'expired' || ended) return 'Expired';
+  if (status === 'expired' || ended) return 'Resubscribe';
   if (expiresAt === undefined) return 'Active';
 
   const date = formatShortDate(expiresAt);

@@ -1,3 +1,4 @@
+import { useAction } from 'convex/react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import type { PurchasesPackage } from 'react-native-purchases';
@@ -8,6 +9,7 @@ import { PlanCard } from '@/components/plan-card';
 import { ThemedText } from '@/components/themed-text';
 import { Camera01Icon, CoinsDollarIcon, FlameIcon, SparklesIcon } from '@/constants/icons';
 import { Fonts, Spacing } from '@/constants/theme';
+import { api } from '@/convex/_generated/api';
 import { useSessionUserId } from '@/hooks/use-signed-in-session';
 import { useSubscription } from '@/hooks/use-subscription';
 import {
@@ -24,11 +26,10 @@ import {
 const TERMS_URL = 'https://useanteapp.com/terms';
 const PRIVACY_URL = 'https://useanteapp.com/privacy';
 
-/** Placeholder copy until the free/Pro split is decided. */
 const benefits = [
   { icon: FlameIcon, label: 'Unlimited habits and goals' },
-  { icon: Camera01Icon, label: 'Photo verification on every check-in' },
-  { icon: CoinsDollarIcon, label: 'Put stakes on any goal' },
+  { icon: Camera01Icon, label: 'Every check-in proven with a photo' },
+  { icon: CoinsDollarIcon, label: 'Put money on any goal' },
 ];
 
 type Plan = 'annual' | 'monthly';
@@ -42,6 +43,8 @@ export type ProPaywallProps = {
   onFinished: (outcome: PaywallOutcome) => void;
   /** The "Done" button when already subscribed, or the sheet's own dismissal. */
   onDismiss: () => void;
+  /** The label of that button; "Done" by default. */
+  doneLabel?: string;
   /** A quiet way out under the main button, e.g. onboarding's "Not now". */
   secondaryAction?: { label: string; onPress: () => void };
 };
@@ -52,8 +55,15 @@ export type ProPaywallProps = {
  * change in App Store Connect needs no release. Errors are rendered inline: a
  * UIKit sheet sits above the toast host. The caller provides the scroll view.
  */
-export function ProPaywall({ header, onFinished, onDismiss, secondaryAction }: ProPaywallProps) {
+export function ProPaywall({
+  header,
+  onFinished,
+  onDismiss,
+  doneLabel = 'Done',
+  secondaryAction,
+}: ProPaywallProps) {
   const { isPro } = useSubscription();
+  const syncSubscription = useAction(api.subscriptions.sync);
 
   // RevenueCat is only logged in as this user once the session has stored
   // them; buying before that would credit an anonymous customer.
@@ -94,6 +104,16 @@ export function ProPaywall({ header, onFinished, onDismiss, secondaryAction }: P
     };
   }, [attempt]);
 
+  // The server only trusts its own copy of the subscription, which trails
+  // Apple by however long the webhook takes. Syncing first means the very next
+  // commitment is not refused. A failure is logged: the webhook still lands.
+  const finish = async (outcome: PaywallOutcome) => {
+    await syncSubscription({}).catch((caught: unknown) => {
+      console.error('Failed to sync the subscription', caught);
+    });
+    onFinished(outcome);
+  };
+
   const retry = () => {
     setOffering(undefined);
     setError(null);
@@ -106,7 +126,7 @@ export function ProPaywall({ header, onFinished, onDismiss, secondaryAction }: P
     try {
       const result = await purchasePackage(pkg);
       if (result.kind === 'purchased') {
-        onFinished('purchased');
+        await finish('purchased');
       }
     } catch (caught: unknown) {
       console.error('Purchase failed', caught);
@@ -122,7 +142,7 @@ export function ProPaywall({ header, onFinished, onDismiss, secondaryAction }: P
     try {
       const info = await restorePurchases();
       if (hasPro(info)) {
-        onFinished('restored');
+        await finish('restored');
       } else {
         setError('No Ante Pro subscription was found for this Apple ID.');
       }
@@ -171,18 +191,16 @@ export function ProPaywall({ header, onFinished, onDismiss, secondaryAction }: P
             <ThemedText style={styles.benefitLabel}>{benefit.label}</ThemedText>
           </View>
         ))}
+        <ThemedText type="small" themeColor="textSecondary">
+          Your subscription is the app. Re-entry fees and goal stakes are separate, and you only pay
+          them if you fall short.
+        </ThemedText>
       </View>
 
       {isPro && !previewing ? (
         <>
           <ThemedText>You already have Ante Pro. Thank you for backing your habits.</ThemedText>
-          <ActionButton
-            key="done"
-            label={secondaryAction?.label === undefined ? 'Done' : 'Continue'}
-            variant="primary"
-            fill
-            onPress={secondaryAction?.onPress ?? onDismiss}
-          />
+          <ActionButton key="done" label={doneLabel} variant="primary" fill onPress={onDismiss} />
           {__DEV__ && (
             <ActionButton
               key="preview"
@@ -268,7 +286,8 @@ export function ProPaywall({ header, onFinished, onDismiss, secondaryAction }: P
 
           <ThemedText type="small" themeColor="textSecondary" style={styles.legal}>
             Renews automatically until cancelled. Cancel anytime in Settings → Apple ID →
-            Subscriptions.{' '}
+            Subscriptions. If Pro ends, goals you’ve made still run to their deadline and your
+            habits pause.{' '}
             <ThemedText
               type="small"
               themeColor="textSecondary"

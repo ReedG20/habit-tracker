@@ -46,7 +46,7 @@ async function subscriptionOf(t: Harness, userId: Id<'users'>) {
 describe('revenuecat.handleEvent', () => {
   test('INITIAL_PURCHASE of a trial creates an active trial row', async () => {
     const t = setup();
-    const alice = await signIn(t, 'alice');
+    const alice = await signIn(t, 'alice', { pro: false });
 
     await deliver(t, 'evt_1', subscriptionEvent(alice.userId));
 
@@ -65,7 +65,7 @@ describe('revenuecat.handleEvent', () => {
 
   test('CANCELLATION keeps access until the existing expiry', async () => {
     const t = setup();
-    const alice = await signIn(t, 'alice');
+    const alice = await signIn(t, 'alice', { pro: false });
     await deliver(t, 'evt_1', subscriptionEvent(alice.userId));
 
     await deliver(
@@ -91,7 +91,7 @@ describe('revenuecat.handleEvent', () => {
 
   test('EXPIRATION ends access', async () => {
     const t = setup();
-    const alice = await signIn(t, 'alice');
+    const alice = await signIn(t, 'alice', { pro: false });
     await deliver(t, 'evt_1', subscriptionEvent(alice.userId));
 
     await deliver(
@@ -112,7 +112,7 @@ describe('revenuecat.handleEvent', () => {
 
   test('RENEWAL after a cancellation means the user re-subscribed', async () => {
     const t = setup();
-    const alice = await signIn(t, 'alice');
+    const alice = await signIn(t, 'alice', { pro: false });
     await deliver(t, 'evt_1', subscriptionEvent(alice.userId));
     await deliver(
       t,
@@ -138,7 +138,7 @@ describe('revenuecat.handleEvent', () => {
 
   test('an older event delivered late does not overwrite a newer one', async () => {
     const t = setup();
-    const alice = await signIn(t, 'alice');
+    const alice = await signIn(t, 'alice', { pro: false });
     await deliver(
       t,
       'evt_2',
@@ -155,7 +155,7 @@ describe('revenuecat.handleEvent', () => {
 
   test('a redelivered event is a no-op', async () => {
     const t = setup();
-    const alice = await signIn(t, 'alice');
+    const alice = await signIn(t, 'alice', { pro: false });
     const event = subscriptionEvent(alice.userId);
     await deliver(t, 'evt_1', event);
     // Rewind by hand: without dedupe the redelivery would restore the trial.
@@ -173,7 +173,7 @@ describe('revenuecat.handleEvent', () => {
 
   test('an unknown app user id is ignored without throwing', async () => {
     const t = setup();
-    const alice = await signIn(t, 'alice');
+    const alice = await signIn(t, 'alice', { pro: false });
 
     await deliver(t, 'evt_1', subscriptionEvent(alice.userId, { appUserId: 'nope' }));
 
@@ -182,7 +182,7 @@ describe('revenuecat.handleEvent', () => {
 
   test('resolves the user through the aliases when the primary id is anonymous', async () => {
     const t = setup();
-    const alice = await signIn(t, 'alice');
+    const alice = await signIn(t, 'alice', { pro: false });
 
     await deliver(
       t,
@@ -201,8 +201,8 @@ describe('revenuecat.handleEvent', () => {
 
   test('TRANSFER moves the row to the receiving user', async () => {
     const t = setup();
-    const alice = await signIn(t, 'alice');
-    const bob = await signIn(t, 'bob');
+    const alice = await signIn(t, 'alice', { pro: false });
+    const bob = await signIn(t, 'bob', { pro: false });
     await deliver(t, 'evt_1', subscriptionEvent(alice.userId));
     await deliver(
       t,
@@ -231,7 +231,7 @@ describe('revenuecat.handleEvent', () => {
 
   test('an event for another entitlement is ignored', async () => {
     const t = setup();
-    const alice = await signIn(t, 'alice');
+    const alice = await signIn(t, 'alice', { pro: false });
 
     await deliver(t, 'evt_1', subscriptionEvent(alice.userId, { entitlementIds: [] }));
 
@@ -240,7 +240,7 @@ describe('revenuecat.handleEvent', () => {
 
   test('TEST is recorded and otherwise ignored', async () => {
     const t = setup();
-    const alice = await signIn(t, 'alice');
+    const alice = await signIn(t, 'alice', { pro: false });
 
     await deliver(t, 'evt_1', {
       type: 'TEST',
