@@ -6,12 +6,15 @@
  * Numeric detents (not `fitToContents`) so the sheet does not resize and
  * remount when the keyboard or field focus changes. `flex: 1` is valid with
  * numeric detents. Transparent `contentStyle` lets the glass show through.
+ *
+ * No `sheetCornerRadius`: on iOS 26 the sheet floats inset from the screen
+ * edges, and the system radius is the one concentric with the display's
+ * corners. A fixed radius left the bottom corners visibly tighter.
  */
 export const sheetScreenOptions = {
   presentation: 'formSheet' as const,
   sheetAllowedDetents: [0.66],
   sheetGrabberVisible: true,
-  sheetCornerRadius: 24,
   headerShown: false,
   contentStyle: { backgroundColor: 'transparent' },
 };
