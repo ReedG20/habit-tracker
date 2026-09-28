@@ -131,13 +131,36 @@ export async function loadProOffering(): Promise<ProOffering | null> {
   if (!monthly || !annual) {
     // Usually dashboard setup: no offering marked current, or its packages
     // carry only Test Store products, so the App Store build sees none.
+    if (!current) {
+      throw new Error(`No current offering; found [${Object.keys(offerings.all).join(', ')}]`);
+    }
+    const missing = [!monthly && PRO_PRODUCT_IDS.monthly, !annual && PRO_PRODUCT_IDS.annual];
+    const probes = await Promise.all(missing.filter((id) => id !== false).map(probeProduct));
     throw new Error(
-      current
-        ? `Offering "${current.identifier}" lacks a monthly or annual package; it has [${current.availablePackages.map((pkg) => pkg.identifier).join(', ')}]`
-        : `No current offering; found [${Object.keys(offerings.all).join(', ')}]`,
+      `Offering "${current.identifier}" has [${current.availablePackages.map((pkg) => pkg.identifier).join(', ')}]. ${probes.join(' ')}`,
     );
   }
   return { monthly, annual };
+}
+
+/** The App Store products behind the offering's packages, for diagnosing a missing one. */
+const PRO_PRODUCT_IDS = { monthly: 'ante_pro_monthly', annual: 'ante_pro_annual' };
+
+/**
+ * Asks the store for `productId` directly, the way the re-entry fee loads.
+ * If it comes back, the store sells it and RevenueCat dropped it from the
+ * offering; if not, the store itself is withholding it.
+ */
+async function probeProduct(productId: string): Promise<string> {
+  try {
+    const [product] = await Purchases.getProducts([productId], PRODUCT_CATEGORY.SUBSCRIPTION);
+    return product
+      ? `Store returns ${productId} (${product.priceString}), but the offering dropped it.`
+      : `Store does not return ${productId}.`;
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    return `Store lookup of ${productId} failed: ${message}`;
+  }
 }
 
 /**
