@@ -8,10 +8,6 @@ import { KeyboardController } from 'react-native-keyboard-controller';
  */
 export function DismissKeyboardArea(props: ViewProps) {
   return (
-    <Pressable
-      accessible={false}
-      onPress={() => void KeyboardController.dismiss()}
-      {...props}
-    />
+    <Pressable accessible={false} onPress={() => void KeyboardController.dismiss()} {...props} />
   );
 }
