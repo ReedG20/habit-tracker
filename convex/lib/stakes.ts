@@ -1,4 +1,4 @@
-import type { Infer } from 'convex/values';
+import { ConvexError, type Infer } from 'convex/values';
 
 import { internal } from '../_generated/api';
 import type { Doc, Id } from '../_generated/dataModel';
@@ -78,10 +78,10 @@ export async function requireMoneyHeadroom(
   amountCents: number,
 ): Promise<void> {
   if (await hasOpenDecline(ctx, userId)) {
-    throw new Error(DECLINED_ERROR);
+    throw new ConvexError(DECLINED_ERROR);
   }
   if ((await usedMoneyCents(ctx, userId)) + amountCents > MONEY_CAP_CENTS) {
-    throw new Error(MONEY_CAP_ERROR);
+    throw new ConvexError(MONEY_CAP_ERROR);
   }
 }
 

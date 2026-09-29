@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { api, internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
+import { MONEY_CAP_ERROR } from './lib/stakeRules';
 import { grantPro, setup as baseSetup, type Harness } from './test.helpers';
 
 // 2026-09-21 is a Monday. Every user here lives in UTC, so local midnight is 00:00Z.
@@ -185,7 +186,10 @@ describe('money', () => {
       usedCents: 14000,
       remainingCents: 1000,
     });
-    await expect(moneyHabit(t, alice.userId, 'Stretch', 1100)).rejects.toThrow(/\$150/);
+    // A `ConvexError`, so the reason reaches the app in production too.
+    await expect(moneyHabit(t, alice.userId, 'Stretch', 1100)).rejects.toThrow(
+      expect.objectContaining({ data: MONEY_CAP_ERROR }),
+    );
     // Nothing half-made: the habit went with the refused stake.
     const habits = await t.run(async (ctx) => await ctx.db.query('habits').collect());
     expect(habits.map((habit) => habit.title).sort()).toEqual(['Read', 'Run']);
@@ -246,7 +250,7 @@ describe('friend', () => {
         title: 'Run',
         stake: { kind: 'friend', friend: { name: 'Me', email: 'ALICE@example.com' } },
       }),
-    ).rejects.toThrow(/other than yourself/);
+    ).rejects.toThrow(expect.objectContaining({ data: 'Pick someone other than yourself' }));
 
     const habitId = await alice.as.mutation(api.habits.create, {
       title: 'Run',

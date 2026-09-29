@@ -11,6 +11,7 @@
 import type * as accountNotices from "../accountNotices.js";
 import type * as calendar from "../calendar.js";
 import type * as commitmentChecks from "../commitmentChecks.js";
+import type * as commitmentIdeas from "../commitmentIdeas.js";
 import type * as crons from "../crons.js";
 import type * as emails from "../emails.js";
 import type * as freezes from "../freezes.js";
@@ -66,6 +67,7 @@ declare const fullApi: ApiFromModules<{
   accountNotices: typeof accountNotices;
   calendar: typeof calendar;
   commitmentChecks: typeof commitmentChecks;
+  commitmentIdeas: typeof commitmentIdeas;
   crons: typeof crons;
   emails: typeof emails;
   freezes: typeof freezes;

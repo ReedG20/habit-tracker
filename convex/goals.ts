@@ -1,4 +1,4 @@
-import { v, type Infer } from 'convex/values';
+import { ConvexError, v, type Infer } from 'convex/values';
 
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
@@ -159,7 +159,7 @@ export async function completeGoal(ctx: MutationCtx, goal: Doc<'goals'>): Promis
 
 function requireLead(dueAt: number): void {
   if (!Number.isFinite(dueAt) || dueAt < Date.now() + MIN_LEAD_MS) {
-    throw new Error('The deadline has to be at least a minute from now');
+    throw new ConvexError('The deadline has to be at least a minute from now');
   }
 }
 
@@ -291,7 +291,7 @@ export const createStaked = authedAction({
     } else if (args.reuseFromStakeId !== undefined) {
       saved = await reuseCard(ctx, args.reuseFromStakeId, args.amountCents);
     } else {
-      throw new Error('Add a card for the stake');
+      throw new ConvexError('Add a card for the stake');
     }
     const { kind: _kind, ...card } = saved;
 
@@ -369,10 +369,10 @@ export const update = authedMutation({
     }
     if (args.dueAt !== undefined && args.dueAt !== goal.dueAt) {
       if (goal.stake !== undefined || goal.stakeId !== undefined) {
-        throw new Error('The deadline is locked once something is staked on the goal');
+        throw new ConvexError('The deadline is locked once something is staked on the goal');
       }
       if (goal.completedAt !== undefined) {
-        throw new Error('The goal is already done');
+        throw new ConvexError('The goal is already done');
       }
       requireLead(args.dueAt);
       fields.dueAt = args.dueAt;
@@ -406,7 +406,7 @@ export const remove = authedMutation({
     if (args.force === true) {
       requireDevOverrides();
     } else if (stake !== null && isStakeViewLive(stake)) {
-      throw new Error(
+      throw new ConvexError(
         stake.kind === 'money'
           ? 'A goal with money on it runs to its deadline'
           : 'A goal with a friend on it runs to its deadline',

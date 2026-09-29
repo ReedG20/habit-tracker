@@ -28,6 +28,7 @@ import { captureError, track, type AnalyticsEvents } from '@/lib/analytics';
 import { lossHaptic, successHaptic } from '@/lib/haptics';
 import { watchLoss } from '@/lib/loss-screen';
 import { cardLabel, formatCents } from '@/lib/money';
+import { userErrorMessage } from '@/lib/user-errors';
 
 /**
  * The page a lost stake opens: shown on its own the next time the app is up
@@ -298,10 +299,7 @@ function Actions({ loss, onLeave }: { loss: Loss; onLeave: (next?: Href) => void
         }
       } catch (error: unknown) {
         captureError(error, 'settle up');
-        Alert.alert(
-          'That didn’t go through',
-          error instanceof Error ? error.message : 'Try another card.',
-        );
+        Alert.alert('That didn’t go through', userErrorMessage(error, 'Try another card.'));
       } finally {
         setBusy(false);
       }

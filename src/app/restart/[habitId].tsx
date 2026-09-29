@@ -32,6 +32,7 @@ import type { Loss } from '@/convex/stakes';
 import { useTheme } from '@/hooks/use-theme';
 import { captureError, track } from '@/lib/analytics';
 import { cardLabel } from '@/lib/money';
+import { userErrorMessage } from '@/lib/user-errors';
 
 type Step = 'stakes' | 'sign' | 'done';
 
@@ -161,7 +162,7 @@ function RestartFlow({
       captureError(error, 'restart habit');
       Alert.alert(
         "Couldn't restart it",
-        error instanceof Error ? error.message : 'Check your connection and try again.',
+        userErrorMessage(error, 'Check your connection and try again.'),
       );
     } finally {
       setBusy(false);

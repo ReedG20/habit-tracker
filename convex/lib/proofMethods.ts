@@ -1,4 +1,4 @@
-import { v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 
 /**
  * How a habit gets proved. Chosen when the habit is made and fixed after that,
@@ -43,11 +43,11 @@ export function requireProofSettings(
 ): { proofMethod: ProofMethod; timerMinutes?: number } {
   const proofMethod = args.proofMethod ?? 'photo';
   if (proofMethod !== 'timer') {
-    if (args.timerMinutes !== undefined) throw new Error('Only a timer habit has a length');
+    if (args.timerMinutes !== undefined) throw new ConvexError('Only a timer habit has a length');
     return { proofMethod };
   }
   if (args.timerMinutes === undefined || !isValidTimerMinutes(args.timerMinutes, devOverrides)) {
-    throw new Error('Pick how long the timer runs');
+    throw new ConvexError('Pick how long the timer runs');
   }
   return { proofMethod, timerMinutes: args.timerMinutes };
 }

@@ -1,5 +1,5 @@
 import { DAY, RateLimiter } from '@convex-dev/rate-limiter';
-import { v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 
 import { components } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
@@ -69,18 +69,18 @@ export async function resolveFriend(
 
   const name = input.name.trim();
   const email = normalizeEmail(input.email);
-  if (name.length === 0) throw new Error('Add your friend’s name');
+  if (name.length === 0) throw new ConvexError('Add your friend’s name');
   if (name.length > MAX_NAME_LENGTH) {
-    throw new Error(`Keep the name under ${MAX_NAME_LENGTH} characters`);
+    throw new ConvexError(`Keep the name under ${MAX_NAME_LENGTH} characters`);
   }
   if (email.length > MAX_EMAIL_LENGTH || !EMAIL_PATTERN.test(email)) {
-    throw new Error('That email address doesn’t look right');
+    throw new ConvexError('That email address doesn’t look right');
   }
   if (email === normalizeEmail(user.email)) {
-    throw new Error('Pick someone other than yourself');
+    throw new ConvexError('Pick someone other than yourself');
   }
   if (await isSuppressed(ctx, email)) {
-    throw new Error(`${name} has asked Ante not to email them`);
+    throw new ConvexError(`${name} has asked Ante not to email them`);
   }
 
   const existing = await ctx.db
@@ -95,7 +95,7 @@ export async function resolveFriend(
 
   const limit = await friendLimiter.limit(ctx, 'newFriend', { key: user._id });
   if (!limit.ok) {
-    throw new Error('That’s a lot of new people for one day. Try again tomorrow.');
+    throw new ConvexError('That’s a lot of new people for one day. Try again tomorrow.');
   }
 
   const friendId = await ctx.db.insert('friends', {
@@ -113,10 +113,12 @@ export async function resolveFriend(
 
 function requireReachable(friend: Doc<'friends'>): void {
   if (friend.status === 'opted_out') {
-    throw new Error(`${friend.name} opted out of hearing from Ante. Pick someone else.`);
+    throw new ConvexError(`${friend.name} opted out of hearing from Ante. Pick someone else.`);
   }
   if (friend.status === 'bounced') {
-    throw new Error(`Email to ${friend.name} bounced. Check the address, or pick someone else.`);
+    throw new ConvexError(
+      `Email to ${friend.name} bounced. Check the address, or pick someone else.`,
+    );
   }
 }
 
