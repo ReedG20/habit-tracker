@@ -6,6 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import { alertRevision, useWordingCheck } from '@/components/commitment/use-wording-check';
 import { FormSheet } from '@/components/form-sheet';
 import { HabitSheetFields, type HabitDraft } from '@/components/habit-sheet-fields';
+import { proofMethodOf } from '@/constants/proof-methods';
 import { Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
@@ -52,6 +53,8 @@ function EditHabitForm({ habit }: { habit: Habit }) {
         title,
         proof: description,
         timesPerWeek: targetPerWeek(habit),
+        proofMethod: proofMethodOf(habit),
+        timerMinutes: habit.timerMinutes,
       });
       if (revision !== null) {
         alertRevision(revision, (suggestion) => {
@@ -82,7 +85,12 @@ function EditHabitForm({ habit }: { habit: Habit }) {
       submitLabel={wording.checking ? 'Checking…' : 'Save changes'}
       submitDisabled={wording.checking}
       onSubmit={() => void save()}>
-      <HabitSheetFields key={fieldsKey} initial={initial} draftRef={draftRef} />
+      <HabitSheetFields
+        key={fieldsKey}
+        initial={initial}
+        draftRef={draftRef}
+        proofMethod={proofMethodOf(habit)}
+      />
     </FormSheet>
   );
 }

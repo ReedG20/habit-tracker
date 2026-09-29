@@ -17,6 +17,14 @@ const app = defineApp({
      */
     OPENROUTER_API_KEY: v.string(),
     /**
+     * Google Places API (New) key used by location check-ins
+     * (`locationProofs.analyze`) to list the places around the user. Server
+     * side only; restrict it to "Places API (New)" in Google Cloud. Without it
+     * every check-in resolves as `failed`, which excuses the day. Set with:
+     *   bunx convex env set GOOGLE_PLACES_API_KEY AIza...
+     */
+    GOOGLE_PLACES_API_KEY: v.optional(v.string()),
+    /**
      * Stripe secret key used to save cards and settle missed goals (`goals.ts`,
      * `stripe.ts`). Set with:
      *   bunx convex env set STRIPE_SECRET_KEY sk_...

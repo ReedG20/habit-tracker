@@ -1,6 +1,7 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
+import { proofMethodValidator } from './lib/proofMethods';
 import { lockoutDaysValidator, moneyStatusValidator, stakeDocValidator } from './lib/stakeSchema';
 
 /** The money stake's lifecycle; see `lib/stakeSchema.ts`. */
@@ -135,6 +136,10 @@ export default defineSchema({
      * until the user restarts it with new stakes.
      */
     brokenAt: v.optional(v.number()),
+    /** How it is proved; absent means photo (`lib/proofMethods.ts`). */
+    proofMethod: v.optional(proofMethodValidator),
+    /** A timer habit's length in minutes. */
+    timerMinutes: v.optional(v.number()),
   }).index('by_user', ['userId']),
 
   habitCompletions: defineTable({
@@ -147,16 +152,29 @@ export default defineSchema({
     .index('by_user_and_day', ['userId', 'day']),
 
   /**
-   * One row per photo submitted as proof. `pending` rows drive the card's
-   * "verifying" state; a resolved row is kept as the audit trail for the day.
-   * `failed` means we never got a verdict (API error, timeout), as opposed to
-   * `rejected`, where the model said no.
+   * One row per proof attempt: a photo, a location check-in, or a finished or
+   * abandoned timer. `pending` rows drive the card's "verifying" state; a
+   * resolved row is kept as the audit trail for the day. `failed` means we
+   * never got a verdict (API error, timeout), as opposed to `rejected`, where
+   * the check said no.
    */
   habitVerifications: defineTable({
     userId: v.id('users'),
     habitId: v.id('habits'),
     day: v.string(),
-    photoId: v.id('_storage'),
+    /** Absent means photo, for rows from before other methods. */
+    method: v.optional(proofMethodValidator),
+    /** Photo proof only. */
+    photoId: v.optional(v.id('_storage')),
+    /** Location proof only: where the phone said it was. */
+    coords: v.optional(
+      v.object({ latitude: v.number(), longitude: v.number(), accuracy: v.number() }),
+    ),
+    /**
+     * Location proof only: the Google place it matched. Google's terms allow
+     * keeping place IDs, not names.
+     */
+    placeId: v.optional(v.string()),
     status: v.union(
       v.literal('pending'),
       v.literal('approved'),
@@ -169,6 +187,21 @@ export default defineSchema({
   })
     .index('by_habit_and_day', ['habitId', 'day'])
     .index('by_user_and_day', ['userId', 'day']),
+
+  /**
+   * One row per timer started for a timer habit (`timerProofs.ts`). A run is
+   * not a pending check: it only counts once it ends, when it writes an
+   * approved or rejected verification.
+   */
+  habitTimerRuns: defineTable({
+    userId: v.id('users'),
+    habitId: v.id('habits'),
+    day: v.string(),
+    startedAt: v.number(),
+    durationMs: v.number(),
+    status: v.union(v.literal('running'), v.literal('completed'), v.literal('abandoned')),
+    endedAt: v.optional(v.number()),
+  }).index('by_habit_and_day', ['habitId', 'day']),
 
   /**
    * A goal is a one-off commitment with a hard deadline. It can only be

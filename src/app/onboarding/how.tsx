@@ -23,8 +23,8 @@ const RULES: Rule[] = [
   {
     icon: Camera01Icon,
     tint: 'primary',
-    title: 'Prove it with a photo',
-    body: 'You say what the photo has to show. AI checks every one. There is no honour system.',
+    title: 'Prove it, every time',
+    body: 'A photo AI checks, a check-in where you said you’d be, or a timer you can’t leave. There is no honour system.',
   },
   {
     icon: CoinsDollarIcon,

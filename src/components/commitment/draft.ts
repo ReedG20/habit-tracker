@@ -1,3 +1,4 @@
+import { DEFAULT_TIMER_MINUTES, type ProofMethod } from '@/constants/proof-methods';
 import type { Id } from '@/convex/_generated/dataModel';
 import {
   DEFAULT_LOCKOUT_DAYS,
@@ -25,10 +26,17 @@ export type FriendDraft = { friendId?: Id<'friends'>; name: string; email: strin
 export type CommitmentDraft = {
   kind: CommitmentKind;
   title: string;
-  /** What the photo has to show; the vision model judges proof against it. */
+  /**
+   * What counts as proof, judged against by the checks: what the photo shows,
+   * where to check in, or what happens while the timer runs.
+   */
   proof: string;
   /** Habits only: days a week it is due, on any days; 7 is every day. */
   timesPerWeek: number;
+  /** Habits only; goals are always proved with photos. */
+  proofMethod: ProofMethod;
+  /** Timer habits only, but kept while switching so it isn't lost. */
+  timerMinutes: number;
   /** `wordingSignature` of the last wording that passed the check, so it isn't re-asked. */
   checkedWording?: string;
   /** Goals only. */
@@ -47,6 +55,29 @@ export const MIN_LEAD_MS = 60 * 1000;
 export const DEFAULT_STAKE_CENTS = DEFAULT_CENTS;
 
 export const EMPTY_FRIEND: FriendDraft = { name: '', email: '' };
+
+/** The proof fields of a fresh draft. */
+export const FRESH_PROOF: Pick<CommitmentDraft, 'proofMethod' | 'timerMinutes'> = {
+  proofMethod: 'photo',
+  timerMinutes: DEFAULT_TIMER_MINUTES,
+};
+
+/** How a habit draft is proved, as `habits.create` takes it. Goals send nothing. */
+export function proofInput(
+  draft: CommitmentDraft,
+): { proofMethod: ProofMethod; timerMinutes?: number } | Record<string, never> {
+  if (draft.kind !== 'habit') return {};
+  return draft.proofMethod === 'timer'
+    ? { proofMethod: 'timer', timerMinutes: draft.timerMinutes }
+    : { proofMethod: draft.proofMethod };
+}
+
+/** A goal is always proved with photos, whatever the habit side of the draft holds. */
+export function draftProofMethod(
+  draft: Pick<CommitmentDraft, 'kind' | 'proofMethod'>,
+): ProofMethod {
+  return draft.kind === 'habit' ? draft.proofMethod : 'photo';
+}
 
 /** Money unless it can't be had here; then a lockout for a habit, and their word for a goal. */
 export function defaultStakeKind(kind: CommitmentKind, allowMoney: boolean): StakeKind {
@@ -142,10 +173,15 @@ export function upgradeDraft(draft: CommitmentDraft): CommitmentDraft {
     card: stored.card ?? null,
     friend: stored.friend ?? EMPTY_FRIEND,
     lockoutDays: stored.lockoutDays ?? DEFAULT_LOCKOUT_DAYS,
+    proofMethod: stored.proofMethod ?? FRESH_PROOF.proofMethod,
+    timerMinutes: stored.timerMinutes ?? FRESH_PROOF.timerMinutes,
   };
 }
 
 /** What the wording check looked at; a draft whose signature still matches needs no second look. */
-export function wordingSignature(draft: Pick<CommitmentDraft, 'kind' | 'title' | 'proof'>): string {
-  return [draft.kind, draft.title.trim(), draft.proof.trim()].join('\n');
+export function wordingSignature(
+  draft: Pick<CommitmentDraft, 'kind' | 'title' | 'proof'> & { proofMethod?: ProofMethod },
+): string {
+  const method = draft.kind === 'habit' ? (draft.proofMethod ?? 'photo') : 'photo';
+  return [draft.kind, method, draft.title.trim(), draft.proof.trim()].join('\n');
 }

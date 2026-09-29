@@ -89,10 +89,12 @@ export function eventPush(
 }
 
 /**
- * The verdict on a habit photo. A rejection comes through whenever there's
+ * The verdict on habit proof. A rejection comes through whenever there's
  * still time to retry that day: that is exactly the moment someone who closed
  * the app would otherwise miss. An approval is a quiet note, if they want it.
- * A check that failed on our side excuses the day, so it needs no push.
+ * A check that failed on our side excuses the day, so it needs no push. A
+ * timer settles while the app is open, and the app raises its own local
+ * notification the moment a run is cut short, so timers need none either.
  */
 export async function notifyHabitVerdict(
   ctx: MutationCtx,
@@ -100,7 +102,7 @@ export async function notifyHabitVerdict(
   status: 'approved' | 'rejected' | 'failed',
   reason: string,
 ): Promise<void> {
-  if (status === 'failed') return;
+  if (status === 'failed' || verification.method === 'timer') return;
   const [user, habit] = await Promise.all([
     ctx.db.get('users', verification.userId),
     ctx.db.get('habits', verification.habitId),
@@ -131,7 +133,7 @@ export async function notifyHabitVerdict(
     return;
   }
 
-  // Only while the photo's day is still running: after midnight it's settled.
+  // Only while the proof's day is still running: after midnight it's settled.
   if (user.timeZone === undefined || zonedDay(now, user.timeZone) !== verification.day) return;
   const midnight = nextLocalMidnight(now, user.timeZone);
   const message: EventMessage = {
@@ -139,6 +141,7 @@ export async function notifyHabitVerdict(
     subject: 'habit',
     title: habit.title,
     reason,
+    method: verification.method,
     msLeft: midnight - now,
   };
   await deliver(ctx, user._id, [

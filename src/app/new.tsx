@@ -12,6 +12,8 @@ import {
   friendInput,
   MIN_LEAD_MS,
   plainStake,
+  FRESH_PROOF,
+  proofInput,
   reuseForStake,
   type CommitmentDraft,
 } from '@/components/commitment/draft';
@@ -87,6 +89,7 @@ export default function NewCommitmentScreen() {
       title: '',
       proof: '',
       timesPerWeek: DAILY,
+      ...FRESH_PROOF,
       dueAt: defaultDueAt(),
       ...freshStake(kind, true),
     };
@@ -168,6 +171,7 @@ export default function NewCommitmentScreen() {
             title,
             description,
             timesPerWeek: draft.timesPerWeek,
+            ...proofInput(draft),
             stake: plainStake(draft),
           });
         } else {
@@ -198,6 +202,7 @@ export default function NewCommitmentScreen() {
           title,
           description,
           timesPerWeek: draft.timesPerWeek,
+          ...proofInput(draft),
           amountCents: card.amountCents,
           setupIntentId: card.setupIntentId,
         });

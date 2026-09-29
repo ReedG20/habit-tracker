@@ -77,6 +77,7 @@ export type TodayMomentInput = {
  */
 export const MARGIN_NOTES = {
   retake: ['happens. try another angle.', 'one more photo and it counts.'],
+  retry: ['happens. go again.', 'one more go and it counts.'],
   goalCrunch: ['proof first. relax after.'],
   lastCall: ['still time. go.', 'it’s cheaper to just do it.'],
   goalToday: ['get it in early. sleep better.'],
@@ -91,6 +92,16 @@ export const MARGIN_NOTES = {
   dayBack: ['free day. it all counts tomorrow.'],
   firstDay: ['first day’s free. use it anyway.'],
 } satisfies Record<string, string[]>;
+
+/** A rejected attempt, in the words of how it was made. */
+const RETRY_COPY: Record<
+  'photo' | 'location' | 'timer',
+  { kicker: string; sentence: string; note: keyof typeof MARGIN_NOTES }
+> = {
+  photo: { kicker: 'photo didn’t pass', sentence: 'to retake it', note: 'retake' },
+  location: { kicker: 'check-in didn’t pass', sentence: 'to check in', note: 'retry' },
+  timer: { kicker: 'timer stopped early', sentence: 'to run it again', note: 'retry' },
+};
 
 function pickNote(key: keyof typeof MARGIN_NOTES, today: string): string {
   const notes = MARGIN_NOTES[key];
@@ -279,9 +290,10 @@ export function pickTodayMoment({
     return lines.slice(0, MAX_ALSO);
   };
 
-  // 1. A photo came back rejected: the day is still winnable, and says so.
+  // 1. Proof came back rejected: the day is still winnable, and says so.
   const setback = owed.find((habit) => habit.verification?.status === 'rejected');
   if (setback !== undefined) {
+    const retry = RETRY_COPY[setback.verification?.method ?? 'photo'];
     const run =
       setback.streak > 0
         ? `${streakAdjective({ count: setback.streak, unit: isDaily(setback) ? 'day' : 'week' })} streak`
@@ -290,12 +302,12 @@ export function pickTodayMoment({
     return {
       kind: 'retake',
       tone: 'urgent',
-      kicker: `Your ${setback.title} photo didn’t pass`,
+      kicker: `Your ${setback.title} ${retry.kicker}`,
       figure: { kind: 'time', text: clock },
-      sentence: `to retake it before midnight.${alive}`,
+      sentence: `${retry.sentence} before midnight.${alive}`,
       emphasis: run === null ? ['before midnight'] : ['before midnight', run],
       also: also({ clock: true, streak: true }),
-      note: pickNote('retake', today),
+      note: pickNote(retry.note, today),
     };
   }
 

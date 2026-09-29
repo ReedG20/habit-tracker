@@ -14,6 +14,7 @@ import ArrowRight01Icon from '@hugeicons/core-free-icons/ArrowRight01Icon';
 import Book02Icon from '@hugeicons/core-free-icons/Book02Icon';
 import BrainIcon from '@hugeicons/core-free-icons/BrainIcon';
 import Camera01Icon from '@hugeicons/core-free-icons/Camera01Icon';
+import CameraRotated01Icon from '@hugeicons/core-free-icons/CameraRotated01Icon';
 import Cancel01Icon from '@hugeicons/core-free-icons/Cancel01Icon';
 import CheckListIcon from '@hugeicons/core-free-icons/CheckListIcon';
 import CheckmarkCircle02Icon from '@hugeicons/core-free-icons/CheckmarkCircle02Icon';
@@ -23,6 +24,8 @@ import Dumbbell01Icon from '@hugeicons/core-free-icons/Dumbbell01Icon';
 import Edit02Icon from '@hugeicons/core-free-icons/Edit02Icon';
 import FavouriteIcon from '@hugeicons/core-free-icons/FavouriteIcon';
 import FlameIcon from '@hugeicons/core-free-icons/FlameIcon';
+import FlashIcon from '@hugeicons/core-free-icons/FlashIcon';
+import FlashOffIcon from '@hugeicons/core-free-icons/FlashOffIcon';
 import GoalIcon from '@hugeicons/core-free-icons/GoalIcon';
 import GoogleIcon from '@hugeicons/core-free-icons/GoogleIcon';
 import Home01Icon from '@hugeicons/core-free-icons/Home01Icon';
@@ -57,6 +60,7 @@ export {
   Book02Icon,
   BrainIcon,
   Camera01Icon,
+  CameraRotated01Icon,
   Cancel01Icon,
   CheckListIcon,
   CheckmarkCircle02Icon,
@@ -66,6 +70,8 @@ export {
   Edit02Icon,
   FavouriteIcon,
   FlameIcon,
+  FlashIcon,
+  FlashOffIcon,
   GoalIcon,
   GoogleIcon,
   Home01Icon,

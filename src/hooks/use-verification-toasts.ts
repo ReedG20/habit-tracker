@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 
 import { showToast } from '@/components/toast';
 import type { HabitWithProgress } from '@/data/habits';
+import { isProofOpen } from '@/lib/proof-watch';
 
 type Status = HabitWithProgress['verification'] extends infer V
   ? V extends { status: infer S }
@@ -10,9 +11,10 @@ type Status = HabitWithProgress['verification'] extends infer V
   : never;
 
 /**
- * Raises a toast the moment a photo check comes back rejected or failed while
- * the screen is open. Only transitions count: a verdict that was already there
- * when the screen mounted is old news and stays quiet.
+ * Raises a toast the moment a check comes back rejected or failed while the
+ * screen is open. Only transitions count: a verdict that was already there
+ * when the screen mounted is old news and stays quiet. So does one the prove
+ * screen is showing itself, which is every timer's.
  */
 export function useVerificationToasts(habits: HabitWithProgress[] | undefined) {
   const previous = useRef<Map<string, Status> | null>(null);
@@ -30,11 +32,12 @@ export function useVerificationToasts(habits: HabitWithProgress[] | undefined) {
         const status = next.get(habit._id);
         const before = previous.current.get(habit._id);
         if (status === before) continue;
+        if (habit.verification?.method === 'timer' || isProofOpen(habit._id)) continue;
 
         if (status === 'rejected') {
           showToast(
             `${habit.title} wasn't verified`,
-            habit.verification?.reason ?? 'Try another photo.',
+            habit.verification?.reason ?? 'Give it another go.',
           );
         } else if (status === 'failed') {
           showToast(`Couldn't check ${habit.title}`, 'Something went wrong. Try again.');

@@ -1,56 +1,70 @@
-import type { IconSvgElement } from '@hugeicons/react-native';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 
 import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
-import { Camera01Icon, Location01Icon, Timer02Icon } from '@/constants/icons';
-import { BorderRadius, Spacing } from '@/constants/theme';
+import {
+  PROOF_METHOD_ORDER,
+  PROOF_METHODS,
+  TIMER_MINUTES,
+  formatMinutes,
+  type ProofMethod,
+} from '@/constants/proof-methods';
+import { BorderRadius, PillRadius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { selectionHaptic } from '@/lib/haptics';
 
-type ProofMethod = {
-  key: string;
-  label: string;
-  hint: string;
-  icon: IconSvgElement;
-  available: boolean;
+/** The rule under the cards, so each method says what it asks of you. */
+const rules: Record<ProofMethod, string> = {
+  photo: 'Snap it in the app. AI checks it against what you write below.',
+  location: 'Check in when you get there. Ante matches the places around you.',
+  timer: 'Keep Ante open until the timer runs out. Leaving stops it.',
 };
 
-const methods: ProofMethod[] = [
-  { key: 'photo', label: 'Photo', hint: 'AI checks it', icon: Camera01Icon, available: true },
-  { key: 'location', label: 'Location', hint: 'be there', icon: Location01Icon, available: false },
-  { key: 'timer', label: 'Timer', hint: 'phone down', icon: Timer02Icon, available: false },
-];
+export type ProofMethodPickerProps = {
+  value: ProofMethod;
+  onChange: (method: ProofMethod) => void;
+  timerMinutes: number;
+  onTimerMinutesChange: (minutes: number) => void;
+};
 
-/**
- * Photo is the only proof the backend checks today, so it is always the
- * selection; the others are shown so people know what's coming.
- */
-export function ProofMethodPicker() {
+/** How a habit is proved; a timer also picks its length. Fixed once the habit is made. */
+export function ProofMethodPicker({
+  value,
+  onChange,
+  timerMinutes,
+  onTimerMinutesChange,
+}: ProofMethodPickerProps) {
   const theme = useTheme();
 
   return (
-    <View style={styles.field}>
+    <Animated.View style={styles.field} layout={LinearTransition.duration(220)}>
       <ThemedText type="small" themeColor="textSecondary">
         How will you prove it?
       </ThemedText>
       <View style={styles.row} accessibilityRole="radiogroup">
-        {methods.map((method) => {
-          const selected = method.available;
+        {PROOF_METHOD_ORDER.map((key) => {
+          const method = PROOF_METHODS[key];
+          const selected = key === value;
 
           return (
-            <View
-              key={method.key}
-              accessible
+            <Pressable
+              key={key}
               accessibilityRole="radio"
-              accessibilityLabel={`${method.label}, ${method.hint}${method.available ? '' : ', coming soon'}`}
-              accessibilityState={{ selected, disabled: !method.available }}
-              style={[
+              accessibilityLabel={`${method.label}, ${method.hint}`}
+              accessibilityState={{ selected }}
+              onPress={() => {
+                if (selected) return;
+                selectionHaptic();
+                onChange(key);
+              }}
+              style={({ pressed }) => [
                 styles.card,
                 {
                   backgroundColor: theme.backgroundElement,
                   borderColor: selected ? theme.primary : 'transparent',
                 },
-                !method.available && styles.unavailable,
+                pressed && styles.pressed,
               ]}>
               <View style={styles.labelRow}>
                 <Icon
@@ -64,19 +78,61 @@ export function ProofMethodPicker() {
                 </ThemedText>
               </View>
               <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-                {method.available ? method.hint : 'soon'}
+                {method.hint}
               </ThemedText>
-            </View>
+            </Pressable>
           );
         })}
       </View>
-    </View>
+
+      {value === 'timer' ? (
+        <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(120)}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.lengths}
+            accessibilityRole="radiogroup"
+            accessibilityLabel="Timer length">
+            {TIMER_MINUTES.map((minutes) => {
+              const selected = minutes === timerMinutes;
+              return (
+                <Pressable
+                  key={minutes}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                  onPress={() => {
+                    selectionHaptic();
+                    onTimerMinutesChange(minutes);
+                  }}
+                  style={({ pressed }) => [
+                    styles.length,
+                    {
+                      backgroundColor: selected ? theme.primary : theme.backgroundElement,
+                    },
+                    pressed && styles.pressed,
+                  ]}>
+                  <ThemedText
+                    type="smallSemibold"
+                    style={{ color: selected ? theme.onPrimary : theme.text }}>
+                    {formatMinutes(minutes)}
+                  </ThemedText>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </Animated.View>
+      ) : null}
+
+      <ThemedText type="small" themeColor="textSecondary">
+        {rules[value]}
+      </ThemedText>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   field: {
-    gap: Spacing.one,
+    gap: Spacing.two,
   },
   row: {
     flexDirection: 'row',
@@ -96,7 +152,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.one + 2,
   },
-  unavailable: {
-    opacity: 0.45,
+  lengths: {
+    gap: Spacing.two,
+  },
+  length: {
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    borderRadius: PillRadius,
+  },
+  pressed: {
+    opacity: 0.7,
   },
 });

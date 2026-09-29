@@ -8,6 +8,7 @@ import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
 import { FlameIcon, HabitIcon } from '@/constants/icons';
+import { PROOF_METHODS, proofMethodOf, proveLabel } from '@/constants/proof-methods';
 import { ActionCardRadius, ControlHeight, Spacing } from '@/constants/theme';
 import { targetPerWeek } from '@/convex/lib/frequency';
 import { describeEnding, isDaily, isWeekDone, type HabitWithProgress } from '@/data/habits';
@@ -137,11 +138,12 @@ export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: Ha
         />
       ) : (
         <ActionButton
-          label="Log"
-          accessibilityLabel={`Log ${habit.title}`}
+          label={PROOF_METHODS[proofMethodOf(habit)].verb}
+          icon={PROOF_METHODS[proofMethodOf(habit)].icon}
+          accessibilityLabel={proveLabel(habit)}
           variant="primary"
-          // `navigate` rather than `push`: a double tap must not stack two sheets.
-          onPress={() => router.navigate(`/habit/${habit._id}/verify`)}
+          // `navigate` rather than `push`: a double tap must not open it twice.
+          onPress={() => router.navigate(`/habit/${habit._id}/prove`)}
           style={styles.logAction}
         />
       )}

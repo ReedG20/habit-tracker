@@ -3,6 +3,7 @@ import { router, type Href } from 'expo-router';
 import { useEffect, useRef } from 'react';
 
 import { routeForPush, type PushData } from '@/lib/notifications';
+import { isProofOpen } from '@/lib/proof-watch';
 
 /**
  * Opens the screen a tapped push points at, including a push that launched
@@ -21,7 +22,10 @@ export function useNotificationTaps({ ready }: { ready: boolean }) {
     handled.current = identifier;
 
     const data = response.notification.request.content.data as PushData;
-    router.push(routeForPush(data) as Href);
+    // A stopped timer's prove screen is usually still open, and says so itself.
+    const alreadyThere =
+      data.kind === 'timer' && data.habitId !== undefined && isProofOpen(data.habitId);
+    if (!alreadyThere) router.push(routeForPush(data) as Href);
     void Notifications.clearLastNotificationResponseAsync().catch(() => {});
   }, [ready, response]);
 }

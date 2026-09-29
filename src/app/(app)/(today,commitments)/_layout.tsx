@@ -25,9 +25,9 @@ export default function CommitmentsLayout({ segment }: { segment: string }) {
       <Stack.Screen name="habit/[habitId]/index" />
       <Stack.Screen name="habit/[habitId]/edit" options={sheetScreenOptions} />
       <Stack.Screen
-        name="habit/[habitId]/verify"
-        // Taller than the form sheets: a photo preview sits above the buttons.
-        options={{ ...sheetScreenOptions, sheetAllowedDetents: [0.72] }}
+        name="habit/[habitId]/prove"
+        // Proving it is a moment, not a sheet: and a running timer can't be swiped away.
+        options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
       />
       <Stack.Screen name="goals/[goalId]/index" />
       <Stack.Screen name="goals/[goalId]/edit" options={sheetScreenOptions} />
