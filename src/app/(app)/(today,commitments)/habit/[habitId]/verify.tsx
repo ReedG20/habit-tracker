@@ -9,6 +9,7 @@ import { ActivityIndicator, Alert, Linking, StyleSheet, View } from 'react-nativ
 import { FormSheet } from '@/components/form-sheet';
 import { ActionButton } from '@/components/action-button';
 import { Icon } from '@/components/icon';
+import { ReplayMask } from '@/components/replay-mask';
 import { ThemedText } from '@/components/themed-text';
 import { Camera01Icon, Image01Icon } from '@/constants/icons';
 import { BorderRadius, Spacing } from '@/constants/theme';
@@ -16,11 +17,13 @@ import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import type { Habit } from '@/data/habits';
 import { useTheme } from '@/hooks/use-theme';
+import { captureError, track } from '@/lib/analytics';
 import { todayKey } from '@/lib/dates';
 
 type PickedPhoto = {
   uri: string;
   mimeType: string;
+  source: 'camera' | 'library';
 };
 
 /** The simulator has no camera, and the library is the escape hatch for development only. */
@@ -71,22 +74,22 @@ function VerifyHabitForm({ habit }: { habit: Habit }) {
     }
 
     const result = await ImagePicker.launchCameraAsync(PICKER_OPTIONS);
-    acceptResult(result);
+    acceptResult(result, 'camera');
   };
 
   const pickFromLibrary = async () => {
     // No permission request: iOS and Android both present a system picker.
     const result = await ImagePicker.launchImageLibraryAsync(PICKER_OPTIONS);
-    acceptResult(result);
+    acceptResult(result, 'library');
   };
 
-  const acceptResult = (result: ImagePicker.ImagePickerResult) => {
+  const acceptResult = (result: ImagePicker.ImagePickerResult, source: PickedPhoto['source']) => {
     const asset = result.canceled ? undefined : result.assets[0];
     if (!asset) return;
 
     // Camera output is JPEG and HEIC library picks are transcoded to JPEG,
     // so the fallback is right whenever the picker leaves the type out.
-    setPhoto({ uri: asset.uri, mimeType: asset.mimeType ?? 'image/jpeg' });
+    setPhoto({ uri: asset.uri, mimeType: asset.mimeType ?? 'image/jpeg', source });
   };
 
   const onSubmit = async () => {
@@ -115,6 +118,7 @@ function VerifyHabitForm({ habit }: { habit: Habit }) {
 
       const { storageId } = (await response.json()) as { storageId: Id<'_storage'> };
       await submit({ habitId: habit._id, day: todayKey(), photoId: storageId });
+      track('habit checked in', { photo_source: photo.source });
 
       // The sheet is swipe-dismissable; if it is already gone, `goBack` would
       // pop the list screen instead.
@@ -123,6 +127,7 @@ function VerifyHabitForm({ habit }: { habit: Habit }) {
       }
     } catch (error: unknown) {
       console.error('Failed to submit the photo for verification', error);
+      captureError(error, 'habit check-in');
       Alert.alert("Couldn't submit the photo", 'Check your connection and try again.');
       setSubmitting(false);
     }
@@ -140,12 +145,14 @@ function VerifyHabitForm({ habit }: { habit: Habit }) {
 
       <View style={[styles.preview, { backgroundColor: theme.backgroundElement }]}>
         {photo ? (
-          <Image
-            source={{ uri: photo.uri }}
-            style={StyleSheet.absoluteFill}
-            contentFit="cover"
-            accessibilityLabel="Your photo"
-          />
+          <ReplayMask style={StyleSheet.absoluteFill}>
+            <Image
+              source={{ uri: photo.uri }}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              accessibilityLabel="Your photo"
+            />
+          </ReplayMask>
         ) : (
           <Icon icon={Camera01Icon} size={28} themeColor="textSecondary" />
         )}

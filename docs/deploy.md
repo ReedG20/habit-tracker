@@ -281,6 +281,36 @@ bunx eas-cli@latest env:create --environment production --scope project --visibi
   production. The Time Sensitive Notifications capability comes from
   `app.config.ts`; EAS enables it on the App ID at build time.
 
+### 5b. PostHog (analytics, session replay, crashes)
+
+One PostHog project (US cloud, project id `636348`) takes every environment.
+Its token is public by design and lives in `src/lib/analytics.ts`, so the
+client needs no environment variables. Every event carries `app_env`
+(`development`, `preview` or `production`); the project's test-account filter
+hides development and preview. Events the native iOS SDK sends itself (native
+crashes, `$rageclick`) carry no `app_env` and count as production. Session replay runs in preview and production
+builds only.
+
+Readable stack traces need source maps (and dSYMs) uploaded. Builds do it from
+Xcode through the `posthog-react-native/expo` plugin; OTA updates do it in the
+Deploy and Release workflows. Both need a **personal** API key: PostHog →
+avatar → Personal API keys → new key. Scope it to the organization that holds
+Ante (Organization: Read isn't offered on project-scoped keys), with
+**error tracking: write** and **organization: read** only. Then set it in every EAS
+environment and in GitHub:
+
+```bash
+# With the key on the clipboard, so it stays out of shell history:
+bunx eas-cli@latest env:set --environment development --environment preview --environment production \
+  --scope project --visibility secret --name POSTHOG_CLI_API_KEY --value "$(pbpaste)"
+gh secret set POSTHOG_CLI_API_KEY   # prompts for the value
+```
+
+An EAS build without it **fails** at the upload step, so set it before
+merging a native change. `POSTHOG_CLI_PROJECT_ID` and `POSTHOG_CLI_HOST` are
+not secret and sit in `eas.json`. Without the GitHub secret, the OTA steps
+skip the upload with a warning.
+
 ### 6. GitHub
 
 Repository → Settings → Secrets and variables → Actions:
@@ -291,6 +321,7 @@ Repository → Settings → Secrets and variables → Actions:
 | `CONVEX_DEPLOY_KEY`         | the production deploy key from step 1                       |
 | `CONVEX_DEPLOY_KEY_DEV`     | the shared dev deployment's deploy key (see below)          |
 | `CONVEX_DEPLOY_KEY_PREVIEW` | optional; Convex **Preview** deploy key for per-PR backends |
+| `POSTHOG_CLI_API_KEY`       | PostHog personal API key for OTA source maps (step 5b)      |
 
 `CONVEX_DEPLOY_KEY_DEV`: Convex dashboard → the **dev** deployment
 (`cool-kiwi-961`) → Settings → **Deploy keys** → generate one. It starts with

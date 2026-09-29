@@ -8,6 +8,7 @@ import { ThemedText } from './themed-text';
 import { AppleIcon } from '@/constants/icons';
 import { PillRadius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { track } from '@/lib/analytics';
 
 export function AppleSignInButton() {
   const { startAppleAuthenticationFlow } = useSignInWithApple();
@@ -22,12 +23,15 @@ export function AppleSignInButton() {
     setBusy(true);
 
     try {
-      const { createdSessionId, setActive } = await startAppleAuthenticationFlow();
+      const { createdSessionId, setActive, signUp } = await startAppleAuthenticationFlow();
 
       // Navigation is handled by the root layout's auth guard once the session
       // becomes active, so there is nothing to route to here.
       if (createdSessionId && setActive) {
         await setActive({ session: createdSessionId });
+        // A brand-new account's session comes from the sign-up, not the sign-in.
+        const isNew = createdSessionId === signUp?.createdSessionId;
+        track(isNew ? 'signed up' : 'signed in', { method: 'apple' });
       }
     } catch (error) {
       // Dismissing the Apple sheet is not a failure worth surfacing.

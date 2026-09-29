@@ -28,6 +28,7 @@ import { api } from '@/convex/_generated/api';
 import { DAILY } from '@/convex/lib/frequency';
 import { MIN_STAKE_CENTS, type StakeKind } from '@/convex/lib/stakeRules';
 import { useStakePayment } from '@/hooks/use-stake-payment';
+import { captureError, track } from '@/lib/analytics';
 import { formatDueAt } from '@/lib/dates';
 import { formatCents } from '@/lib/money';
 
@@ -113,9 +114,11 @@ export function StakesStep({
       const card = await stakePayment.collectCard(draft.amountCents);
       if (card.kind === 'canceled') return;
       onChange({ card: { setupIntentId: card.setupIntentId, amountCents: draft.amountCents } });
+      track('card saved', { amount_cents: draft.amountCents });
       onNext();
     } catch (error: unknown) {
       console.error('Failed to save the card', error);
+      captureError(error, 'save card');
       Alert.alert(
         "Couldn't save your card",
         error instanceof Error ? error.message : 'Check your connection and try again.',

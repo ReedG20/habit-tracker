@@ -10,6 +10,7 @@ import { OnboardingScreen } from '@/components/onboarding/onboarding-screen';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { commitmentNoun } from '@/data/onboarding';
+import { track } from '@/lib/analytics';
 import { useOnboarding } from '@/lib/onboarding';
 
 /**
@@ -22,7 +23,9 @@ export default function SaveScreen() {
   const { draft } = useOnboarding();
 
   useEffect(() => {
-    if (isAuthenticated) router.replace('/onboarding/paywall');
+    if (!isAuthenticated) return;
+    track('onboarding step completed', { step: 'save' });
+    router.replace('/onboarding/paywall');
   }, [isAuthenticated]);
 
   if (draft === null) {

@@ -20,6 +20,7 @@ export default function ProScreen() {
   return (
     <ScrollView contentContainerStyle={styles.sheet} alwaysBounceVertical={false}>
       <ProPaywall
+        source="pro_sheet"
         onDismiss={dismiss}
         onFinished={(outcome) => {
           dismiss();

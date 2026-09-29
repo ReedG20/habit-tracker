@@ -1,9 +1,11 @@
+import { useUser } from '@clerk/expo';
 import { useMutation } from 'convex/react';
 import { useEffect, useSyncExternalStore } from 'react';
 import { AppState } from 'react-native';
 
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
+import { captureError, identifyUser } from '@/lib/analytics';
 import { logInRevenueCat, logOutRevenueCat } from '@/lib/revenuecat';
 
 // The signed-in user's id once their row is stored and RevenueCat is logged in
@@ -56,9 +58,19 @@ function deviceTimeZone(): string | undefined {
  *
  * The row also carries the device's time zone. Coming back to the foreground
  * reports it again, so a trip across zones is picked up without a relaunch.
+ *
+ * PostHog is identified by the same id once the row exists; signing out
+ * resets it (`useSignOut`).
  */
 export function useSignedInSession(isAuthenticated: boolean) {
   const storeUser = useMutation(api.users.storeUser);
+  const userId = useSessionUserId();
+  const { user } = useUser();
+  const email = user?.primaryEmailAddress?.emailAddress;
+
+  useEffect(() => {
+    if (userId !== null) identifyUser(userId, { email });
+  }, [userId, email]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -72,6 +84,7 @@ export function useSignedInSession(isAuthenticated: boolean) {
       })
       .catch((error: unknown) => {
         console.error('Failed to store the signed-in user', error);
+        captureError(error, 'store user');
       });
     // Only writes when the zone actually changed, so this is cheap to repeat.
     const foreground = AppState.addEventListener('change', (state) => {

@@ -10,6 +10,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Camera01Icon, CoinsDollarIcon, Target02Icon } from '@/constants/icons';
 import { BorderRadius, ControlHeight, Spacing, type ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { track } from '@/lib/analytics';
 
 type Rule = { icon: IconSvgElement; tint: ThemeColor; title: string; body: string };
 
@@ -48,7 +49,10 @@ export default function HowScreen() {
           label="Sounds fair"
           variant="primary"
           fill
-          onPress={() => router.push('/onboarding/focus')}
+          onPress={() => {
+            track('onboarding step completed', { step: 'how' });
+            router.push('/onboarding/focus');
+          }}
         />
       }>
       <View style={styles.rules}>

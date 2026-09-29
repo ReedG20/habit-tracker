@@ -13,6 +13,8 @@ import { Fonts, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { useSessionUserId } from '@/hooks/use-signed-in-session';
 import { useSubscription } from '@/hooks/use-subscription';
+import { captureError, track } from '@/lib/analytics';
+import type { PaywallSource } from '@/lib/analytics-events';
 import {
   checkTrialEligibility,
   hasPro,
@@ -42,6 +44,8 @@ type Plan = 'annual' | 'monthly';
 export type PaywallOutcome = 'purchased' | 'restored';
 
 export type ProPaywallProps = {
+  /** Where it was opened from, for analytics. */
+  source: PaywallSource;
   /** Replaces the default "Ante Pro" title block. */
   header?: ReactNode;
   /** After a successful purchase or restore; the caller dismisses and toasts. */
@@ -61,6 +65,7 @@ export type ProPaywallProps = {
  * UIKit sheet sits above the toast host. The caller provides the scroll view.
  */
 export function ProPaywall({
+  source,
   header,
   onFinished,
   onDismiss,
@@ -69,6 +74,10 @@ export function ProPaywall({
 }: ProPaywallProps) {
   const { isPro } = useSubscription();
   const syncSubscription = useAction(api.subscriptions.sync);
+
+  useEffect(() => {
+    track('paywall viewed', { source });
+  }, [source]);
 
   // RevenueCat is only logged in as this user once the session has stored
   // them; buying before that would credit an anonymous customer.
@@ -104,6 +113,7 @@ export function ProPaywall({
       })
       .catch((caught: unknown) => {
         console.error('Failed to load the Pro offering', caught);
+        captureError(caught, 'load pro offering');
         if (!cancelled) {
           setLoadError(describeLoadError(caught));
           setOffering(null);
@@ -131,16 +141,26 @@ export function ProPaywall({
     setAttempt((n) => n + 1);
   };
 
-  const buy = async (pkg: PurchasesPackage) => {
+  const buy = async (pkg: PurchasesPackage, plan: Plan) => {
     setBusy(true);
     setError(null);
+    const properties = {
+      plan,
+      product_id: pkg.product.identifier,
+      trial_eligible: plan === 'annual' && trialEligible,
+      source,
+    };
     try {
       const result = await purchasePackage(pkg);
       if (result.kind === 'purchased') {
+        track('pro purchased', properties);
         await finish('purchased');
+      } else {
+        track('pro purchase cancelled', properties);
       }
     } catch (caught: unknown) {
       console.error('Purchase failed', caught);
+      captureError(caught, 'purchase pro');
       setError(describeError(caught, "Couldn't complete the purchase."));
     } finally {
       setBusy(false);
@@ -152,6 +172,7 @@ export function ProPaywall({
     setError(null);
     try {
       const info = await restorePurchases();
+      track('pro restored', { found: hasPro(info) });
       if (hasPro(info)) {
         await finish('restored');
       } else {
@@ -159,6 +180,7 @@ export function ProPaywall({
       }
     } catch (caught: unknown) {
       console.error('Restore failed', caught);
+      captureError(caught, 'restore pro');
       setError(describeError(caught, "Couldn't restore purchases."));
     } finally {
       setBusy(false);
@@ -285,7 +307,7 @@ export function ProPaywall({
             variant="primary"
             fill
             disabled={busy || !sessionReady}
-            onPress={() => void buy(selected === 'annual' ? offering.annual : offering.monthly)}
+            onPress={() => void buy(offering[selected], selected)}
           />
 
           {secondary}

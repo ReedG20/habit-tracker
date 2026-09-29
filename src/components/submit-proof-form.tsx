@@ -17,6 +17,7 @@ import {
 import { ActionButton } from './action-button';
 import { Icon } from './icon';
 import { KeyboardDoneBar } from './keyboard/keyboard-done-bar';
+import { ReplayMask } from './replay-mask';
 import { ScreenScrollView } from './screen-scroll-view';
 import { TextField } from './text-field';
 import { ThemedText } from './themed-text';
@@ -27,6 +28,7 @@ import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import type { GoalWithStatus } from '@/data/goals';
 import { useTheme } from '@/hooks/use-theme';
+import { captureError, track } from '@/lib/analytics';
 
 type PickedPhoto = {
   uri: string;
@@ -186,9 +188,11 @@ export function SubmitProofForm({ goal, onSubmitted, onBack }: SubmitProofFormPr
         photoIds,
         text: note.length > 0 ? note : undefined,
       });
+      track('goal proof submitted', { photo_count: photoIds.length, has_note: note.length > 0 });
       onSubmitted();
     } catch (error: unknown) {
       console.error('Failed to submit the proof', error);
+      captureError(error, 'goal proof');
       Alert.alert(
         "Couldn't submit the proof",
         error instanceof Error ? error.message : 'Check your connection and try again.',
@@ -249,12 +253,14 @@ export function SubmitProofForm({ goal, onSubmitted, onBack }: SubmitProofFormPr
                 <View
                   key={photo.uri}
                   style={[styles.cell, tile, { backgroundColor: theme.backgroundElement }]}>
-                  <Image
-                    source={{ uri: photo.uri }}
-                    style={StyleSheet.absoluteFill}
-                    contentFit="cover"
-                    accessibilityLabel={`Photo ${index + 1}`}
-                  />
+                  <ReplayMask style={StyleSheet.absoluteFill}>
+                    <Image
+                      source={{ uri: photo.uri }}
+                      style={StyleSheet.absoluteFill}
+                      contentFit="cover"
+                      accessibilityLabel={`Photo ${index + 1}`}
+                    />
+                  </ReplayMask>
                   {submitting ? null : (
                     <Pressable
                       accessibilityRole="button"

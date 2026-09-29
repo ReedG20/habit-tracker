@@ -8,6 +8,7 @@ import { ThemedText } from './themed-text';
 import { GoogleIcon } from '@/constants/icons';
 import { PillRadius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { track } from '@/lib/analytics';
 
 /** Google's native SDK only ships for iOS and Android. */
 const SUPPORTED = Platform.OS === 'ios' || Platform.OS === 'android';
@@ -25,10 +26,13 @@ export function GoogleSignInButton() {
     setBusy(true);
 
     try {
-      const { createdSessionId, setActive } = await startGoogleAuthenticationFlow();
+      const { createdSessionId, setActive, signUp } = await startGoogleAuthenticationFlow();
 
       if (createdSessionId && setActive) {
         await setActive({ session: createdSessionId });
+        // A brand-new account's session comes from the sign-up, not the sign-in.
+        const isNew = createdSessionId === signUp?.createdSessionId;
+        track(isNew ? 'signed up' : 'signed in', { method: 'google' });
       }
     } catch (error) {
       const code = (error as { code?: string }).code;

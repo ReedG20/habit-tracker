@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 
 import { SingleChoiceStep } from '@/components/onboarding/single-choice-step';
 import { motivatorOptions } from '@/data/onboarding';
+import { track } from '@/lib/analytics';
 import { getOnboarding, setAnswers } from '@/lib/onboarding';
 
 export default function MotivatorScreen() {
@@ -14,6 +15,7 @@ export default function MotivatorScreen() {
       initial={getOnboarding().answers.motivator}
       onChoose={(motivator) => {
         setAnswers({ motivator });
+        track('onboarding step completed', { step: 'motivator', motivator });
         router.push('/onboarding/commitment');
       }}
     />
