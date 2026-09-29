@@ -4,7 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
 import { Camera01Icon, Location01Icon, Timer02Icon } from '@/constants/icons';
-import { BorderRadius, PillRadius, Spacing } from '@/constants/theme';
+import { BorderRadius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 type ProofMethod = {
@@ -52,26 +52,20 @@ export function ProofMethodPicker() {
                 },
                 !method.available && styles.unavailable,
               ]}>
-              <Icon
-                icon={method.icon}
-                size={24}
-                themeColor={selected ? 'primary' : 'textSecondary'}
-              />
-              <View>
-                <ThemedText type="smallBold" themeColor="text">
+              <View style={styles.labelRow}>
+                <Icon
+                  icon={method.icon}
+                  size={20}
+                  strokeWidth={2}
+                  themeColor={selected ? 'primary' : 'textSecondary'}
+                />
+                <ThemedText type="smallBold" themeColor="text" numberOfLines={1}>
                   {method.label}
                 </ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {method.hint}
-                </ThemedText>
               </View>
-              {!method.available ? (
-                <View style={[styles.soon, { backgroundColor: theme.backgroundSelected }]}>
-                  <ThemedText style={styles.soonText} themeColor="textSecondary">
-                    soon
-                  </ThemedText>
-                </View>
-              ) : null}
+              <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+                {method.available ? method.hint : 'soon'}
+              </ThemedText>
             </View>
           );
         })}
@@ -88,26 +82,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.two,
   },
+  // Icon beside the label, so the row stays short enough for the step to fit one screen.
   card: {
     flex: 1,
-    gap: Spacing.two,
-    padding: Spacing.three - 2,
+    gap: Spacing.half,
+    paddingVertical: Spacing.two + 2,
+    paddingHorizontal: Spacing.two + 2,
     borderRadius: BorderRadius,
     borderWidth: 2,
   },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one + 2,
+  },
   unavailable: {
     opacity: 0.45,
-  },
-  soon: {
-    position: 'absolute',
-    top: Spacing.two,
-    right: Spacing.two,
-    paddingHorizontal: Spacing.two,
-    borderRadius: PillRadius,
-  },
-  soonText: {
-    fontSize: 11,
-    lineHeight: 18,
-    fontWeight: 600,
   },
 });

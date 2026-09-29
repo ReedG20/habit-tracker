@@ -15,6 +15,8 @@ export type StepLayoutProps = {
   scrollRef?: Ref<ScrollView>;
   /** Holds the body still, e.g. while a finger is signing. */
   locked?: boolean;
+  /** Space between the body's sections, when the default leaves a step too tall to fit. */
+  gap?: number;
 };
 
 /**
@@ -31,6 +33,7 @@ export function StepLayout({
   footer,
   scrollRef,
   locked = false,
+  gap,
 }: StepLayoutProps) {
   const insets = useSafeAreaInsets();
   const [footerHeight, setFooterHeight] = useState(0);
@@ -41,7 +44,11 @@ export function StepLayout({
       <KeyboardScrollView
         ref={scrollRef}
         style={styles.fill}
-        contentContainerStyle={[styles.body, header !== undefined && styles.bodyUnderHeader]}
+        contentContainerStyle={[
+          styles.body,
+          header !== undefined && styles.bodyUnderHeader,
+          gap !== undefined && { gap },
+        ]}
         bottomInset={footerHeight}
         scrollEnabled={!locked}
         alwaysBounceVertical={false}>
@@ -61,14 +68,14 @@ const styles = StyleSheet.create({
   fill: {
     flex: 1,
   },
-  // Half the usual gap sits under the pinned header and half atop the body,
-  // so at rest it reads the same, and scrolled content runs up closer to it.
+  // Most of the gap sits under the pinned header and the rest atop the body,
+  // so scrolled content runs up close to it without touching.
   header: {
     paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.three,
   },
   bodyUnderHeader: {
-    paddingTop: Spacing.three,
+    paddingTop: Spacing.two,
   },
   body: {
     flexGrow: 1,

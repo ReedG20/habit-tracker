@@ -131,6 +131,8 @@ export function WhatStep({ draft, onChange, onNext, suggestions }: WhatStepProps
   return (
     <StepLayout
       scrollRef={scrollRef}
+      // Tighter than other steps, so the whole form fits without scrolling on most phones.
+      gap={Spacing.three}
       footer={
         <ActionButton
           label={wording.checking ? 'Checking…' : 'Next: set the stakes'}
@@ -212,7 +214,7 @@ export function WhatStep({ draft, onChange, onNext, suggestions }: WhatStepProps
           placeholder={placeholders[draft.kind].proof}
           multiline
         />
-        <Note>be specific. vague proof is how people cheat themselves.</Note>
+        <Note>be specific. vague proof is a way out.</Note>
       </View>
 
       {wording.revision !== null ? (

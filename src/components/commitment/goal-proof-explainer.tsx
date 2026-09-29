@@ -28,8 +28,8 @@ export function GoalProofExplainer() {
             Photos of the finished result
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            When it’s done, send up to {MAX_PHOTOS} photos before the deadline. AI checks them
-            against what you write below. Not accepted? Try again until time runs out.
+            Up to {MAX_PHOTOS}, before the deadline. AI checks them against what you write below,
+            and you can retry until time’s up.
           </ThemedText>
         </View>
       </View>
