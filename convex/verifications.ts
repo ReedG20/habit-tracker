@@ -1,14 +1,11 @@
 import { v } from 'convex/values';
 
 import { internal } from './_generated/api';
-import type { Doc, Id } from './_generated/dataModel';
-import { internalAction, internalMutation, type MutationCtx } from './_generated/server';
-import { requireHabitsUnfrozen } from './freezes';
-import { requireOwnedHabit } from './habits';
-import { authedMutation } from './lib/customFunctions';
-import { requirePro } from './lib/entitlements';
-import { localDay, requireUnlocked } from './lib/lockout';
-import { notifyHabitVerdict } from './lib/notify';
+import type { Id } from './_generated/dataModel';
+import { internalAction, internalMutation } from './_generated/server';
+import { authedMutation, authedQuery } from './lib/customFunctions';
+import { requireCanProve, settleVerification } from './lib/proof';
+import { proofMethodValidator } from './lib/proofMethods';
 import {
   EXPIRE_AFTER_MS,
   FAILED_REASON,
@@ -18,7 +15,7 @@ import {
 } from './lib/vision';
 
 /**
- * Photo verification: the only way a habit gets logged.
+ * Photo verification, and the verification rows every proof method shares.
  *
  * `submit` records a pending row and schedules `analyze`, which asks a vision
  * model whether the photo plausibly shows the habit being done and then
@@ -55,25 +52,14 @@ export const generateUploadUrl = authedMutation({
 });
 
 /**
- * Records the submission and kicks off analysis. The day is worked out here
- * from the user's stored time zone, so a photo can never be filed under a day
- * the lockout check has already judged. The client's `day` is only used for
- * users whose zone is not known yet (builds from before the lockout).
+ * Records the submission and kicks off analysis. `requireCanProve` works out
+ * the day and refuses a habit that is already logged or mid-check.
  */
 export const submit = authedMutation({
   args: { habitId: v.id('habits'), day: v.string(), photoId: v.id('_storage') },
   returns: v.id('habitVerifications'),
   handler: async (ctx, args): Promise<Id<'habitVerifications'>> => {
-    const habit = await requireOwnedHabit(ctx, args.habitId);
-    await requireUnlocked(ctx, ctx.user._id);
-    await requireHabitsUnfrozen(ctx, ctx.user._id);
-    if (habit.brokenAt !== undefined) {
-      throw new Error('This streak broke. Restart the habit to log it again.');
-    }
-    // A paused habit (Pro ended) is not checked, so it takes no photos either.
-    await requirePro(ctx, ctx.user._id);
-    const day =
-      ctx.user.timeZone === undefined ? args.day : localDay(Date.now(), ctx.user.timeZone);
+    const { habit, day } = await requireCanProve(ctx, args.habitId, args.day, 'photo');
 
     // Cheap gate before spending a model call: the upload must really be an image.
     const file = await ctx.db.system.get('_storage', args.photoId);
@@ -81,27 +67,11 @@ export const submit = authedMutation({
       throw new Error('The uploaded file is not a supported image');
     }
 
-    const completion = await ctx.db
-      .query('habitCompletions')
-      .withIndex('by_habit_and_day', (q) => q.eq('habitId', args.habitId).eq('day', day))
-      .unique();
-    if (completion !== null) {
-      throw new Error('This habit is already logged for today');
-    }
-
-    const latest = await ctx.db
-      .query('habitVerifications')
-      .withIndex('by_habit_and_day', (q) => q.eq('habitId', args.habitId).eq('day', day))
-      .order('desc')
-      .first();
-    if (latest?.status === 'pending') {
-      throw new Error('A photo for this habit is already being verified');
-    }
-
     const verificationId = await ctx.db.insert('habitVerifications', {
       userId: ctx.user._id,
       habitId: args.habitId,
       day,
+      method: 'photo',
       photoId: args.photoId,
       status: 'pending',
       createdAt: Date.now(),
@@ -119,6 +89,36 @@ export const submit = authedMutation({
     });
 
     return verificationId;
+  },
+});
+
+/**
+ * One attempt, for the prove screen to watch until its verdict lands. Null
+ * once the habit (and the row) is gone.
+ */
+export const get = authedQuery({
+  args: { verificationId: v.id('habitVerifications') },
+  returns: v.union(
+    v.object({
+      status: v.union(
+        v.literal('pending'),
+        v.literal('approved'),
+        v.literal('rejected'),
+        v.literal('failed'),
+      ),
+      reason: v.optional(v.string()),
+      method: v.optional(proofMethodValidator),
+    }),
+    v.null(),
+  ),
+  handler: async (ctx, args) => {
+    const verification = await ctx.db.get('habitVerifications', args.verificationId);
+    if (verification === null || verification.userId !== ctx.user._id) return null;
+    return {
+      status: verification.status,
+      reason: verification.reason,
+      method: verification.method,
+    };
   },
 });
 
@@ -162,34 +162,21 @@ export const analyze = internalAction({
   },
 });
 
-/**
- * Idempotent on purpose: `analyze` may report back after `expire` already
- * flipped the row, or after the habit (and the row) was deleted.
- */
+/** See `settleVerification`: idempotent, and the one place a verdict lands. */
 export const resolve = internalMutation({
   args: {
     verificationId: v.id('habitVerifications'),
     status: resolvedStatusValidator,
     reason: v.string(),
+    placeId: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, args): Promise<null> => {
-    const verification = await ctx.db.get('habitVerifications', args.verificationId);
-    if (verification === null || verification.status !== 'pending') {
-      return null;
-    }
-
-    await ctx.db.patch('habitVerifications', args.verificationId, {
+    await settleVerification(ctx, args.verificationId, {
       status: args.status,
       reason: args.reason,
-      resolvedAt: Date.now(),
+      placeId: args.placeId,
     });
-
-    if (args.status === 'approved') {
-      await logCompletion(ctx, verification);
-    }
-    await notifyHabitVerdict(ctx, verification, args.status, args.reason);
-
     return null;
   },
 });
@@ -212,34 +199,3 @@ export const expire = internalMutation({
     return null;
   },
 });
-
-/**
- * Uses the day stored on the verification, not "now", so a verdict that lands
- * after midnight still counts for the day the photo was taken.
- */
-async function logCompletion(
-  ctx: MutationCtx,
-  verification: Doc<'habitVerifications'>,
-): Promise<void> {
-  const habit = await ctx.db.get('habits', verification.habitId);
-  if (habit === null) {
-    return;
-  }
-
-  const existing = await ctx.db
-    .query('habitCompletions')
-    .withIndex('by_habit_and_day', (q) =>
-      q.eq('habitId', verification.habitId).eq('day', verification.day),
-    )
-    .unique();
-  if (existing !== null) {
-    return;
-  }
-
-  await ctx.db.insert('habitCompletions', {
-    userId: verification.userId,
-    habitId: verification.habitId,
-    day: verification.day,
-    completedAt: Date.now(),
-  });
-}

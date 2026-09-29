@@ -22,3 +22,13 @@ export function lossHaptic() {
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
   }, 180);
 }
+
+/** A check said no, but it's only a retry away. */
+export function warningHaptic() {
+  if (supported) void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+}
+
+/** A firm press: a shutter, a timer starting. */
+export function pressHaptic() {
+  if (supported) void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+}

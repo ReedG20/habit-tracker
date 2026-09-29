@@ -4,6 +4,8 @@ import { Alert } from 'react-native';
 
 import type { CommitmentKind } from './draft';
 
+import type { ProofMethod } from '@/constants/proof-methods';
+
 import { api } from '@/convex/_generated/api';
 import type { WordingCheckResult } from '@/convex/commitmentChecks';
 
@@ -12,6 +14,8 @@ export type WordingCheckInput = {
   title: string;
   proof: string;
   timesPerWeek?: number;
+  proofMethod?: ProofMethod;
+  timerMinutes?: number;
 };
 
 /** A check that came back asking for another pass: what to say, and a rewrite if the model had one. */

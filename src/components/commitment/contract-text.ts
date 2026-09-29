@@ -1,4 +1,4 @@
-import { lockoutLabel, type CommitmentDraft } from './draft';
+import { draftProofMethod, lockoutLabel, type CommitmentDraft } from './draft';
 
 import { DAILY, frequencyLabel } from '@/convex/lib/frequency';
 import { formatDueAt } from '@/lib/dates';
@@ -27,6 +27,49 @@ export function missConsequence(draft: CommitmentDraft): string {
   }
 }
 
+/** How one session gets proved, as a bare action: "prove it with a photo", "finish a 20-minute timer". */
+export function proofAction(draft: CommitmentDraft): string {
+  switch (draftProofMethod(draft)) {
+    case 'photo':
+      return 'prove it with a photo';
+    case 'location':
+      return 'check in from the place';
+    case 'timer':
+      return `finish a ${draft.timerMinutes}-minute timer with Ante open`;
+  }
+}
+
+/** The proof on one line of a summary card: "Photo: …", "Check in at: …", "20 min timer: …". */
+export function proofSummary(draft: CommitmentDraft): string {
+  const proof = draft.proof.trim();
+  switch (draftProofMethod(draft)) {
+    case 'photo':
+      return `Photo: ${proof}`;
+    case 'location':
+      return `Check in at: ${proof}`;
+    case 'timer':
+      return `${draft.timerMinutes} min timer: ${proof}`;
+  }
+}
+
+/** The proof as the middle of a sentence: "… prove it with a photo showing <proof>". */
+function proofRuns(draft: CommitmentDraft): ContractRun[] {
+  const proof = { text: lowerFirst(draft.proof), strong: true };
+  switch (draftProofMethod(draft)) {
+    case 'photo':
+      return [{ text: 'prove it with a photo showing ' }, proof];
+    case 'location':
+      return [{ text: 'check in with my location at ' }, proof];
+    case 'timer':
+      return [
+        { text: 'keep Ante open for a ' },
+        { text: `${draft.timerMinutes}-minute`, strong: true },
+        { text: ' timer while I ' },
+        proof,
+      ];
+  }
+}
+
 /** The contract as one "I will…" paragraph, with the user's own terms marked. */
 export function contractRuns(draft: CommitmentDraft): ContractRun[] {
   const lock = { text: missConsequence(draft), strong: true };
@@ -37,8 +80,8 @@ export function contractRuns(draft: CommitmentDraft): ContractRun[] {
       { text: lowerFirst(draft.title), strong: true },
       { text: ', ' },
       { text: frequencyLabel(draft.timesPerWeek).toLowerCase(), strong: true },
-      { text: '. Each time I’ll prove it with a photo showing ' },
-      { text: lowerFirst(draft.proof), strong: true },
+      { text: '. Each time I’ll ' },
+      ...proofRuns(draft),
       { text: '. If I end a week short, ' },
       lock,
       { text: '.' },
@@ -49,8 +92,8 @@ export function contractRuns(draft: CommitmentDraft): ContractRun[] {
     return [
       { text: 'I will ' },
       { text: lowerFirst(draft.title), strong: true },
-      { text: ', every day. Each day I’ll prove it with a photo showing ' },
-      { text: lowerFirst(draft.proof), strong: true },
+      { text: ', every day. Each day I’ll ' },
+      ...proofRuns(draft),
       { text: '. If I miss a day, ' },
       lock,
       { text: '.' },

@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   cardForStake,
   defaultDueAt,
+  FRESH_PROOF,
   freshStake,
   plainStake,
   reuseForStake,
@@ -40,6 +41,8 @@ function draftFor(habit: Doc<'habits'>, lost: Loss | null): CommitmentDraft {
     title: habit.title,
     proof: habit.description ?? '',
     timesPerWeek: habit.timesPerWeek ?? DAILY,
+    proofMethod: habit.proofMethod ?? FRESH_PROOF.proofMethod,
+    timerMinutes: habit.timerMinutes ?? FRESH_PROOF.timerMinutes,
     dueAt: defaultDueAt(),
     ...freshStake('habit', true),
   };

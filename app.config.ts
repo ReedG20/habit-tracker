@@ -69,6 +69,27 @@ const config: ExpoConfig = {
         microphonePermission: false,
       },
     ],
+    // The in-app camera for habit photo proof. Same wording as the picker's, which
+    // sets the same key; no video, so no microphone.
+    [
+      'expo-camera',
+      {
+        cameraPermission:
+          'Allow $(PRODUCT_NAME) to use the camera to verify your habits and goals.',
+        microphonePermission: false,
+        recordAudioAndroid: false,
+      },
+    ],
+    // Location check-ins: one reading when the user taps "Check in", never in the background.
+    [
+      'expo-location',
+      {
+        locationWhenInUsePermission:
+          'Ante checks where you are only when you tap Check in, to prove a location habit.',
+        isIosBackgroundLocationEnabled: false,
+        isAndroidBackgroundLocationEnabled: false,
+      },
+    ],
     '@clerk/expo-google-signin',
     'expo-apple-authentication',
     // Card entry for goal stakes. No Apple Pay yet, so no merchant identifier.

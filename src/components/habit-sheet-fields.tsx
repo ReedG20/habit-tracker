@@ -1,6 +1,7 @@
 import { useRef, type MutableRefObject } from 'react';
 
 import { TextField, type TextFieldHandle } from '@/components/text-field';
+import { PROOF_METHODS, type ProofMethod } from '@/constants/proof-methods';
 
 export type HabitDraft = {
   title: string;
@@ -10,10 +11,17 @@ export type HabitDraft = {
 export type HabitSheetFieldsProps = {
   initial?: Partial<HabitDraft>;
   draftRef: MutableRefObject<HabitDraft>;
+  /** Labels the proof field; the method itself is fixed once the habit is made. */
+  proofMethod?: ProofMethod;
 };
 
-export function HabitSheetFields({ initial, draftRef }: HabitSheetFieldsProps) {
+export function HabitSheetFields({
+  initial,
+  draftRef,
+  proofMethod = 'photo',
+}: HabitSheetFieldsProps) {
   const proofRef = useRef<TextFieldHandle>(null);
+  const method = PROOF_METHODS[proofMethod];
 
   return (
     <>
@@ -30,12 +38,12 @@ export function HabitSheetFields({ initial, draftRef }: HabitSheetFieldsProps) {
       />
       <TextField
         ref={proofRef}
-        label="What does the photo need to show?"
+        label={method.proofLabel}
         defaultValue={initial?.description ?? ''}
         onChangeText={(text) => {
           draftRef.current.description = text;
         }}
-        placeholder="Me at the gym with the equipment in view"
+        placeholder={method.proofPlaceholder}
         multiline
       />
     </>

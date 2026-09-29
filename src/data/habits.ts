@@ -12,6 +12,8 @@ export type HabitVerification = Doc<'habitVerifications'>;
 export type HabitVerificationSummary = {
   status: HabitVerification['status'];
   reason?: string;
+  /** How that attempt was made; photo when absent. */
+  method?: HabitVerification['method'];
 };
 
 /** What `api.habits.list` returns: a habit plus today's state, this week's count and its streak. */

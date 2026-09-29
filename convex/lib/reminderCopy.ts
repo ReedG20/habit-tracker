@@ -81,6 +81,8 @@ export type EventMessage =
       subject: 'habit' | 'goal';
       title: string;
       reason: string;
+      /** How the habit is proved; photo when absent. */
+      method?: 'photo' | 'location' | 'timer';
       /** Time left to try again, or `null` once the deadline has passed. */
       msLeft: number | null;
     }
@@ -233,7 +235,7 @@ function habitsCopy(message: Extract<ReminderMessage, { kind: 'habits' }>): Push
           seed,
           [
             `${left} to log it, or ${missConsequence([only.stake])}.`,
-            `${left}. One photo keeps the streak alive.`,
+            `${left}. One log keeps the streak alive.`,
           ],
           step,
         ),
@@ -246,7 +248,7 @@ function habitsCopy(message: Extract<ReminderMessage, { kind: 'habits' }>): Push
         [
           `Still open. ${left} till midnight.`,
           `Not logged yet. ${left} on the clock.`,
-          `Still waiting on a photo. ${left} left.`,
+          `Still waiting on your proof. ${left} left.`,
         ],
         step,
       ),
@@ -360,9 +362,11 @@ export function eventCopy(message: EventMessage): PushCopy {
           : ` ${formatTimeLeft(message.msLeft)} left to retry.`;
       return {
         title:
-          message.subject === 'habit'
-            ? `${message.title}: photo didn’t pass`
-            : `${message.title}: proof didn’t pass`,
+          message.subject === 'goal'
+            ? `${message.title}: proof didn’t pass`
+            : message.method === 'location'
+              ? `${message.title}: check-in didn’t pass`
+              : `${message.title}: photo didn’t pass`,
         body: `${clip(message.reason)}${retry}`,
       };
     }

@@ -33,7 +33,7 @@ const PRIVACY_URL = 'https://useanteapp.com/privacy';
 
 const benefits = [
   { icon: FlameIcon, label: 'Unlimited habits and goals' },
-  { icon: Camera01Icon, label: 'Every check-in proven with a photo' },
+  { icon: Camera01Icon, label: 'Every check-in proven: photo, place or timer' },
   { icon: CoinsDollarIcon, label: 'Put money on any goal' },
 ];
 
