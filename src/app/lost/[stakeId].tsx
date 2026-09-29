@@ -30,7 +30,7 @@ import { cardLabel, formatCents } from '@/lib/money';
 /**
  * The page a lost stake opens: shown on its own the next time the app is up
  * (`useLossPresenter`), or from the push. It lands in beats: what was lost,
- * struck through and drained; what happened, in one plain sentence; what the
+ * struck through and dimmed; what happened, in one plain sentence; what the
  * stake bought while it held; and the way back in, one tap from here.
  *
  * Always dark, whatever the system setting: this is the one screen in Ante
@@ -51,7 +51,7 @@ const INK = {
 const BEAT = {
   kicker: 150,
   strike: 700,
-  drain: 1100,
+  dim: 1100,
   gone: 2000,
   line: 2300,
   bought: 2800,
@@ -123,11 +123,7 @@ function LossBody({
       </Animated.Text>
 
       {story.headline.kind === 'money' ? (
-        <DrainingAmount
-          cents={story.headline.cents}
-          gone={story.gone}
-          reduceMotion={reduceMotion}
-        />
+        <StruckAmount cents={story.headline.cents} gone={story.gone} reduceMotion={reduceMotion} />
       ) : (
         <Animated.Text
           entering={FadeInDown.delay(delay(BEAT.strike)).duration(600)}
@@ -179,10 +175,10 @@ function LossBody({
 }
 
 /**
- * The amount, then a hand-drawn strike across it, then it drains to nothing
- * and "Gone." takes its place. A declined card skips the drain: nothing left.
+ * The amount, then a hand-drawn strike across it as it dims, then "Gone."
+ * under it. A declined card is struck too, but it's still owed.
  */
-function DrainingAmount({
+function StruckAmount({
   cents,
   gone,
   reduceMotion,
@@ -192,8 +188,7 @@ function DrainingAmount({
   reduceMotion: boolean;
 }) {
   const strike = useSharedValue(reduceMotion ? 1 : 0);
-  const fade = useSharedValue(1);
-  const [shown, setShown] = useState(reduceMotion && gone ? 0 : cents);
+  const fade = useSharedValue(reduceMotion ? 0.4 : 1);
 
   useEffect(() => {
     if (reduceMotion) return;
@@ -201,25 +196,8 @@ function DrainingAmount({
       BEAT.strike,
       withTiming(1, { duration: 380, easing: Easing.out(Easing.cubic) }),
     );
-    if (!gone) return;
-    fade.value = withDelay(BEAT.drain, withTiming(0.35, { duration: 900 }));
-
-    let frame = 0;
-    const timer = setTimeout(() => {
-      const start = performance.now();
-      const step = () => {
-        const progress = Math.min(1, (performance.now() - start) / 900);
-        const eased = progress ** 2;
-        setShown(Math.round(cents * (1 - eased)));
-        if (progress < 1) frame = requestAnimationFrame(step);
-      };
-      frame = requestAnimationFrame(step);
-    }, BEAT.drain);
-    return () => {
-      clearTimeout(timer);
-      cancelAnimationFrame(frame);
-    };
-  }, [cents, gone, reduceMotion, strike, fade]);
+    fade.value = withDelay(BEAT.dim, withTiming(0.4, { duration: 900 }));
+  }, [reduceMotion, strike, fade]);
 
   const strikeStyle = useAnimatedStyle(() => ({ transform: [{ scaleX: strike.value }] }));
   const amountStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
@@ -228,26 +206,18 @@ function DrainingAmount({
     <View
       style={styles.amountBlock}
       accessible
-      accessibilityLabel={`${formatCents(cents)} ${gone ? 'lost' : 'owed'}`}>
-      <View>
+      accessibilityLabel={`${formatCents(cents)} ${gone ? 'lost' : 'still owed'}`}>
+      <View style={styles.struck}>
         <Animated.Text style={[styles.amount, amountStyle]} numberOfLines={1}>
-          {formatCents(shown)}
+          {formatCents(cents)}
         </Animated.Text>
         <Animated.View style={[styles.strike, strikeStyle]} />
       </View>
-      {gone ? (
-        <Animated.Text
-          entering={FadeIn.delay(reduceMotion ? 0 : BEAT.gone).duration(500)}
-          style={styles.gone}>
-          Gone.
-        </Animated.Text>
-      ) : (
-        <Animated.Text
-          entering={FadeIn.delay(reduceMotion ? 0 : BEAT.gone).duration(500)}
-          style={styles.gone}>
-          Still owed.
-        </Animated.Text>
-      )}
+      <Animated.Text
+        entering={FadeIn.delay(reduceMotion ? 0 : BEAT.gone).duration(500)}
+        style={styles.gone}>
+        {gone ? 'Gone.' : 'Still owed.'}
+      </Animated.Text>
     </View>
   );
 }
@@ -451,6 +421,10 @@ const styles = StyleSheet.create({
   },
   amountBlock: {
     gap: Spacing.one,
+  },
+  // Sized to the number, so the strike runs just past its edges.
+  struck: {
+    alignSelf: 'flex-start',
   },
   // Comico sits high in its line box: a tall box keeps the digits from clipping.
   amount: {

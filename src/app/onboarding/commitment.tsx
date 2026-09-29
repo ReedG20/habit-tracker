@@ -31,7 +31,7 @@ function stepTitle(step: Step): string {
       return 'What are you committing to?';
     // No price to set: money waits until there is an account to save a card to.
     case 'stakes':
-      return 'What’s at stake.';
+      return 'What’s at stake?';
     case 'sign':
       return 'Sign it.';
   }

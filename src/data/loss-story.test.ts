@@ -55,6 +55,7 @@ describe('loss story', () => {
     const story = lossStory(habitLoss(10, { status: 'charge_failed', failureKind: 'declined' }));
     expect(story.gone).toBe(false);
     expect(story.line).toContain('Your card declined, so the $25 didn’t go through.');
+    expect(story.bought).toBeNull();
   });
 
   test('a friend who was told, and a lockout, get their own words', () => {

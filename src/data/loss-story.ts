@@ -81,7 +81,8 @@ export function lossStory(loss: Loss): LossStory {
         ? `${what} Your card declined, so the ${amount} didn’t go through. You still owe it, and money stays off the table until it’s settled.`
         : `${what} ${amount} was charged to ${card}.`,
       emphasis: [title, amount],
-      bought: isHabit ? bought(stake.amountCents, streak, unit) : null,
+      // Nothing was paid on a decline, so the money can't be said to have bought anything.
+      bought: isHabit && !declined ? bought(stake.amountCents, streak, unit) : null,
       note: declined
         ? 'a bet you don’t pay isn’t a bet.'
         : isHabit
