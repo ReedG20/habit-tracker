@@ -4,6 +4,7 @@ import { useAction } from 'convex/react';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import { formatCents } from '@/lib/money';
+import { UserFacingError } from '@/lib/user-errors';
 
 export type SettleUpResult = 'settled' | 'pending' | 'canceled';
 
@@ -37,11 +38,11 @@ export function useSettleUp(): SettleUp {
         allowsDelayedPaymentMethods: false,
         primaryButtonLabel: `Pay ${formatCents(intent.amountCents)}`,
       });
-      if (init.error) throw new Error(init.error.message);
+      if (init.error) throw new UserFacingError(init.error.message);
 
       const { error } = await presentPaymentSheet();
       if (error?.code === 'Canceled') return 'canceled';
-      if (error) throw new Error(error.message);
+      if (error) throw new UserFacingError(error.message);
 
       const { settled } = await confirm({ stakeId });
       return settled ? 'settled' : 'pending';

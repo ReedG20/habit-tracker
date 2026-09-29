@@ -1,3 +1,4 @@
+import { ConvexError } from 'convex/values';
 import * as Updates from 'expo-updates';
 import PostHog from 'posthog-react-native';
 
@@ -74,9 +75,12 @@ export function resetAnalytics(): void {
 
 /**
  * Reports a failure the app caught and showed the user, which autocapture
- * never sees. `where` names the flow, so issues group by what broke.
+ * never sees. `where` names the flow, so issues group by what broke. A
+ * `ConvexError` is the server refusing on purpose ("pick someone other than
+ * yourself"), not a bug, so it stays out of error tracking.
  */
 export function captureError(error: unknown, where: string): void {
+  if (error instanceof ConvexError) return;
   posthog.captureException(error, { where });
 }
 

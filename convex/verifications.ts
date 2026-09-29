@@ -1,4 +1,4 @@
-import { v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 
 import { internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
@@ -64,7 +64,7 @@ export const submit = authedMutation({
     // Cheap gate before spending a model call: the upload must really be an image.
     const file = await ctx.db.system.get('_storage', args.photoId);
     if (file === null || !IMAGE_CONTENT_TYPES.has(file.contentType ?? '')) {
-      throw new Error('The uploaded file is not a supported image');
+      throw new ConvexError('The uploaded file is not a supported image');
     }
 
     const verificationId = await ctx.db.insert('habitVerifications', {

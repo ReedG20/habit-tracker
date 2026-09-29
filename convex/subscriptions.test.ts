@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
+import { PRO_REQUIRED } from './lib/entitlements';
 import { parseProEntitlement } from './subscriptions';
 import { grantPro, setup, type Harness } from './test.helpers';
 
@@ -35,12 +36,16 @@ describe('making a commitment needs Pro', () => {
     const t = setup();
     const alice = await signIn(t, 'alice', false);
 
-    await expect(alice.as.mutation(api.habits.create, { title: 'Run' })).rejects.toThrow(
-      'Ante Pro is required',
-    );
+    // `ConvexError`s, so the reason reaches the app in production too.
+    const refused = expect.objectContaining({ data: PRO_REQUIRED });
+    await expect(alice.as.mutation(api.habits.create, { title: 'Run' })).rejects.toThrow(refused);
     await expect(
       alice.as.mutation(api.goals.create, { title: 'Ship it', dueAt: Date.now() + 86_400_000 }),
-    ).rejects.toThrow('Ante Pro is required');
+    ).rejects.toThrow(refused);
+    // Actions too: refused before Stripe is ever called.
+    await expect(alice.as.action(api.stakes.beginMoney, { amountCents: 1000 })).rejects.toThrow(
+      refused,
+    );
   });
 
   test('a lapsed habit takes no check-ins', async () => {

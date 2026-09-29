@@ -38,6 +38,7 @@ import { DAILY } from '@/convex/lib/frequency';
 import { captureError, track } from '@/lib/analytics';
 import { commitmentCreatedProperties } from '@/lib/analytics-events';
 import { cardLabel } from '@/lib/money';
+import { userErrorMessage } from '@/lib/user-errors';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -232,7 +233,7 @@ export default function NewCommitmentScreen() {
       captureError(error, 'create commitment');
       Alert.alert(
         "Couldn't lock it in",
-        error instanceof Error ? error.message : 'Check your connection and try again.',
+        userErrorMessage(error, 'Check your connection and try again.'),
       );
     } finally {
       setBusy(false);

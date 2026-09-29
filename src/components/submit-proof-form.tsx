@@ -29,6 +29,7 @@ import type { Id } from '@/convex/_generated/dataModel';
 import type { GoalWithStatus } from '@/data/goals';
 import { useTheme } from '@/hooks/use-theme';
 import { captureError, track } from '@/lib/analytics';
+import { userErrorMessage } from '@/lib/user-errors';
 
 type PickedPhoto = {
   uri: string;
@@ -195,7 +196,7 @@ export function SubmitProofForm({ goal, onSubmitted, onBack }: SubmitProofFormPr
       captureError(error, 'goal proof');
       Alert.alert(
         "Couldn't submit the proof",
-        error instanceof Error ? error.message : 'Check your connection and try again.',
+        userErrorMessage(error, 'Check your connection and try again.'),
       );
       setSubmitting(false);
     }

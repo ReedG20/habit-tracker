@@ -31,6 +31,7 @@ import { useStakePayment } from '@/hooks/use-stake-payment';
 import { captureError, track } from '@/lib/analytics';
 import { formatDueAt } from '@/lib/dates';
 import { formatCents } from '@/lib/money';
+import { userErrorMessage } from '@/lib/user-errors';
 
 /**
  * The step has two pages under one title: `pick` the kind of stake, then
@@ -121,7 +122,7 @@ export function StakesStep({
       captureError(error, 'save card');
       Alert.alert(
         "Couldn't save your card",
-        error instanceof Error ? error.message : 'Check your connection and try again.',
+        userErrorMessage(error, 'Check your connection and try again.'),
       );
     } finally {
       setBusy(false);
