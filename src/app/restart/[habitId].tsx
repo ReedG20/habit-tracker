@@ -179,7 +179,11 @@ function RestartFlow({
       {step === 'done' ? (
         <View style={styles.header} />
       ) : (
-        <View style={styles.header}>
+        <View
+          style={[
+            styles.header,
+            step === 'stakes' && stakesPhase === 'tune' && styles.headerTight,
+          ]}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={closing ? 'Close' : 'Back'}
@@ -235,6 +239,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.four,
     gap: Spacing.three,
+  },
+  // The stakes tuning page's first line labels the page, so it sits closer to the title.
+  headerTight: {
+    paddingBottom: Spacing.two,
   },
   step: {
     flex: 1,

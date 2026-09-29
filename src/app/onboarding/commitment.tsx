@@ -116,7 +116,8 @@ export default function OnboardingCommitmentScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       {/* A tap on the header is a tap outside the fields, so it closes the keyboard. */}
-      <DismissKeyboardArea style={styles.header}>
+      <DismissKeyboardArea
+        style={[styles.header, step === 'stakes' && stakesPhase === 'tune' && styles.headerTight]}>
         <OnboardingProgress step={step} />
         <Pressable
           accessibilityRole="button"
@@ -171,6 +172,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.four,
     gap: Spacing.three,
+  },
+  // The stakes tuning page's first line labels the page, so it sits closer to the title.
+  headerTight: {
+    paddingBottom: Spacing.two,
   },
   back: {
     flexDirection: 'row',
