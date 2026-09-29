@@ -73,8 +73,9 @@ Note the port from the result; call it `<port>`.
 ## 3. Simulator: own device
 
 First tidy up after other sessions. This deletes sims whose worktree is gone
-and shuts down idle ones (no Metro or build running, booted 30+ min). It never
-touches your own sim or one that's in use:
+or whose branch is merged with nothing uncommitted, and shuts down other idle
+ones. It never touches your own sim or one in use (Metro or a build running,
+or booted in the last 30 min):
 
 ```bash
 scripts/sims-clean.sh <name>
