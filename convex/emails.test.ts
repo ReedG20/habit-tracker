@@ -55,7 +55,9 @@ describe('opting out', () => {
     });
     expect(response.status).toBe(200);
     expect(await friendStatus(t)).toBe('opted_out');
-    const suppressed = await t.run(async (ctx) => await ctx.db.query('emailSuppressions').collect());
+    const suppressed = await t.run(
+      async (ctx) => await ctx.db.query('emailSuppressions').collect(),
+    );
     expect(suppressed).toHaveLength(0);
   });
 

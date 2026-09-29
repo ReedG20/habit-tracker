@@ -133,7 +133,10 @@ describe('money', () => {
     // While the charge is in flight, nothing is shown yet.
     expect(await alice.as.query(api.stakes.unseenLoss, {})).toBeNull();
 
-    await t.mutation(internal.stripe.recordCharge, { stakeId: stake!._id, paymentIntentId: 'pi_1' });
+    await t.mutation(internal.stripe.recordCharge, {
+      stakeId: stake!._id,
+      paymentIntentId: 'pi_1',
+    });
     expect(await alice.as.query(api.stakes.unseenLoss, {})).toMatchObject({
       title: 'Run',
       habitExists: true,
@@ -151,7 +154,10 @@ describe('money', () => {
     const habitId = await moneyHabit(t, alice.userId);
     await runCheck(t, '2026-09-23');
     const { stake } = await habitAndStake(t, habitId);
-    await t.mutation(internal.stripe.recordCharge, { stakeId: stake!._id, paymentIntentId: 'pi_1' });
+    await t.mutation(internal.stripe.recordCharge, {
+      stakeId: stake!._id,
+      paymentIntentId: 'pi_1',
+    });
 
     expect(await bob.as.query(api.stakes.loss, { stakeId: stake!._id })).toBeNull();
     expect(await bob.as.query(api.stakes.unseenLoss, {})).toBeNull();
@@ -345,7 +351,10 @@ describe('lockout', () => {
       title: 'Run',
       stake: { kind: 'lockout', days: 1 },
     });
-    const readId = await alice.as.mutation(api.habits.create, { title: 'Read', stake: { kind: 'none' } });
+    const readId = await alice.as.mutation(api.habits.create, {
+      title: 'Read',
+      stake: { kind: 'none' },
+    });
     await logDay(t, alice.userId, readId, '2026-09-22');
 
     await runCheck(t, '2026-09-23');
@@ -364,8 +373,14 @@ describe('lockout', () => {
   test('a second lockout while frozen only ever extends the freeze', async () => {
     const t = setup();
     const alice = await signIn(t, 'alice');
-    await alice.as.mutation(api.habits.create, { title: 'Run', stake: { kind: 'lockout', days: 7 } });
-    await alice.as.mutation(api.habits.create, { title: 'Read', stake: { kind: 'lockout', days: 1 } });
+    await alice.as.mutation(api.habits.create, {
+      title: 'Run',
+      stake: { kind: 'lockout', days: 7 },
+    });
+    await alice.as.mutation(api.habits.create, {
+      title: 'Read',
+      stake: { kind: 'lockout', days: 1 },
+    });
 
     await runCheck(t, '2026-09-23');
 
@@ -479,7 +494,9 @@ describe('ending a habit', () => {
     await logDay(t, alice.userId, habitId, '2026-09-22');
     await runCheck(t, '2026-09-23');
 
-    const stakes: Doc<'stakes'>[] = await t.run(async (ctx) => await ctx.db.query('stakes').collect());
+    const stakes: Doc<'stakes'>[] = await t.run(
+      async (ctx) => await ctx.db.query('stakes').collect(),
+    );
     expect(stakes).toMatchObject([{ status: 'released' }]);
     expect(await t.run(async (ctx) => await ctx.db.get('habits', habitId))).toBeNull();
   });

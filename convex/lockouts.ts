@@ -279,7 +279,9 @@ export async function applyReentryPayment(
 
   if (stakesV2Enabled()) {
     // There is no fee to pay any more: the purchase is kept on record for a refund.
-    console.warn(`Re-entry purchase ${payment.transactionId} from ${userId} after the fee was retired`);
+    console.warn(
+      `Re-entry purchase ${payment.transactionId} from ${userId} after the fee was retired`,
+    );
   }
   const now = Date.now();
   const active = await activeLockout(ctx, userId);

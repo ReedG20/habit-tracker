@@ -136,8 +136,7 @@ async function loadPlanInput(
     accountableFrom: user.accountableFrom,
     // Frozen or locked, habits can't be logged: nothing to remind about.
     locked:
-      (await activeLockout(ctx, user._id)) !== null ||
-      (await activeFreeze(ctx, user._id)) !== null,
+      (await activeLockout(ctx, user._id)) !== null || (await activeFreeze(ctx, user._id)) !== null,
     settings,
     goals,
     habits: [],

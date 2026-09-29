@@ -147,10 +147,7 @@ export const list = query({
 /** What the opt-out page shows before anything is changed. */
 export const byToken = internalQuery({
   args: { token: v.string() },
-  returns: v.union(
-    v.object({ userName: v.string(), status: v.string() }),
-    v.null(),
-  ),
+  returns: v.union(v.object({ userName: v.string(), status: v.string() }), v.null()),
   handler: async (ctx, args) => {
     const friend = await ctx.db
       .query('friends')

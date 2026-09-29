@@ -31,7 +31,9 @@ export const goalStakesToTable = internalMutation({
   args: { cursor: v.optional(v.union(v.string(), v.null())) },
   returns: v.null(),
   handler: async (ctx, args): Promise<null> => {
-    const page = await ctx.db.query('goals').paginate({ numItems: BATCH, cursor: args.cursor ?? null });
+    const page = await ctx.db
+      .query('goals')
+      .paginate({ numItems: BATCH, cursor: args.cursor ?? null });
     for (const goal of page.page) {
       if (goal.stake !== undefined && goal.stakeId === undefined) {
         await materializeGoalStake(ctx, goal);

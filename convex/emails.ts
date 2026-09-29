@@ -56,7 +56,9 @@ async function send(
 ): Promise<void> {
   const unsubscribe = optOutUrl(friend);
   if (env.EMAIL_DELIVERY !== 'on') {
-    console.log(`[email not sent] to=${friend.email} subject="${content.subject}"\n${content.text}`);
+    console.log(
+      `[email not sent] to=${friend.email} subject="${content.subject}"\n${content.text}`,
+    );
     return;
   }
 

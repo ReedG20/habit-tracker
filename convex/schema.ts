@@ -1,11 +1,7 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
-import {
-  lockoutDaysValidator,
-  moneyStatusValidator,
-  stakeDocValidator,
-} from './lib/stakeSchema';
+import { lockoutDaysValidator, moneyStatusValidator, stakeDocValidator } from './lib/stakeSchema';
 
 /** The money stake's lifecycle; see `lib/stakeSchema.ts`. */
 export const stakeStatusValidator = moneyStatusValidator;
