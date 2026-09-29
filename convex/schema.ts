@@ -1,22 +1,10 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
-/**
- * `armed` → `charging` → `charged` | `charge_failed` when the deadline passes
- * uncompleted; `armed` → `released` when a submission is approved first.
- * `charging` is the settlement action's claim, so a re-run cannot double charge.
- * After the money moved, Stripe webhooks (`http.ts`) can take it further:
- * `charged` → `refunded` on a full refund, `charged` | `refunded` → `disputed`.
- */
-export const stakeStatusValidator = v.union(
-  v.literal('armed'),
-  v.literal('charging'),
-  v.literal('charged'),
-  v.literal('charge_failed'),
-  v.literal('released'),
-  v.literal('refunded'),
-  v.literal('disputed'),
-);
+import { lockoutDaysValidator, moneyStatusValidator, stakeDocValidator } from './lib/stakeSchema';
+
+/** The money stake's lifecycle; see `lib/stakeSchema.ts`. */
+export const stakeStatusValidator = moneyStatusValidator;
 
 /** Mirrors the options in `src/data/onboarding.ts`. */
 export const onboardingValidator = v.object({
@@ -46,6 +34,7 @@ export const onboardingValidator = v.object({
   completedAt: v.number(),
 });
 
+/** Deprecated: the money stake as it was embedded on goals, before the `stakes` table. */
 export const stakeValidator = v.object({
   amountCents: v.number(),
   stripeCustomerId: v.string(),
@@ -139,6 +128,13 @@ export default defineSchema({
      * Sunday (weekly) that still counts. The lockout check removes it after that.
      */
     endsAfter: v.optional(v.string()),
+    /** The stake it runs on now; none means just the user's word. */
+    stakeId: v.optional(v.id('stakes')),
+    /**
+     * Set when its stake came due: the streak broke, so it is no longer judged
+     * until the user restarts it with new stakes.
+     */
+    brokenAt: v.optional(v.number()),
   }).index('by_user', ['userId']),
 
   habitCompletions: defineTable({
@@ -188,7 +184,9 @@ export default defineSchema({
     dueAt: v.number(),
     completedAt: v.optional(v.number()),
     order: v.number(),
+    /** Deprecated: goal money moved to the `stakes` table (`lib/stakes.ts` migrates it). */
     stake: v.optional(stakeValidator),
+    stakeId: v.optional(v.id('stakes')),
   })
     .index('by_user', ['userId'])
     // Replay protection: a SetupIntent may back at most one goal.
@@ -256,6 +254,7 @@ export default defineSchema({
   }).index('by_user', ['userId']),
 
   /**
+   * Deprecated with the re-entry fee; lockout stakes use `freezes`.
    * A missed habit locks the whole app until the re-entry fee is paid. One row
    * per lock; every miss found by the same check shares it, and so one fee.
    * `misses` is bounded: at most one entry per habit.
@@ -279,6 +278,7 @@ export default defineSchema({
   }).index('by_user_and_status', ['userId', 'status']),
 
   /**
+   * Deprecated with the re-entry fee; kept for the purchases already made.
    * Every re-entry fee purchase, by its store transaction id, so the webhook
    * and `lockouts.confirmReentry` can both report one without applying it
    * twice. `lockoutId` is the lock it paid for; absent means no lock was
@@ -299,6 +299,64 @@ export default defineSchema({
     type: v.string(),
     receivedAt: v.number(),
   }).index('by_event_id', ['eventId']),
+
+  /**
+   * What each commitment has on the line (`lib/stakeSchema.ts`). One row per
+   * stake, kept after it resolves: it is the receipt, and what the loss screen
+   * and Stripe webhooks look up.
+   */
+  stakes: defineTable(stakeDocValidator)
+    .index('by_user_and_status', ['userId', 'status'])
+    .index('by_goal', ['goalId'])
+    .index('by_habit', ['habitId'])
+    // Unseen losses: `seenAt` absent, `lostAt` set.
+    .index('by_user_and_seen_and_lost', ['userId', 'seenAt', 'lostAt'])
+    // Replay protection: a SetupIntent may back at most one stake.
+    .index('by_setup_intent', ['stripeSetupIntentId'])
+    // Webhook lookup for events that carry no metadata (disputes).
+    .index('by_payment_intent', ['stripePaymentIntentId']),
+
+  /**
+   * People a user has named to hear about a miss, reused across commitments.
+   * `optOutToken` is the secret in their opt-out link.
+   */
+  friends: defineTable({
+    userId: v.id('users'),
+    name: v.string(),
+    /** Trimmed and lowercased. */
+    email: v.string(),
+    status: v.union(v.literal('active'), v.literal('opted_out'), v.literal('bounced')),
+    optOutToken: v.string(),
+    createdAt: v.number(),
+  })
+    .index('by_user_and_email', ['userId', 'email'])
+    .index('by_email', ['email'])
+    .index('by_opt_out_token', ['optOutToken']),
+
+  /** Addresses Ante never emails again: opted out of everything, bounced, or complained. */
+  emailSuppressions: defineTable({
+    email: v.string(),
+    reason: v.union(v.literal('opt_out'), v.literal('bounce'), v.literal('complaint')),
+    createdAt: v.number(),
+  }).index('by_email', ['email']),
+
+  /**
+   * A lockout stake came due: every habit is frozen (not logged, not judged)
+   * from `startDay` through `endDay`, local days. Goals keep running.
+   */
+  freezes: defineTable({
+    userId: v.id('users'),
+    startDay: v.string(),
+    endDay: v.string(),
+    /** The local midnight after `endDay`, when `freezes.lift` runs. */
+    endsAt: v.number(),
+    days: lockoutDaysValidator,
+    status: v.union(v.literal('active'), v.literal('lifted')),
+    liftJobId: v.optional(v.id('_scheduled_functions')),
+    createdAt: v.number(),
+  })
+    .index('by_user_and_status', ['userId', 'status'])
+    .index('by_user_and_endDay', ['userId', 'endDay']),
 
   /**
    * How hard deadline reminders push (`lib/reminderPresets.ts`). At most one

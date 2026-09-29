@@ -29,8 +29,36 @@ async function insertStakedGoal(
   });
 }
 
+/** The goal's money, wherever it lives: its own row once touched, else still on the goal. */
 async function stakeOf(t: Harness, goalId: Id<'goals'>) {
-  return await t.run(async (ctx) => (await ctx.db.get('goals', goalId))?.stake);
+  return await t.run(async (ctx) => {
+    const goal = await ctx.db.get('goals', goalId);
+    if (goal?.stakeId !== undefined) return await ctx.db.get('stakes', goal.stakeId);
+    return goal?.stake;
+  });
+}
+
+async function insertHabitStake(
+  t: Harness,
+  userId: Id<'users'>,
+  fields: Partial<Extract<Doc<'stakes'>, { kind: 'money' }>> = {},
+): Promise<Id<'stakes'>> {
+  return await t.run(async (ctx) => {
+    const habitId = await ctx.db.insert('habits', { userId, title: 'Run', order: 0 });
+    return await ctx.db.insert('stakes', {
+      kind: 'money',
+      userId,
+      habitId,
+      title: 'Run',
+      createdAt: 0,
+      lostAt: 1,
+      amountCents: 1000,
+      stripeCustomerId: 'cus_test',
+      stripePaymentMethodId: 'pm_test',
+      status: 'charging',
+      ...fields,
+    });
+  });
 }
 
 describe('stripe.handleEvent', () => {
@@ -81,7 +109,7 @@ describe('stripe.handleEvent', () => {
     // Rewind the stake by hand: if the id were not deduped, this would re-charge.
     await t.run(async (ctx) => {
       const goal = await ctx.db.get('goals', goalId);
-      await ctx.db.patch('goals', goalId, { stake: { ...goal!.stake!, status: 'charging' } });
+      await ctx.db.patch('stakes', goal!.stakeId!, { status: 'charging' });
     });
     await t.mutation(internal.stripe.handleEvent, { eventId: 'evt_1', event });
 
@@ -137,6 +165,97 @@ describe('stripe.handleEvent', () => {
       status: 'disputed',
       stripeDisputeId: 'dp_2',
     });
+  });
+
+  test('a goal stake moves to its own row the first time an event touches it', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    const goalId = await insertStakedGoal(t, alice.userId, {});
+
+    await t.mutation(internal.stripe.handleEvent, {
+      eventId: 'evt_1',
+      event: { type: 'payment_intent.succeeded', paymentIntentId: PI, goalId },
+    });
+
+    const goal = await t.run(async (ctx) => await ctx.db.get('goals', goalId));
+    expect(goal?.stake).toBeUndefined();
+    expect(await stakeOf(t, goalId)).toMatchObject({
+      kind: 'money',
+      goalId,
+      amountCents: 500,
+      status: 'charged',
+    });
+  });
+
+  test('a habit charge is found by its stake id', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    const stakeId = await insertHabitStake(t, alice.userId);
+
+    await t.mutation(internal.stripe.handleEvent, {
+      eventId: 'evt_1',
+      event: { type: 'payment_intent.succeeded', paymentIntentId: PI, stakeId },
+    });
+
+    expect(await t.run(async (ctx) => await ctx.db.get('stakes', stakeId))).toMatchObject({
+      status: 'charged',
+      stripePaymentIntentId: PI,
+    });
+  });
+
+  test('a settle-up payment clears a declined stake', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    const stakeId = await insertHabitStake(t, alice.userId, {
+      status: 'charge_failed',
+      failureKind: 'declined',
+      stripePaymentIntentId: 'pi_declined',
+      settleUpPaymentIntentId: 'pi_settle',
+    });
+
+    // The failed intent succeeding later would also count; an unrelated one would not.
+    await t.mutation(internal.stripe.handleEvent, {
+      eventId: 'evt_other',
+      event: { type: 'payment_intent.succeeded', paymentIntentId: 'pi_other', stakeId },
+    });
+    expect(await t.run(async (ctx) => await ctx.db.get('stakes', stakeId))).toMatchObject({
+      status: 'charge_failed',
+    });
+
+    await t.mutation(internal.stripe.handleEvent, {
+      eventId: 'evt_settle',
+      event: { type: 'payment_intent.succeeded', paymentIntentId: 'pi_settle', stakeId },
+    });
+    const settled = await t.run(async (ctx) => await ctx.db.get('stakes', stakeId));
+    expect(settled).toMatchObject({ status: 'charged' });
+    expect(settled).not.toHaveProperty('failureKind');
+  });
+
+  test('a decline from the webhook blocks new money until settled', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    const stakeId = await insertHabitStake(t, alice.userId);
+
+    await t.mutation(internal.stripe.handleEvent, {
+      eventId: 'evt_1',
+      event: {
+        type: 'payment_intent.payment_failed',
+        paymentIntentId: PI,
+        stakeId,
+        reason: 'card_declined',
+      },
+    });
+
+    expect(await t.run(async (ctx) => await ctx.db.get('stakes', stakeId))).toMatchObject({
+      status: 'charge_failed',
+      failureKind: 'declined',
+    });
+    const problem = await t.query(internal.stakes.moneyProblem, {
+      userId: alice.userId,
+      amountCents: 500,
+      now: Date.now(),
+    });
+    expect(problem).toMatch(/declined/);
   });
 
   test('an unknown goal is recorded and ignored', async () => {

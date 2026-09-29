@@ -6,7 +6,8 @@ import { internalMutation, type MutationCtx } from './_generated/server';
 import { authedMutation, authedQuery } from './lib/customFunctions';
 import { weekStart } from './lib/days';
 import { isPro } from './lib/entitlements';
-import { activeLockout } from './lib/lockout';
+import { activeFreeze } from './freezes';
+import { activeLockout, stakesV2Enabled } from './lib/lockout';
 import {
   deliver,
   grantedTokens,
@@ -14,14 +15,18 @@ import {
   touchReminders,
   type PushMessage,
 } from './lib/notify';
-import { formatDueLabel, reminderCopy, type ReminderMessage } from './lib/reminderCopy';
+import {
+  formatDueLabel,
+  reminderCopy,
+  type HabitStakeLine,
+  type ReminderMessage,
+} from './lib/reminderCopy';
 import {
   nextWake,
   planReminders,
   selectDue,
   type Group,
   type PlanGoal,
-  type PlanHabit,
   type PlanInput,
   type Slot,
 } from './lib/reminderPlan';
@@ -108,12 +113,19 @@ async function loadPlanInput(
       .withIndex('by_goal', (q) => q.eq('goalId', goal._id))
       .order('desc')
       .first();
+    const stake = goal.stakeId === undefined ? null : await ctx.db.get('stakes', goal.stakeId);
+    const stakeCents =
+      stake?.kind === 'money' && stake.status === 'armed'
+        ? stake.amountCents
+        : goal.stake?.status === 'armed'
+          ? goal.stake.amountCents
+          : null;
     goals.push({
       _id: goal._id,
       title: goal.title,
       dueAt: goal.dueAt,
       createdAt: goal._creationTime,
-      stakeCents: goal.stake?.status === 'armed' ? goal.stake.amountCents : null,
+      stakeCents,
       pending: latest?.status === 'pending',
     });
   }
@@ -122,7 +134,9 @@ async function loadPlanInput(
     now,
     timeZone: user.timeZone,
     accountableFrom: user.accountableFrom,
-    locked: (await activeLockout(ctx, user._id)) !== null,
+    // Frozen or locked, habits can't be logged: nothing to remind about.
+    locked:
+      (await activeLockout(ctx, user._id)) !== null || (await activeFreeze(ctx, user._id)) !== null,
     settings,
     goals,
     habits: [],
@@ -133,10 +147,13 @@ async function loadPlanInput(
 
   const today = zonedDay(now, user.timeZone);
   const from = weekStart(today);
-  const habitRows = await ctx.db
-    .query('habits')
-    .withIndex('by_user', (q) => q.eq('userId', user._id))
-    .take(MAX_HABITS);
+  // A broken habit isn't judged until it's restarted, so there's nothing to nag about.
+  const habitRows = (
+    await ctx.db
+      .query('habits')
+      .withIndex('by_user', (q) => q.eq('userId', user._id))
+      .take(MAX_HABITS)
+  ).filter((habit) => habit.brokenAt === undefined);
   if (habitRows.length === 0) return input;
 
   const completions = await ctx.db
@@ -173,15 +190,35 @@ async function loadPlanInput(
     if (check.status === 'pending' && check.day === today) pending.add(check.habitId);
   }
 
-  input.habits = habitRows.map((habit): PlanHabit => ({
-    _id: habit._id,
-    title: habit.title,
-    timesPerWeek: habit.timesPerWeek,
-    startDay: habit.startDay,
-    endsAfter: habit.endsAfter,
-    done: done.get(habit._id) ?? new Set<string>(),
-    pending: pending.has(habit._id),
-  }));
+  const v2 = stakesV2Enabled();
+  const stakeLine = async (habit: Doc<'habits'>): Promise<HabitStakeLine | undefined> => {
+    if (!v2) return { kind: 'fee' };
+    if (habit.stakeId === undefined) return undefined;
+    const stake = await ctx.db.get('stakes', habit.stakeId);
+    if (stake === null || stake.status !== 'armed') return undefined;
+    switch (stake.kind) {
+      case 'money':
+        return { kind: 'money', cents: stake.amountCents };
+      case 'friend':
+        return { kind: 'friend', name: stake.friendName };
+      case 'lockout':
+        return { kind: 'lockout', days: stake.days };
+    }
+  };
+
+  input.habits = [];
+  for (const habit of habitRows) {
+    input.habits.push({
+      _id: habit._id,
+      title: habit.title,
+      timesPerWeek: habit.timesPerWeek,
+      startDay: habit.startDay,
+      endsAfter: habit.endsAfter,
+      done: done.get(habit._id) ?? new Set<string>(),
+      pending: pending.has(habit._id),
+      stake: await stakeLine(habit),
+    });
+  }
   return input;
 }
 
@@ -209,7 +246,11 @@ function composePush(
     if (habits.length === 0) return null;
     message = {
       kind: 'habits',
-      habits: habits.map((habit) => ({ title: habit.title, weeklyNeeded: habit.weeklyNeeded })),
+      habits: habits.map((habit) => ({
+        title: habit.title,
+        weeklyNeeded: habit.weeklyNeeded,
+        stake: habit.stake,
+      })),
       msLeft: group.deadline - now,
       final: slot.final,
       seed: slot.group,

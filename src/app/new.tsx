@@ -1,20 +1,27 @@
-import { useAction, useMutation } from 'convex/react';
+import { useAction, useMutation, useQuery } from 'convex/react';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   cardForStake,
-  DEFAULT_STAKE_CENTS,
   defaultDueAt,
+  freshStake,
+  friendInput,
   MIN_LEAD_MS,
+  plainStake,
+  reuseForStake,
   type CommitmentDraft,
 } from '@/components/commitment/draft';
 import { LockedIn } from '@/components/commitment/locked-in';
 import { SignStep } from '@/components/commitment/sign-step';
-import { StakesStep } from '@/components/commitment/stakes-step';
+import {
+  phaseBeforeSigning,
+  StakesStep,
+  type StakesPhase,
+} from '@/components/commitment/stakes-step';
 import { StepProgress } from '@/components/commitment/step-progress';
 import { WhatStep } from '@/components/commitment/what-step';
 import { Icon } from '@/components/icon';
@@ -24,7 +31,9 @@ import { ThemedText } from '@/components/themed-text';
 import { ArrowLeft01Icon, Cancel01Icon } from '@/constants/icons';
 import { ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
+import type { Id } from '@/convex/_generated/dataModel';
 import { DAILY } from '@/convex/lib/frequency';
+import { cardLabel } from '@/lib/money';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -37,7 +46,7 @@ function stepTitle(step: Step, draft: CommitmentDraft): string {
     case 'what':
       return 'What are you committing to?';
     case 'stakes':
-      return draft.kind === 'goal' ? 'Set your price.' : 'What’s at stake.';
+      return 'What’s at stake?';
     case 'sign':
     case 'done':
       return 'Sign it.';
@@ -49,35 +58,81 @@ function stepTitle(step: Step, draft: CommitmentDraft): string {
  * what it costs to miss, and a signed contract) and nothing is created until
  * the last one is held down. It takes Ante Pro: without it, this screen is
  * the paywall, and the steps appear the moment a purchase goes through.
+ *
+ * `?again=<stakeId>` starts from a goal that was just lost: same words, same
+ * stakes, a fresh deadline.
  */
 export default function NewCommitmentScreen() {
-  const params = useLocalSearchParams<{ kind?: string }>();
+  const params = useLocalSearchParams<{ kind?: string; again?: string }>();
   const createHabit = useMutation(api.habits.create);
+  const createHabitStaked = useAction(api.habits.createStaked);
   const createGoal = useMutation(api.goals.create);
   const createStaked = useAction(api.goals.createStaked);
+  const again = useQuery(
+    api.stakes.loss,
+    params.again === undefined ? 'skip' : { stakeId: params.again as Id<'stakes'> },
+  );
   const syncSubscription = useAction(api.subscriptions.sync);
   const subscription = useSubscription();
 
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const [step, setStep] = useState<Step>('what');
+  const [stakesPhase, setStakesPhase] = useState<StakesPhase>('pick');
   const [busy, setBusy] = useState(false);
-  const [draft, setDraft] = useState<CommitmentDraft>(() => ({
-    kind: params.kind === 'goal' ? 'goal' : 'habit',
-    title: '',
-    proof: '',
-    timesPerWeek: DAILY,
-    dueAt: defaultDueAt(),
-    amountCents: DEFAULT_STAKE_CENTS,
-    card: null,
-  }));
+  const [draft, setDraft] = useState<CommitmentDraft>(() => {
+    const kind = params.kind === 'goal' ? 'goal' : 'habit';
+    return {
+      kind,
+      title: '',
+      proof: '',
+      timesPerWeek: DAILY,
+      dueAt: defaultDueAt(),
+      ...freshStake(kind, true),
+    };
+  });
 
-  const update = (patch: Partial<CommitmentDraft>) =>
-    setDraft((current) => ({ ...current, ...patch }));
+  const update = useCallback(
+    (patch: Partial<CommitmentDraft>) => setDraft((current) => ({ ...current, ...patch })),
+    [],
+  );
+
+  // Going again after a lost goal: the words and the stakes carry over, once.
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (again == null || prefilled.current) return;
+    prefilled.current = true;
+    const { stake } = again;
+    update({
+      kind: 'goal',
+      title: again.title,
+      proof: again.goalDescription ?? '',
+      stakeKind: stake.kind === 'lockout' ? 'none' : stake.kind,
+      ...(stake.kind === 'money'
+        ? {
+            amountCents: stake.amountCents,
+            reuse:
+              stake.cardLast4 === undefined
+                ? undefined
+                : { fromStakeId: stake._id, label: cardLabel(stake), on: true },
+          }
+        : {}),
+    });
+  }, [again, update]);
 
   const goTo = (next: Step) => setStep(next);
 
   const back = () => {
+    // The stakes step is two pages: Back walks through both.
+    if (step === 'stakes' && stakesPhase === 'tune') {
+      setStakesPhase('pick');
+      return;
+    }
+    if (step === 'sign') {
+      setStakesPhase(phaseBeforeSigning(draft));
+      goTo('stakes');
+      return;
+    }
     const index = STEPS.indexOf(step);
     const previous = STEPS[index - 1];
     if (index <= 0 || previous === undefined) {
@@ -107,23 +162,54 @@ export default function NewCommitmentScreen() {
           console.warn('Subscription sync failed; creating anyway', error);
         });
       }
-      if (draft.kind === 'habit') {
-        await createHabit({ title, description, timesPerWeek: draft.timesPerWeek });
-      } else if (draft.amountCents === null) {
-        await createGoal({ title, description, dueAt: draft.dueAt });
-      } else {
-        const card = cardForStake(draft);
-        if (card === null) {
-          // The amount changed after the card was saved; step 2 collects a new one.
-          goTo('stakes');
-          return;
+      if (draft.stakeKind !== 'money') {
+        if (draft.kind === 'habit') {
+          await createHabit({
+            title,
+            description,
+            timesPerWeek: draft.timesPerWeek,
+            stake: plainStake(draft),
+          });
+        } else {
+          await createGoal({
+            title,
+            description,
+            dueAt: draft.dueAt,
+            stake:
+              draft.stakeKind === 'friend'
+                ? { kind: 'friend', friend: friendInput(draft.friend) }
+                : undefined,
+          });
         }
+        goTo('done');
+        return;
+      }
+
+      const reuse = reuseForStake(draft);
+      const card = cardForStake(draft);
+      if (card === null && (reuse === null || draft.kind === 'habit')) {
+        // The amount changed after the card was saved; step 2 collects a new one.
+        setStakesPhase('tune');
+        goTo('stakes');
+        return;
+      }
+      if (draft.kind === 'habit' && card !== null) {
+        await createHabitStaked({
+          title,
+          description,
+          timesPerWeek: draft.timesPerWeek,
+          amountCents: card.amountCents,
+          setupIntentId: card.setupIntentId,
+        });
+      } else {
         await createStaked({
           title,
           description,
           dueAt: draft.dueAt,
-          amountCents: card.amountCents,
-          setupIntentId: card.setupIntentId,
+          amountCents: draft.amountCents,
+          ...(card !== null
+            ? { setupIntentId: card.setupIntentId }
+            : { reuseFromStakeId: reuse?.fromStakeId }),
         });
       }
       goTo('done');
@@ -168,7 +254,11 @@ export default function NewCommitmentScreen() {
         <View style={styles.header} />
       ) : (
         // A tap on the header is a tap outside the fields, so it closes the keyboard.
-        <DismissKeyboardArea style={styles.header}>
+        <DismissKeyboardArea
+          style={[
+            styles.header,
+            step === 'stakes' && stakesPhase === 'tune' && styles.headerTight,
+          ]}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={step === 'what' ? 'Close' : 'Previous step'}
@@ -197,7 +287,13 @@ export default function NewCommitmentScreen() {
           <WhatStep draft={draft} onChange={update} onNext={() => goTo('stakes')} />
         ) : null}
         {step === 'stakes' ? (
-          <StakesStep draft={draft} onChange={update} onNext={() => goTo('sign')} />
+          <StakesStep
+            draft={draft}
+            onChange={update}
+            onNext={() => goTo('sign')}
+            phase={stakesPhase}
+            onPhaseChange={setStakesPhase}
+          />
         ) : null}
         {step === 'sign' ? (
           <SignStep draft={draft} busy={busy} onConfirm={() => void lockIn()} />
@@ -217,6 +313,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.four,
     gap: Spacing.three,
+  },
+  // The stakes tuning page's first line labels the page, so it sits closer to the title.
+  headerTight: {
+    paddingBottom: Spacing.two,
   },
   step: {
     flex: 1,

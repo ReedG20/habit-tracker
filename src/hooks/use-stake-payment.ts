@@ -14,18 +14,18 @@ export type StakePayment = {
 };
 
 /**
- * The card half of putting money on a goal: mints the SetupIntent on the
- * server, then hands it to Stripe's PaymentSheet. The goal itself is created
+ * The card half of putting money on a goal or habit: mints the SetupIntent on the
+ * server, then hands it to Stripe's PaymentSheet. The commitment is created
  * by the caller once this resolves with `saved`.
  */
 export function useStakePayment(): StakePayment {
   const { initPaymentSheet, presentPaymentSheet } = useStripe();
-  const beginStake = useAction(api.goals.beginStake);
+  const beginMoney = useAction(api.stakes.beginMoney);
 
   return {
     supported: true,
     collectCard: async (amountCents) => {
-      const setup = await beginStake({ amountCents });
+      const setup = await beginMoney({ amountCents });
 
       const init = await initPaymentSheet({
         merchantDisplayName: 'Ante',

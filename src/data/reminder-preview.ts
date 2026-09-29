@@ -1,3 +1,4 @@
+import type { StakeView } from '@/convex/lib/stakeRules';
 import { formatDueLabel, reminderCopy, type PushCopy } from '@/convex/lib/reminderCopy';
 import type { ReminderSettings } from '@/convex/lib/reminderPresets';
 import { goalSlotTimes, habitSlotTimes } from '@/convex/lib/reminderTimes';
@@ -76,7 +77,7 @@ type GoalLike = {
   dueAt: number;
   completedAt?: number;
   _creationTime: number;
-  stake?: { amountCents: number; status: string };
+  stakeView?: StakeView | null;
 };
 
 /**
@@ -100,7 +101,10 @@ export function pickPreviewSubject(
       title: goal.title,
       dueAt: goal.dueAt,
       createdAt: goal._creationTime,
-      stakeCents: goal.stake?.status === 'armed' ? goal.stake.amountCents : null,
+      stakeCents:
+        goal.stakeView?.kind === 'money' && goal.stakeView.status === 'armed'
+          ? goal.stakeView.amountCents
+          : null,
     };
   }
 

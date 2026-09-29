@@ -203,8 +203,8 @@ export function ProPaywall({
           </View>
         ))}
         <ThemedText type="small" themeColor="textSecondary">
-          Your subscription is the app. Re-entry fees and goal stakes are separate, and you only pay
-          them if you fall short.
+          Your subscription is the app. Money you put on a commitment is separate, and only moves if
+          you miss it.
         </ThemedText>
       </View>
 

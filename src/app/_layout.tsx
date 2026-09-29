@@ -1,7 +1,7 @@
 import { Mansalva_400Regular } from '@expo-google-fonts/mansalva';
 import { ClerkProvider, useAuth } from '@clerk/expo';
 import { tokenCache } from '@clerk/expo/token-cache';
-import { ConvexReactClient, useConvexAuth, useQuery } from 'convex/react';
+import { ConvexReactClient, useConvexAuth } from 'convex/react';
 import { ConvexProviderWithClerk } from 'convex/react-clerk';
 import { useFonts } from 'expo-font';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
@@ -12,7 +12,6 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { StripeProvider } from '@/components/stripe-provider';
 import { noteFontFamily, wisdomFontFamily } from '@/constants/custom-fonts';
 import { sheetScreenOptions } from '@/constants/sheet-screen-options';
-import { api } from '@/convex/_generated/api';
 import { shouldShowOnboarding } from '@/data/onboarding';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useNotifications } from '@/hooks/use-notifications';
@@ -87,21 +86,14 @@ function RootNavigator() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const { status } = useOnboarding();
   const onboarding = shouldShowOnboarding(status, isAuthenticated);
-  // A missed habit locks the app down to one screen until the re-entry fee is
-  // paid (`convex/lockouts.ts`). Held behind the splash until it answers, so
-  // a locked user never glimpses the tabs.
-  const lockout = useQuery(api.lockouts.current, isAuthenticated ? {} : 'skip');
-  const lockPending = isAuthenticated && lockout === undefined;
-  const locked = isAuthenticated && lockout != null;
-
   useSignedInSession(isAuthenticated);
-  useNotifications({ ready: !isLoading && !lockPending && isAuthenticated && !onboarding, locked });
+  useNotifications({ ready: !isLoading && isAuthenticated && !onboarding });
 
   useEffect(() => {
-    if (!isLoading && !lockPending) {
+    if (!isLoading) {
       void SplashScreen.hideAsync();
     }
-  }, [isLoading, lockPending]);
+  }, [isLoading]);
 
   useEffect(() => {
     if (isAuthenticated) markExistingUserOnboarded();
@@ -109,7 +101,7 @@ function RootNavigator() {
 
   // Hold the splash screen rather than flashing sign-in at someone whose
   // session is still being restored from SecureStore.
-  if (isLoading || lockPending) {
+  if (isLoading) {
     return null;
   }
 
@@ -121,7 +113,7 @@ function RootNavigator() {
         <Stack.Screen name="onboarding" />
       </Stack.Protected>
 
-      <Stack.Protected guard={isAuthenticated && !onboarding && !locked}>
+      <Stack.Protected guard={isAuthenticated && !onboarding}>
         <Stack.Screen name="(app)" />
         {/* In the root stack so it can open over the tab bar from any tab. */}
         <Stack.Screen
@@ -135,11 +127,12 @@ function RootNavigator() {
         />
         {/* Making a commitment takes over the screen: no tabs, no swipe away mid-contract. */}
         <Stack.Screen name="new" options={{ presentation: 'fullScreenModal' }} />
-      </Stack.Protected>
-
-      {/* Locked: one screen, no tabs, nothing new. Goal proof is still reachable from it. */}
-      <Stack.Protected guard={isAuthenticated && !onboarding && locked}>
-        <Stack.Screen name="locked" />
+        {/* A lost stake is a moment, not a sheet: it has to be answered, not swiped off. */}
+        <Stack.Screen
+          name="lost/[stakeId]"
+          options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
+        />
+        <Stack.Screen name="restart/[habitId]" options={{ presentation: 'fullScreenModal' }} />
       </Stack.Protected>
 
       <Stack.Protected guard={!isAuthenticated && !onboarding}>

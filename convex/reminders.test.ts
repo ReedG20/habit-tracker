@@ -328,24 +328,30 @@ describe('event pushes', () => {
   test('a charge sends one receipt, however many times it is reported', async () => {
     const t = setup();
     const alice = await signIn(t, 'alice');
-    const goalId = await t.run(async (ctx) => {
-      return await ctx.db.insert('goals', {
+    const stakeId = await t.run(async (ctx) => {
+      const goalId = await ctx.db.insert('goals', {
         userId: alice.userId,
         title: 'Essay',
         dueAt: Date.now() - 1000,
         order: 0,
-        stake: {
-          amountCents: 2500,
-          stripeCustomerId: 'cus_1',
-          stripePaymentMethodId: 'pm_1',
-          stripeSetupIntentId: 'seti_1',
-          status: 'charging',
-        },
+      });
+      return await ctx.db.insert('stakes', {
+        kind: 'money',
+        userId: alice.userId,
+        goalId,
+        title: 'Essay',
+        createdAt: 0,
+        lostAt: Date.now(),
+        amountCents: 2500,
+        stripeCustomerId: 'cus_1',
+        stripePaymentMethodId: 'pm_1',
+        stripeSetupIntentId: 'seti_1',
+        status: 'charging',
       });
     });
 
-    await t.mutation(internal.stripe.recordCharge, { goalId, paymentIntentId: 'pi_1' });
-    await t.mutation(internal.stripe.recordCharge, { goalId, paymentIntentId: 'pi_1' });
+    await t.mutation(internal.stripe.recordCharge, { stakeId, paymentIntentId: 'pi_1' });
+    await t.mutation(internal.stripe.recordCharge, { stakeId, paymentIntentId: 'pi_1' });
     vi.advanceTimersByTime(1);
     await t.finishInProgressScheduledFunctions();
 

@@ -5,13 +5,13 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  DEFAULT_STAKE_CENTS,
-  defaultDueAt,
-  type CommitmentDraft,
-} from '@/components/commitment/draft';
+import { defaultDueAt, freshStake, type CommitmentDraft } from '@/components/commitment/draft';
 import { SignStep } from '@/components/commitment/sign-step';
-import { StakesStep } from '@/components/commitment/stakes-step';
+import {
+  phaseBeforeSigning,
+  StakesStep,
+  type StakesPhase,
+} from '@/components/commitment/stakes-step';
 import { WhatStep } from '@/components/commitment/what-step';
 import { Icon } from '@/components/icon';
 import { DismissKeyboardArea } from '@/components/keyboard/dismiss-keyboard-area';
@@ -35,7 +35,7 @@ function stepTitle(step: Step): string {
       return 'What are you committing to?';
     // No price to set: money waits until there is an account to save a card to.
     case 'stakes':
-      return 'What’s at stake.';
+      return 'What’s at stake?';
     case 'sign':
       return 'Sign it.';
   }
@@ -65,6 +65,7 @@ export default function OnboardingCommitmentScreen() {
   });
 
   const [step, setStep] = useState<Step>('what');
+  const [stakesPhase, setStakesPhase] = useState<StakesPhase>('pick');
   const [draft, setDraft] = useState<CommitmentDraft>(() => {
     const existing = getOnboarding().draft;
     return (
@@ -74,8 +75,7 @@ export default function OnboardingCommitmentScreen() {
         proof: '',
         timesPerWeek: DAILY,
         dueAt: defaultDueAt(),
-        amountCents: DEFAULT_STAKE_CENTS,
-        card: null,
+        ...freshStake(suggestKind(getOnboarding().answers), false),
       }
     );
   });
@@ -84,6 +84,12 @@ export default function OnboardingCommitmentScreen() {
     setDraft((current) => ({ ...current, ...patch }));
 
   const back = () => {
+    // The stakes step is two pages: Back walks through both.
+    if (step === 'stakes' && stakesPhase === 'tune') {
+      setStakesPhase('pick');
+      return;
+    }
+    if (step === 'sign') setStakesPhase(phaseBeforeSigning(draft));
     const previous = STEPS[STEPS.indexOf(step) - 1];
     if (previous === undefined) {
       router.back();
@@ -93,8 +99,12 @@ export default function OnboardingCommitmentScreen() {
   };
 
   const lockIn = () => {
-    // No money in onboarding: a goal is on the user's word until they have an account.
-    saveDraft({ ...draft, amountCents: null, card: null });
+    // No money in onboarding: there's no account to save a card to yet.
+    saveDraft({
+      ...draft,
+      stakeKind: draft.stakeKind === 'money' ? 'none' : draft.stakeKind,
+      card: null,
+    });
     // Right after signing is when a heads-up makes the most sense; only asked once.
     if (permission === 'undetermined') {
       router.push('/onboarding/reminders');
@@ -106,7 +116,8 @@ export default function OnboardingCommitmentScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       {/* A tap on the header is a tap outside the fields, so it closes the keyboard. */}
-      <DismissKeyboardArea style={styles.header}>
+      <DismissKeyboardArea
+        style={[styles.header, step === 'stakes' && stakesPhase === 'tune' && styles.headerTight]}>
         <OnboardingProgress step={step} />
         <Pressable
           accessibilityRole="button"
@@ -141,6 +152,8 @@ export default function OnboardingCommitmentScreen() {
             draft={draft}
             onChange={update}
             onNext={() => setStep('sign')}
+            phase={stakesPhase}
+            onPhaseChange={setStakesPhase}
             allowMoney={false}
           />
         ) : null}
@@ -159,6 +172,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.four,
     gap: Spacing.three,
+  },
+  // The stakes tuning page's first line labels the page, so it sits closer to the title.
+  headerTight: {
+    paddingBottom: Spacing.two,
   },
   back: {
     flexDirection: 'row',

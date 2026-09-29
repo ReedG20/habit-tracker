@@ -4,7 +4,7 @@ import { useMutation, useQuery } from 'convex/react';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import * as Updates from 'expo-updates';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { Icon } from '@/components/icon';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
@@ -13,6 +13,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import {
   ArrowRight01Icon,
+  CoinsDollarIcon,
   Delete02Icon,
   LockKeyholeIcon,
   Logout01Icon,
@@ -70,13 +71,16 @@ export default function MeScreen() {
   const signOut = useSignOut();
   const habits = useQuery(api.habits.list, { today: todayKey() });
   const loggedCount = useQuery(api.habits.loggedCount);
-  const stakeTotals = useQuery(api.goals.stakeTotals);
+  const stakeTotals = useQuery(api.stakes.totals);
   const { isPro, summary } = useSubscription();
   const now = useNow();
   // Only on deployments that honour them (`ANTE_DEV_OVERRIDES`), never production.
   const devOverrides = useQuery(api.lockouts.devOverrides, showDevTools ? {} : 'skip');
   const forceDelete = useForceDelete();
-  const devLock = useMutation(api.lockouts.devLock);
+  const devLose = useMutation(api.stakes.devLose);
+  const devFreeze = useMutation(api.freezes.devFreeze);
+  const devLift = useMutation(api.freezes.devLift);
+  const freeze = useQuery(api.freezes.current, showDevTools ? {} : 'skip');
   const devGrantPro = useMutation(api.subscriptions.devGrantPro);
   const devEndPro = useMutation(api.subscriptions.devEndPro);
   const devPreviewNotices = useMutation(api.accountNotices.devPreview);
@@ -248,14 +252,59 @@ export default function MeScreen() {
                     />
                   </View>
                 </View>
-                {/* The root guard swaps the tabs for the locked screen, which
-                    has the matching "Unlock" row. */}
+                {/* A made-up loss of each kind: nothing is charged or emailed. */}
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => {
-                    devLock().catch((error: unknown) => {
-                      console.error('Failed to lock', error);
-                    });
+                    const preview = (args: Parameters<typeof devLose>[0]) => {
+                      devLose(args)
+                        .then((stakeId) => router.push(`/lost/${stakeId}`))
+                        .catch((error: unknown) => console.error('Failed to preview', error));
+                    };
+                    Alert.alert('Preview a loss', undefined, [
+                      {
+                        text: 'Money, 23-day streak',
+                        onPress: () => preview({ kind: 'money', subject: 'habit' }),
+                      },
+                      {
+                        text: 'Money, broke on day 2',
+                        onPress: () => preview({ kind: 'money', subject: 'habit', streak: 1 }),
+                      },
+                      {
+                        text: 'Money, a goal',
+                        onPress: () => preview({ kind: 'money', subject: 'goal' }),
+                      },
+                      {
+                        text: 'Money, card declined',
+                        onPress: () => preview({ kind: 'money', subject: 'habit', declined: true }),
+                      },
+                      {
+                        text: 'A friend was told',
+                        onPress: () => preview({ kind: 'friend', subject: 'habit' }),
+                      },
+                      {
+                        text: 'Lockout',
+                        onPress: () => preview({ kind: 'lockout', subject: 'habit' }),
+                      },
+                      { text: 'Cancel', style: 'cancel' },
+                    ]);
+                  }}
+                  style={({ pressed }) => [
+                    styles.settingRow,
+                    { borderTopWidth: 1, borderTopColor: theme.border },
+                    pressed && styles.pressed,
+                  ]}>
+                  <Icon icon={CoinsDollarIcon} size={22} themeColor="textSecondary" />
+                  <ThemedText style={styles.settingLabel}>Preview a loss</ThemedText>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    (freeze != null ? devLift() : devFreeze({ days: 3 })).catch(
+                      (error: unknown) => {
+                        console.error('Failed to change the freeze', error);
+                      },
+                    );
                   }}
                   style={({ pressed }) => [
                     styles.settingRow,
@@ -263,7 +312,9 @@ export default function MeScreen() {
                     pressed && styles.pressed,
                   ]}>
                   <Icon icon={LockKeyholeIcon} size={22} themeColor="textSecondary" />
-                  <ThemedText style={styles.settingLabel}>Lock me now</ThemedText>
+                  <ThemedText style={styles.settingLabel}>
+                    {freeze != null ? 'Lift the freeze' : 'Freeze my habits for 3 days'}
+                  </ThemedText>
                 </Pressable>
                 {/* Pro without the App Store, or its end, to test both sides of the paywall. */}
                 <Pressable
@@ -283,7 +334,7 @@ export default function MeScreen() {
                     {isPro ? 'End Pro now' : 'Grant Pro for 30 days'}
                   </ThemedText>
                 </Pressable>
-                {/* The still-locked and trial-ending pushes, now, rather than days out. */}
+                {/* The trial-ending push, now, rather than days out. */}
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => {

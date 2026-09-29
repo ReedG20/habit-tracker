@@ -9,6 +9,7 @@ import { ThemedText } from './themed-text';
 
 import {
   CheckmarkCircle02Icon,
+  CoinsDollarIcon,
   FlameIcon,
   GoalListIcon,
   LockIcon,
@@ -46,7 +47,8 @@ function kickerIcon(moment: TodayMoment): IconSvgElement {
     lastCall: Timer02Icon,
     goalToday: GoalListIcon,
     streak: FlameIcon,
-    fee: LockIcon,
+    frozen: LockIcon,
+    stakes: moment.figure?.kind === 'money' ? CoinsDollarIcon : Timer02Icon,
     clear: moment.tone === 'done' ? CheckmarkCircle02Icon : GoalListIcon,
   };
   return byKind[moment.kind];

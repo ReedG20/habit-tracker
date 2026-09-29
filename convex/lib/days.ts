@@ -40,13 +40,21 @@ function toDayKey(date: Date): string {
  * Length of the unbroken run of days ending at `today`, or at yesterday when
  * today has not been logged yet — so a streak is not reported as broken until
  * the day it actually lapses.
+ *
+ * `bridged` days (frozen by a lockout) neither break the run nor add to it.
  */
-export function streakLength(days: Set<string>, today: string): number {
-  let cursor = days.has(today) ? today : previousDay(today);
+export function streakLength(
+  days: Set<string>,
+  today: string,
+  bridged: Set<string> = new Set(),
+): number {
+  let cursor = days.has(today) || bridged.has(today) ? today : previousDay(today);
 
   let streak = 0;
-  while (days.has(cursor)) {
-    streak += 1;
+  // Bounded, in case every day in reach is bridged.
+  for (let steps = 0; steps < 3660; steps += 1) {
+    if (days.has(cursor)) streak += 1;
+    else if (!bridged.has(cursor)) break;
     cursor = previousDay(cursor);
   }
 
@@ -91,25 +99,43 @@ export function countThisWeek(days: Set<string>, today: string): number {
  * Unbroken run of weeks that each hit `target` logs, ending with the current
  * week once it has hit it, or with last week while it is still in progress —
  * so, like `streakLength`, a streak only breaks once the week actually ends short.
+ *
+ * A week that touches a `bridged` day (frozen by a lockout) is skipped: it
+ * neither counts nor breaks the run.
  */
-export function weeklyStreak(days: Set<string>, today: string, target: number): number {
+export function weeklyStreak(
+  days: Set<string>,
+  today: string,
+  target: number,
+  bridged: Set<string> = new Set(),
+): number {
   const logsByWeek = new Map<string, number>();
   for (const day of days) {
     if (day > today) continue;
     const week = weekStart(day);
     logsByWeek.set(week, (logsByWeek.get(week) ?? 0) + 1);
   }
+  const bridgedWeeks = new Set<string>();
+  for (const day of bridged) bridgedWeeks.add(weekStart(day));
 
   const met = (week: string) => (logsByWeek.get(week) ?? 0) >= target;
 
   const thisWeek = weekStart(today);
-  let cursor = met(thisWeek) ? thisWeek : daysBefore(thisWeek, 7);
+  let cursor = met(thisWeek) || bridgedWeeks.has(thisWeek) ? thisWeek : daysBefore(thisWeek, 7);
 
   let streak = 0;
-  while (met(cursor)) {
-    streak += 1;
+  for (let steps = 0; steps < 520; steps += 1) {
+    if (met(cursor)) streak += 1;
+    else if (!bridgedWeeks.has(cursor)) break;
     cursor = daysBefore(cursor, 7);
   }
 
   return streak;
+}
+
+/** Every day from `from` through `to`, inclusive. */
+export function daysBetween(from: string, to: string): string[] {
+  const days: string[] = [];
+  for (let day = from; day <= to && days.length < 3660; day = nextDay(day)) days.push(day);
+  return days;
 }

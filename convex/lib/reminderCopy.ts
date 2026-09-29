@@ -13,11 +13,34 @@ import { localClock, zonedDay } from './zonedTime';
 
 export type PushCopy = { title: string; body: string };
 
+/** What a missed habit costs; absent when it's only the user's word. */
+export type HabitStakeLine =
+  | { kind: 'money'; cents: number }
+  | { kind: 'friend'; name: string }
+  | { kind: 'lockout'; days: number }
+  /** The retired re-entry fee, for deployments not yet on per-habit stakes. */
+  | { kind: 'fee' };
+
 export type HabitLine = {
   title: string;
   /** Set for a weekly habit that has no slack left: logs still needed by Sunday. */
   weeklyNeeded?: number;
+  stake?: HabitStakeLine;
 };
+
+/**
+ * What happens if these habits are missed, as the end of "…, or ___": the
+ * money adds up; otherwise the harshest of the rest.
+ */
+export function missConsequence(stakes: (HabitStakeLine | undefined)[]): string {
+  const cents = stakes.reduce((sum, stake) => sum + (stake?.kind === 'money' ? stake.cents : 0), 0);
+  if (cents > 0) return `${formatMoney(cents)} is charged`;
+  if (stakes.some((stake) => stake?.kind === 'lockout')) return 'your habits freeze';
+  const friend = stakes.find((stake) => stake?.kind === 'friend');
+  if (friend?.kind === 'friend') return `${friend.name} hears about it`;
+  if (stakes.some((stake) => stake?.kind === 'fee')) return 'Ante locks';
+  return 'the streak resets';
+}
 
 export type GoalLine = {
   title: string;
@@ -63,7 +86,19 @@ export type EventMessage =
     }
   | { kind: 'unchecked'; title: string; msLeft: number | null }
   | { kind: 'approved'; subject: 'habit' | 'goal'; title: string; stakeCents: number | null }
-  | { kind: 'charged'; title: string; amountCents: number }
+  | {
+      kind: 'charged';
+      subject: 'habit' | 'goal';
+      title: string;
+      amountCents: number;
+      /** The run it ended, for a habit. */
+      streak?: number;
+    }
+  | { kind: 'declined'; title: string; amountCents: number }
+  | { kind: 'friendTold'; title: string; friendName: string }
+  | { kind: 'friendGone'; title: string; friendName: string; why: 'opted_out' | 'bounced' }
+  | { kind: 'frozen'; title: string; untilLabel: string }
+  | { kind: 'thawed' }
   /**
    * Locked, and the subscription is still billing. `renewal` is the heads-up
    * before a renewal; otherwise it's the one a few days into the lock.
@@ -196,7 +231,10 @@ function habitsCopy(message: Extract<ReminderMessage, { kind: 'habits' }>): Push
         title: `Last call: ${only.title}`,
         body: pick(
           seed,
-          [`${left} to log it, or Ante locks.`, `${left}. One photo keeps Ante unlocked.`],
+          [
+            `${left} to log it, or ${missConsequence([only.stake])}.`,
+            `${left}. One photo keeps the streak alive.`,
+          ],
           step,
         ),
       };
@@ -219,7 +257,7 @@ function habitsCopy(message: Extract<ReminderMessage, { kind: 'habits' }>): Push
   if (final) {
     return {
       title: `Last call: ${habits.length} still open`,
-      body: `${list}. ${left} or Ante locks.`,
+      body: `${list}. ${left}, or ${missConsequence(habits.map((habit) => habit.stake))}.`,
     };
   }
   return {
@@ -347,9 +385,46 @@ export function eventCopy(message: EventMessage): PushCopy {
             : `${formatMoney(message.stakeCents)} stays yours. Promise kept.`,
       };
     case 'charged':
+      if (message.subject === 'habit') {
+        return {
+          title: `${message.title}: streak broken`,
+          body:
+            message.streak !== undefined && message.streak > 1
+              ? `${message.streak} in a row, then a miss. ${formatMoney(message.amountCents)} was charged.`
+              : `A miss, so ${formatMoney(message.amountCents)} was charged.`,
+        };
+      }
       return {
         title: `${message.title}: deadline passed`,
         body: `No proof came in, so ${formatMoney(message.amountCents)} was charged.`,
+      };
+    case 'declined':
+      return {
+        title: `${message.title}: your card declined`,
+        body: `The ${formatMoney(message.amountCents)} didn’t go through. Settle it in Ante to put money down again.`,
+      };
+    case 'friendTold':
+      return {
+        title: `${message.friendName} knows`,
+        body: `You missed ${message.title}, so we emailed ${message.friendName}. Maybe get to them first.`,
+      };
+    case 'friendGone':
+      return {
+        title: `${message.friendName} won’t hear about ${message.title}`,
+        body:
+          message.why === 'bounced'
+            ? `Our email to ${message.friendName} bounced. Pick someone else to answer to.`
+            : `${message.friendName} opted out. Pick someone else to answer to.`,
+      };
+    case 'frozen':
+      return {
+        title: `${message.title}: streak broken`,
+        body: `Your habits are frozen until ${message.untilLabel}. Goals keep running.`,
+      };
+    case 'thawed':
+      return {
+        title: 'Your habits are back',
+        body: 'The freeze is over. Tomorrow counts.',
       };
     case 'stillLocked':
       if (message.renewal) {

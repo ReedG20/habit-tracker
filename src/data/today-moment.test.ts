@@ -7,7 +7,6 @@ import {
   MARGIN_NOTES,
   splitEmphasis,
   pickTodayMoment,
-  type Fee,
   type TodayMomentInput,
 } from './today-moment';
 
@@ -20,7 +19,13 @@ const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 const MIDNIGHT = endOfDay(TUESDAY);
 const MORNING = MIDNIGHT - 16 * HOUR;
-const FEE: Fee = { amount: 9.99, currency: 'USD', text: '$9.99' };
+const STAKE_ID = 'stake' as Id<'stakes'>;
+const TEN_DOLLARS = {
+  kind: 'money' as const,
+  _id: STAKE_ID,
+  status: 'armed' as const,
+  amountCents: 1000,
+};
 
 let nextId = 0;
 function habit(fields: Partial<HabitWithProgress>): HabitWithProgress {
@@ -35,6 +40,7 @@ function habit(fields: Partial<HabitWithProgress>): HabitWithProgress {
     weekCount: 0,
     streak: 0,
     verification: null,
+    stakeView: TEN_DOLLARS,
     ...fields,
   };
 }
@@ -50,17 +56,10 @@ function goal(fields: Partial<GoalWithStatus> & { stakeCents?: number }): GoalWi
     order: nextId,
     dueAt: MIDNIGHT + 4 * DAY,
     submission: null,
-    ...(stakeCents === undefined
-      ? {}
-      : {
-          stake: {
-            amountCents: stakeCents,
-            status: 'armed' as const,
-            stripeCustomerId: 'cus',
-            stripePaymentMethodId: 'pm',
-            stripeSetupIntentId: 'seti',
-          },
-        }),
+    stakeView:
+      stakeCents === undefined
+        ? null
+        : { kind: 'money', _id: STAKE_ID, status: 'armed', amountCents: stakeCents },
     ...rest,
   };
 }
@@ -71,8 +70,8 @@ function pick(input: Partial<TodayMomentInput>) {
     goals: [],
     today: TUESDAY,
     now: MORNING,
-    fee: FEE,
     accountableFrom: null,
+    frozenUntil: null,
     ...input,
   });
 }
@@ -100,34 +99,67 @@ describe('pickTodayMoment', () => {
       sentence: 'Log Gym today to make it day 24.',
     });
     expect(moment?.kicker).toBe('Streak on the line');
-    expect(moment?.also.slice(0, 2)).toEqual([
-      '$9.99 to get back in if you skip',
-      '16h left today',
-    ]);
+    expect(moment?.also.slice(0, 2)).toEqual(['Skip it and $10 is charged', '16h left today']);
   });
 
   test('counts only the streaks still owed, not the headline', () => {
     const gym = habit({ title: 'Gym', streak: 23, completedToday: true });
     const read = habit({ title: 'Read', streak: 1 });
     const moment = pick({ habits: [gym, read] });
-    expect(moment?.kind).toBe('fee');
+    expect(moment?.kind).toBe('stakes');
     expect(moment?.kicker).toBe('Skip Read today and it costs');
-    expect(moment?.figure).toMatchObject({ kind: 'money', text: '$9.99' });
+    expect(moment?.figure).toMatchObject({ kind: 'money', text: '$10' });
     expect(moment?.sentence).toContain('day 2 is yours');
   });
 
-  test('a new run leads with the fee', () => {
+  test('a new run leads with the money', () => {
     const moment = pick({ habits: [habit({ title: 'Walk', streak: 0 })] });
-    expect(moment).toMatchObject({ kind: 'fee', sentence: expect.stringContaining('day 1') });
+    expect(moment).toMatchObject({ kind: 'stakes', sentence: expect.stringContaining('day 1') });
   });
 
-  test('without a store price the clock stands in for the fee', () => {
-    const moment = pick({ habits: [habit({ title: 'Walk' })], fee: null });
-    expect(moment).toMatchObject({
-      kind: 'fee',
-      kicker: 'Skip Walk and Ante locks',
+  test('without money, the clock stands in and the stake is named', () => {
+    const friend = {
+      kind: 'friend' as const,
+      _id: STAKE_ID,
+      status: 'armed' as const,
+      friendId: 'f' as Id<'friends'>,
+      friendName: 'Sam',
+    };
+    expect(pick({ habits: [habit({ title: 'Walk', stakeView: friend })] })).toMatchObject({
+      kind: 'stakes',
+      kicker: 'Skip Walk and Sam hears about it',
       figure: { kind: 'time', text: '16h' },
     });
+    const lockout = {
+      kind: 'lockout' as const,
+      _id: STAKE_ID,
+      status: 'armed' as const,
+      days: 3 as const,
+    };
+    expect(pick({ habits: [habit({ title: 'Walk', stakeView: lockout })] })?.kicker).toBe(
+      'Skip Walk and your habits freeze for 3 days',
+    );
+    expect(pick({ habits: [habit({ title: 'Walk', stakeView: null })] })?.kicker).toBe(
+      'Skip Walk and the streak starts over',
+    );
+  });
+
+  test('while frozen, nothing is owed and the thaw is the headline', () => {
+    const gym = habit({ title: 'Gym', streak: 23 });
+    const moment = pick({ habits: [gym], frozenUntil: MIDNIGHT + 2 * DAY });
+    expect(moment).toMatchObject({
+      kind: 'frozen',
+      kicker: 'Your habits are frozen',
+      figure: { kind: 'time', text: '2 days' },
+    });
+    expect(moment?.sentence).toContain('Goals still count.');
+  });
+
+  test('a broken habit owes nothing, and waits to be restarted', () => {
+    const run = habit({ title: 'Run', brokenAt: 1, stakeView: null });
+    const moment = pick({ habits: [run, habit({ title: 'Gym', streak: 23 })] });
+    expect(moment?.kind).toBe('streak');
+    expect(moment?.also).toContain('Run: streak lost. Restart it');
   });
 
   test('last call beats the streak', () => {
@@ -137,8 +169,7 @@ describe('pickTodayMoment', () => {
       kind: 'lastCall',
       tone: 'urgent',
       figure: { kind: 'time', text: '1h 20m' },
-      sentence:
-        'Gym’s still open. Skip it and your 23-day streak ends, and it’s $9.99 to get back in.',
+      sentence: 'Gym’s still open. Skip it and your 23-day streak ends, and $10 is charged.',
     });
   });
 
@@ -208,7 +239,7 @@ describe('pickTodayMoment', () => {
       note: 'free day. it all counts tomorrow.',
     });
     // From then on it counts as usual.
-    expect(pick({ habits: [gym], accountableFrom: TUESDAY })?.kind).toBe('fee');
+    expect(pick({ habits: [gym], accountableFrom: TUESDAY })?.kind).toBe('stakes');
   });
 
   test('all done points at the next goal', () => {
@@ -263,7 +294,7 @@ describe('pickTodayMoment', () => {
 
     test('out of slack are on the line in weeks', () => {
       const stretch = habit({ title: 'Stretch', timesPerWeek: 7, weekCount: 0, streak: 0 });
-      expect(pick({ habits: [stretch] })?.kind).toBe('fee');
+      expect(pick({ habits: [stretch] })?.kind).toBe('stakes');
 
       // Sunday, one log short.
       const sunday = '2026-10-04';
@@ -272,8 +303,8 @@ describe('pickTodayMoment', () => {
         goals: [],
         today: sunday,
         now: endOfDay(sunday) - 10 * HOUR,
-        fee: FEE,
         accountableFrom: null,
+        frozenUntil: null,
       });
       expect(moment).toMatchObject({
         kind: 'streak',
@@ -301,9 +332,7 @@ describe('pickTodayMoment, last call with several habits', () => {
   test("doesn't pin the streak on a skip that wouldn't end it", () => {
     const habits = [habit({ title: 'Gym', streak: 23 }), habit({ title: 'Read' })];
     const moment = pick({ habits, now: MIDNIGHT - HOUR });
-    expect(moment?.sentence).toBe(
-      '2 habits are still open. Skip one and it’s $9.99 to get back in.',
-    );
+    expect(moment?.sentence).toBe('2 habits are still open. Skip one and $10 is charged.');
     expect(moment?.also).toContain('Gym: 23 days in a row');
   });
 });
@@ -326,8 +355,8 @@ describe('pickTodayMoment, margin notes', () => {
             goals: [],
             today: day,
             now: endOfDay(day) - 16 * HOUR,
-            fee: FEE,
             accountableFrom: null,
+            frozenUntil: null,
           })?.note,
       ),
     );
@@ -346,7 +375,7 @@ describe('caption emphasis', () => {
     const dayBack = pick({ habits: [habit({})], goals: [run], accountableFrom: '2026-09-30' });
     expect(dayBack?.emphasis[0]).toBe('Run a 5K');
     const last = pick({ habits: [habit({ title: 'Gym', streak: 23 })], now: MIDNIGHT - HOUR });
-    expect(last?.emphasis).toEqual(['Gym', '23-day streak', '$9.99']);
+    expect(last?.emphasis).toEqual(['Gym', '23-day streak', '$10']);
   });
 
   test('only ever names terms the caption contains', () => {
@@ -354,7 +383,8 @@ describe('caption emphasis', () => {
     const moments = [
       pick({ habits: [habit({ title: 'Gym', streak: 23 })], goals: [run] }),
       pick({ habits: [habit({ title: 'Walk' })] }),
-      pick({ habits: [habit({ title: 'Walk' })], fee: null }),
+      pick({ habits: [habit({ title: 'Walk', stakeView: null })] }),
+      pick({ habits: [habit({ title: 'Walk' })], frozenUntil: MIDNIGHT + DAY }),
       pick({ habits: [habit({ title: 'Gym', streak: 23 })], now: MIDNIGHT - HOUR }),
       pick({
         habits: [habit({ streak: 23 })],

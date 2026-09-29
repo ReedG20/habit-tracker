@@ -8,11 +8,15 @@ import { Spacing } from '@/constants/theme';
 
 export type StepLayoutProps = {
   children: ReactNode;
+  /** Pinned above the body, so it stays put while the body scrolls (e.g. a mode switch). */
+  header?: ReactNode;
   /** The step's actions, pinned to the same spot at the bottom of every step. */
   footer: ReactNode;
   scrollRef?: Ref<ScrollView>;
   /** Holds the body still, e.g. while a finger is signing. */
   locked?: boolean;
+  /** Space between the body's sections, when the default leaves a step too tall to fit. */
+  gap?: number;
 };
 
 /**
@@ -23,16 +27,28 @@ export type StepLayoutProps = {
  * The keyboard covers the footer while it's up (the Done bar rides on it
  * instead), which leaves the most room for the field being typed in.
  */
-export function StepLayout({ children, footer, scrollRef, locked = false }: StepLayoutProps) {
+export function StepLayout({
+  children,
+  header,
+  footer,
+  scrollRef,
+  locked = false,
+  gap,
+}: StepLayoutProps) {
   const insets = useSafeAreaInsets();
   const [footerHeight, setFooterHeight] = useState(0);
 
   return (
     <View style={styles.fill}>
+      {header === undefined ? null : <View style={styles.header}>{header}</View>}
       <KeyboardScrollView
         ref={scrollRef}
         style={styles.fill}
-        contentContainerStyle={styles.body}
+        contentContainerStyle={[
+          styles.body,
+          header !== undefined && styles.bodyUnderHeader,
+          gap !== undefined && { gap },
+        ]}
         bottomInset={footerHeight}
         scrollEnabled={!locked}
         alwaysBounceVertical={false}>
@@ -51,6 +67,15 @@ export function StepLayout({ children, footer, scrollRef, locked = false }: Step
 const styles = StyleSheet.create({
   fill: {
     flex: 1,
+  },
+  // Most of the gap sits under the pinned header and the rest atop the body,
+  // so scrolled content runs up close to it without touching.
+  header: {
+    paddingHorizontal: Spacing.three,
+    paddingBottom: Spacing.three,
+  },
+  bodyUnderHeader: {
+    paddingTop: Spacing.two,
   },
   body: {
     flexGrow: 1,

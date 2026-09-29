@@ -10,9 +10,9 @@ import { ThemedView } from './themed-view';
 import { GoalListIcon } from '@/constants/icons';
 import { ActionCardRadius, ControlHeight, PillRadius, Spacing } from '@/constants/theme';
 import { COUNTDOWN_WINDOW_MS, isMissed, type GoalWithStatus } from '@/data/goals';
+import { describeGoalStake } from '@/data/stakes';
 import { useTheme } from '@/hooks/use-theme';
 import { describeDueAt } from '@/lib/dates';
-import { formatCents } from '@/lib/money';
 
 export type GoalCardProps = {
   goal: GoalWithStatus;
@@ -23,28 +23,6 @@ export type GoalCardProps = {
   submitHref?: Href;
 };
 
-/** The one-word state of the money on a goal, for the pill next to the deadline. */
-function describeStake(goal: GoalWithStatus): string | null {
-  const { stake } = goal;
-  if (stake === undefined) return null;
-
-  const amount = formatCents(stake.amountCents);
-  switch (stake.status) {
-    case 'charged':
-      return `Charged ${amount}`;
-    case 'refunded':
-      return `${amount} · refunded`;
-    case 'disputed':
-      return `${amount} · disputed`;
-    case 'charge_failed':
-      return `${amount} · charge failed`;
-    case 'released':
-      return `${amount} · safe`;
-    default:
-      return `${amount} on it`;
-  }
-}
-
 export function GoalCard({ goal, now, detailHref, submitHref }: GoalCardProps) {
   const theme = useTheme();
 
@@ -53,7 +31,8 @@ export function GoalCard({ goal, now, detailHref, submitHref }: GoalCardProps) {
   const over = done || missed;
   const verifying = !over && goal.submission?.status === 'pending';
   const countdown = !over && goal.dueAt - now <= COUNTDOWN_WINDOW_MS;
-  const stake = describeStake(goal);
+  const stake = describeGoalStake(goal.stakeView, 'pill');
+  const armed = goal.stakeView?.status === 'armed';
   const detail = detailHref === undefined ? (`/goals/${goal._id}` as const) : detailHref;
 
   return (
@@ -87,13 +66,10 @@ export function GoalCard({ goal, now, detailHref, submitHref }: GoalCardProps) {
                 style={[
                   styles.stakePill,
                   {
-                    backgroundColor:
-                      goal.stake?.status === 'armed' ? theme.accentElement : theme.background,
+                    backgroundColor: armed ? theme.accentElement : theme.background,
                   },
                 ]}>
-                <ThemedText
-                  type="smallSemibold"
-                  themeColor={goal.stake?.status === 'armed' ? 'accent' : 'textSecondary'}>
+                <ThemedText type="smallSemibold" themeColor={armed ? 'accent' : 'textSecondary'}>
                   {stake}
                 </ThemedText>
               </View>

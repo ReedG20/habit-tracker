@@ -4,6 +4,8 @@ import Stripe from 'stripe';
 
 import { internal } from './_generated/api';
 import { env, httpAction } from './_generated/server';
+import { resendClient } from './emails';
+import { escapeHtml } from './lib/emailCopy';
 import { stripeClient } from './lib/stripe';
 import {
   handledEventTypes,
@@ -66,6 +68,7 @@ function narrowEvent(event: Stripe.Event): WebhookEvent | null {
       return {
         type: event.type,
         paymentIntentId: intent.id,
+        stakeId: intent.metadata.stakeId,
         goalId: intent.metadata.goalId,
       };
     }
@@ -75,6 +78,7 @@ function narrowEvent(event: Stripe.Event): WebhookEvent | null {
       return {
         type: event.type,
         paymentIntentId: intent.id,
+        stakeId: intent.metadata.stakeId,
         goalId: intent.metadata.goalId,
         reason: failure?.decline_code ?? failure?.code ?? failure?.message ?? 'Payment failed',
       };
@@ -84,6 +88,7 @@ function narrowEvent(event: Stripe.Event): WebhookEvent | null {
       return {
         type: event.type,
         paymentIntentId: idOf(charge.payment_intent),
+        stakeId: charge.metadata.stakeId,
         goalId: charge.metadata.goalId,
         amountRefundedCents: charge.amount_refunded,
         fullyRefunded: charge.refunded,
@@ -239,6 +244,80 @@ function stringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((item): item is string => typeof item === 'string')
     : [];
+}
+
+/**
+ * Resend → `emails.handleEmailEvent` (bounces and complaints). Register
+ * `https://<deployment>.convex.site/resend/webhook` in the Resend dashboard
+ * with the `email.*` events, and set its secret as `RESEND_WEBHOOK_SECRET`.
+ */
+http.route({
+  path: '/resend/webhook',
+  method: 'POST',
+  handler: httpAction(async (ctx, req) => await resendClient().handleResendEventWebhook(ctx, req)),
+});
+
+/**
+ * The opt-out link in every email to a friend. GET only shows a page with the
+ * choices: mail scanners open links on their own, and a GET that acted would
+ * unsubscribe people who never clicked. POST acts, from that page's buttons,
+ * or from a mail client's one-click unsubscribe (RFC 8058, no `scope`).
+ */
+http.route({
+  path: '/email/opt-out',
+  method: 'GET',
+  handler: httpAction(async (ctx, req) => {
+    const token = new URL(req.url).searchParams.get('t') ?? '';
+    const friend = token === '' ? null : await ctx.runQuery(internal.friends.byToken, { token });
+    if (friend === null) {
+      return page('This link has expired', '<p>There’s nothing to opt out of here.</p>', 404);
+    }
+
+    const name = escapeHtml(friend.userName);
+    const action = `/email/opt-out?t=${encodeURIComponent(token)}`;
+    return page(
+      'Stop these emails?',
+      `<p>${name} named you as someone who hears about it when they miss a commitment on Ante.</p>
+<form method="post" action="${escapeHtml(action)}&scope=user"><button type="submit">Stop emails about ${name}</button></form>
+<form method="post" action="${escapeHtml(action)}&scope=all"><button type="submit" class="secondary">Never email me from Ante</button></form>`,
+    );
+  }),
+});
+
+http.route({
+  path: '/email/opt-out',
+  method: 'POST',
+  handler: httpAction(async (ctx, req) => {
+    const params = new URL(req.url).searchParams;
+    const token = params.get('t') ?? '';
+    const everyone = params.get('scope') === 'all';
+    const done =
+      token !== '' && (await ctx.runMutation(internal.friends.optOut, { token, everyone }));
+    if (!done) {
+      return page('This link has expired', '<p>There’s nothing to opt out of here.</p>', 404);
+    }
+    return page(
+      'You’re opted out',
+      everyone
+        ? '<p>Ante won’t email you again.</p>'
+        : '<p>You won’t get any more emails about them. We’ll let them know to pick someone else.</p>',
+    );
+  }),
+});
+
+function page(title: string, body: string, status = 200): Response {
+  const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title>
+<style>
+body{margin:0;background:#fff;color:#111113;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif}
+main{max-width:480px;margin:0 auto;padding:48px 24px}
+.brand{font-size:20px;font-weight:700;color:#4121FF;margin-bottom:32px}
+h1{font-size:28px;line-height:34px;margin:0 0 16px}
+p{font-size:16px;line-height:24px;margin:0 0 24px}
+button{display:block;width:100%;margin:0 0 12px;padding:14px 20px;border:0;border-radius:999px;background:#4121FF;color:#fff;font-size:16px;font-weight:600}
+button.secondary{background:#F0F0F3;color:#111113}
+@media (prefers-color-scheme:dark){body{background:#000;color:#fff}button.secondary{background:#212225;color:#fff}}
+</style></head><body><main><div class="brand">Ante</div><h1>${escapeHtml(title)}</h1>${body}</main></body></html>`;
+  return new Response(html, { status, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
 }
 
 export default http;

@@ -169,7 +169,9 @@ describe('events', () => {
   });
 
   test('a charge is plain about it', () => {
-    expect(eventCopy({ kind: 'charged', title: 'Essay', amountCents: 2500 })).toEqual({
+    expect(
+      eventCopy({ kind: 'charged', subject: 'goal', title: 'Essay', amountCents: 2500 }),
+    ).toEqual({
       title: 'Essay: deadline passed',
       body: 'No proof came in, so $25 was charged.',
     });

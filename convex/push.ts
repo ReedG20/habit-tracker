@@ -46,6 +46,8 @@ export const outgoingPushValidator = v.object({
     kind: v.string(),
     url: v.string(),
     final: v.optional(v.boolean()),
+    /** A stake that came due: builds with the loss screen open it instead of `url`. */
+    lossStakeId: v.optional(v.string()),
   }),
   /** Same id replaces the earlier push in Notification Center. */
   collapseId: v.optional(v.string()),

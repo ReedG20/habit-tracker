@@ -32,11 +32,16 @@ type Env = {
   readonly CONVEX_SITE_URL: string;
   readonly ANTE_DEV_OVERRIDES: string | undefined;
   readonly CLERK_JWT_ISSUER_DOMAIN: string;
+  readonly EMAIL_DELIVERY: string | undefined;
+  readonly EMAIL_FROM: string | undefined;
   readonly EXPO_ACCESS_TOKEN: string | undefined;
   readonly OPENROUTER_API_KEY: string;
   readonly PUSH_DELIVERY: string | undefined;
+  readonly RESEND_API_KEY: string | undefined;
+  readonly RESEND_WEBHOOK_SECRET: string | undefined;
   readonly REVENUECAT_SECRET_API_KEY: string | undefined;
   readonly REVENUECAT_WEBHOOK_AUTH: string;
+  readonly STAKES_V2: string | undefined;
   readonly STRIPE_SECRET_KEY: string;
   readonly STRIPE_WEBHOOK_SECRET: string;
 };

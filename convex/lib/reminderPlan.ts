@@ -2,6 +2,7 @@ import type { Id } from '../_generated/dataModel';
 import { countThisWeek, daysLeftInWeek } from './days';
 import { DAILY, targetPerWeek } from './frequency';
 import { isOwed, type CheckedHabit } from './lockout';
+import type { HabitStakeLine } from './reminderCopy';
 import { LINEUP_TIME, type ReminderSettings } from './reminderPresets';
 import { goalSlotTimes, habitSlotTimes, MERGE_MS, type RawSlot } from './reminderTimes';
 import { MINUTE_MS, nextLocalMidnight, zonedDay, zonedInstant } from './zonedTime';
@@ -40,6 +41,8 @@ export type PlanHabit = CheckedHabit & {
   done: Set<string>;
   /** A photo for today is being checked right now. */
   pending: boolean;
+  /** What missing it costs; absent when it's only the user's word. */
+  stake?: HabitStakeLine;
 };
 
 export type PlanInput = {
@@ -58,6 +61,7 @@ export type DueHabit = {
   title: string;
   weeklyNeeded?: number;
   pending: boolean;
+  stake?: HabitStakeLine;
 };
 
 export type Group =
@@ -100,7 +104,12 @@ export function owedHabits(
 
     const target = targetPerWeek(habit);
     if (target >= DAILY) {
-      due.push({ habitId: habit._id, title: habit.title, pending: habit.pending });
+      due.push({
+        habitId: habit._id,
+        title: habit.title,
+        pending: habit.pending,
+        stake: habit.stake,
+      });
       continue;
     }
 
@@ -111,6 +120,7 @@ export function owedHabits(
         title: habit.title,
         weeklyNeeded: needed,
         pending: habit.pending,
+        stake: habit.stake,
       });
     }
   }

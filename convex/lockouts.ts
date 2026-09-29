@@ -4,21 +4,26 @@ import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { env, internalMutation, internalQuery, query, type MutationCtx } from './_generated/server';
 import { scheduleLockNotices } from './accountNotices';
+import { checkUser as checkUserStakes, pausedFromDay } from './habitChecks';
 import { deleteHabit } from './habits';
 import { getCurrentUserOrNull } from './lib/auth';
 import { authedAction, authedMutation } from './lib/customFunctions';
 import { daysBefore, nextDay, previousDay, STREAK_WINDOW_DAYS, weekStart } from './lib/days';
-import { isSubscriptionActive } from './lib/entitlements';
 import {
   activeLockout,
   devOverridesEnabled,
   findMisses,
   localDay,
   requireDevOverrides,
+  stakesV2Enabled,
 } from './lib/lockout';
 import { touchReminders } from './lib/notify';
 
 /**
+ * Being retired: with `STAKES_V2=on`, habits carry their own stakes and the
+ * hourly check hands each user to `habitChecks.checkUser` instead. The fee,
+ * the lock screen and these functions stay only for builds from before that.
+ *
  * The lockout: a missed habit locks the whole app until a re-entry fee is
  * paid. `checkAll` runs hourly and locks anyone whose day (or week) just ended
  * short; the fee is a consumable in-app purchase that reaches us through the
@@ -96,8 +101,10 @@ export const checkAll = internalMutation({
       .query('users')
       .paginate({ numItems: CHECK_BATCH, cursor: args.cursor ?? null });
 
+    const v2 = stakesV2Enabled();
     for (const user of page.page) {
-      await checkUser(ctx, user, now);
+      if (v2) await checkUserStakes(ctx, user, now);
+      else await checkUser(ctx, user, now);
     }
 
     if (!page.isDone) {
@@ -119,6 +126,7 @@ export const checkAll = internalMutation({
  * while Pro was still active are judged, and nothing after. While paused the
  * cursor keeps moving, so resubscribing makes that day free, as paying does.
  */
+/** The fee-lock check, until stakes v2 is on. */
 export async function checkUser(ctx: MutationCtx, user: Doc<'users'>, now: number): Promise<void> {
   const { timeZone, lastCheckedDay, accountableFrom } = user;
   if (timeZone === undefined || lastCheckedDay === undefined || accountableFrom === undefined) {
@@ -217,26 +225,6 @@ export async function checkUser(ctx: MutationCtx, user: Doc<'users'>, now: numbe
 }
 
 /**
- * The user's local day their habits paused on (the day Pro ended), or `null`
- * while Pro is active. `'always'` when there is no end date to go by: they
- * never had Pro, or an open-ended grant was revoked, so nothing is judged.
- */
-async function pausedFromDay(
-  ctx: MutationCtx,
-  userId: Id<'users'>,
-  timeZone: string,
-  now: number,
-): Promise<string | 'always' | null> {
-  const subscription = await ctx.db
-    .query('subscriptions')
-    .withIndex('by_user', (q) => q.eq('userId', userId))
-    .unique();
-  if (subscription !== null && isSubscriptionActive(subscription, now)) return null;
-  if (subscription?.expiresAt === undefined) return 'always';
-  return localDay(subscription.expiresAt, timeZone);
-}
-
-/**
  * Lifts the lock and gives the user a fresh start: today is free, and the
  * check resumes from today, so the days spent locked are never judged.
  */
@@ -289,6 +277,12 @@ export async function applyReentryPayment(
   const user = await ctx.db.get('users', userId);
   if (user === null) return;
 
+  if (stakesV2Enabled()) {
+    // There is no fee to pay any more: the purchase is kept on record for a refund.
+    console.warn(
+      `Re-entry purchase ${payment.transactionId} from ${userId} after the fee was retired`,
+    );
+  }
   const now = Date.now();
   const active = await activeLockout(ctx, userId);
   const lockout = active !== null && payment.purchasedAt >= active.lockedAt ? active : null;
@@ -405,6 +399,9 @@ export const devLock = authedMutation({
   returns: v.null(),
   handler: async (ctx): Promise<null> => {
     requireDevOverrides();
+    if (stakesV2Enabled()) {
+      throw new Error('The fee lock is retired here: use a lockout stake or freezes.devFreeze');
+    }
     if ((await activeLockout(ctx, ctx.user._id)) !== null) return null;
 
     const today = localDay(Date.now(), ctx.user.timeZone ?? 'UTC');

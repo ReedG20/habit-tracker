@@ -24,7 +24,7 @@ export type Miss = {
 export type CheckedHabit = Pick<
   Doc<'habits'>,
   '_id' | 'title' | 'timesPerWeek' | 'startDay' | 'endsAfter'
->;
+> & { brokenAt?: number };
 
 /**
  * The user's calendar day at `now` in `timeZone`, as a `YYYY-MM-DD` key. Throws
@@ -69,11 +69,16 @@ function firstFullWeek(day: string): string {
  * Every habit that was missed in the days `from` through `to`, at most one
  * entry per habit (its earliest). A weekly habit is judged in the check that
  * covers its Sunday, so `completedDays` must reach back to `weekStart(from)`.
+ *
+ * `frozenDays` (a lockout's freeze) are never judged: a daily habit skips
+ * them, and a week that touches one isn't judged at all. A broken habit (its
+ * stake already came due) isn't judged until it is restarted.
  */
 export function findMisses({
   habits,
   completedDays,
   excusedDays,
+  frozenDays = new Set(),
   accountableFrom,
   from,
   to,
@@ -81,13 +86,16 @@ export function findMisses({
   habits: CheckedHabit[];
   completedDays: Map<Id<'habits'>, Set<string>>;
   excusedDays: Map<Id<'habits'>, Set<string>>;
+  frozenDays?: Set<string>;
   accountableFrom: string;
   from: string;
   to: string;
 }): Miss[] {
   const misses: Miss[] = [];
+  const frozenWeeks = new Set([...frozenDays].map((day) => weekStart(day)));
 
   for (const habit of habits) {
+    if (habit.brokenAt !== undefined) continue;
     const done = completedDays.get(habit._id) ?? new Set<string>();
     const excused = excusedDays.get(habit._id) ?? new Set<string>();
     const first = firstCountedDay(habit, accountableFrom);
@@ -96,7 +104,7 @@ export function findMisses({
     const target = targetPerWeek(habit);
     if (target >= DAILY) {
       for (let day = from; day <= to; day = nextDay(day)) {
-        if (day < first || !counts(day)) continue;
+        if (day < first || !counts(day) || frozenDays.has(day)) continue;
         if (done.has(day) || excused.has(day)) continue;
         misses.push({ habitId: habit._id, title: habit.title, kind: 'day', period: day });
         break;
@@ -107,7 +115,7 @@ export function findMisses({
     const firstWeek = firstFullWeek(first);
     for (let sunday = weekEnd(from); sunday <= to; sunday = daysBefore(sunday, -7)) {
       const monday = weekStart(sunday);
-      if (monday < firstWeek || !counts(sunday)) continue;
+      if (monday < firstWeek || !counts(sunday) || frozenWeeks.has(monday)) continue;
       // Excused days stand in for the photo the failed check could not confirm.
       const logged = countThisWeek(new Set([...done, ...excused]), sunday);
       if (logged >= target) continue;
@@ -130,6 +138,8 @@ export function isOwed(
   today: string,
   accountableFrom: string,
 ): boolean {
+  // Broken: its stake already came due, and it isn't judged until restarted.
+  if (habit.brokenAt !== undefined) return false;
   const first = firstCountedDay(habit, accountableFrom);
   if (targetPerWeek(habit) >= DAILY) {
     return today >= first && !completedDays.has(today);
@@ -145,10 +155,20 @@ export function endOfPeriod(habit: CheckedHabit, today: string): string {
   return targetPerWeek(habit) >= DAILY ? today : weekEnd(today);
 }
 
+/**
+ * Whether habits run on per-habit stakes (`habitChecks.ts`) rather than the
+ * re-entry fee. On everywhere once production is cut over.
+ */
+export function stakesV2Enabled(): boolean {
+  return env.STAKES_V2 === 'on';
+}
+
+/** The re-entry fee lock, which no longer exists once stakes v2 is on. */
 export async function activeLockout(
   ctx: QueryCtx | MutationCtx,
   userId: Id<'users'>,
 ): Promise<Doc<'lockouts'> | null> {
+  if (stakesV2Enabled()) return null;
   return await ctx.db
     .query('lockouts')
     .withIndex('by_user_and_status', (q) => q.eq('userId', userId).eq('status', 'active'))

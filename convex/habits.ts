@@ -1,10 +1,13 @@
 import { paginationOptsValidator } from 'convex/server';
 import { v } from 'convex/values';
 
+import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
-import { query, type MutationCtx, type QueryCtx } from './_generated/server';
+import { internalMutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
+import { frozenDaysBetween } from './freezes';
+import { friendInputValidator, resolveFriend } from './friends';
 import { getCurrentUserOrNull } from './lib/auth';
-import { authedMutation, authedQuery } from './lib/customFunctions';
+import { authedAction, authedMutation, authedQuery } from './lib/customFunctions';
 import { requireCommitmentText } from './lib/commitmentText';
 import {
   countThisWeek,
@@ -18,6 +21,16 @@ import { DAILY, isValidTimesPerWeek, targetPerWeek } from './lib/frequency';
 import { requirePro } from './lib/entitlements';
 import { endOfPeriod, isOwed, localDay, requireDevOverrides, requireUnlocked } from './lib/lockout';
 import { touchReminders } from './lib/notify';
+import {
+  DEFAULT_LOCKOUT_DAYS,
+  isStakeLive,
+  stakeView,
+  stakeViewValidator,
+  type StakeView,
+} from './lib/stakeRules';
+import { releaseStake } from './lib/stakes';
+import { lockoutDaysValidator, moneyFields } from './lib/stakeSchema';
+import { armStake, reuseCard, verifySavedCard, type ArmSpec, type SavedCard } from './stakes';
 
 const habitValidator = v.object({
   _id: v.id('habits'),
@@ -29,6 +42,8 @@ const habitValidator = v.object({
   order: v.number(),
   startDay: v.optional(v.string()),
   endsAfter: v.optional(v.string()),
+  stakeId: v.optional(v.id('stakes')),
+  brokenAt: v.optional(v.number()),
 });
 
 /**
@@ -55,6 +70,8 @@ const habitWithProgressValidator = v.object({
   /** In days for daily habits, in weeks for the rest; see `habitStreak`. */
   streak: v.number(),
   verification: v.union(verificationSummaryValidator, v.null()),
+  /** What's on the line; `null` means just their word. */
+  stakeView: v.union(stakeViewValidator, v.null()),
 });
 
 const completionValidator = v.object({
@@ -76,14 +93,30 @@ export type HabitWithProgress = Doc<'habits'> & {
   weekCount: number;
   streak: number;
   verification: HabitVerificationSummary | null;
+  stakeView: StakeView | null;
 };
 
 export type AuthedCtx<T> = T & { user: Doc<'users'> };
 
-/** A daily habit's streak counts days; a weekly one's counts weeks that hit the target. */
-function habitStreak(habit: Doc<'habits'>, days: Set<string>, today: string): number {
+/**
+ * A daily habit's streak counts days; a weekly one's counts weeks that hit the
+ * target. Frozen days bridge it. A broken habit's streak is over.
+ */
+function habitStreak(
+  habit: Doc<'habits'>,
+  days: Set<string>,
+  today: string,
+  frozen: Set<string>,
+): number {
+  if (habit.brokenAt !== undefined) return 0;
+  // Restarting is a fresh run: nothing from before it counts.
+  const { startDay } = habit;
+  const counted =
+    startDay === undefined ? days : new Set([...days].filter((day) => day >= startDay));
   const target = targetPerWeek(habit);
-  return target >= DAILY ? streakLength(days, today) : weeklyStreak(days, today, target);
+  return target >= DAILY
+    ? streakLength(counted, today, frozen)
+    : weeklyStreak(counted, today, target, frozen);
 }
 
 async function getOwnedHabitOrNull(
@@ -156,6 +189,14 @@ export const list = query({
       .withIndex('by_user_and_day', (q) => q.eq('userId', user._id).eq('day', args.today))
       .collect();
 
+    const frozen = await frozenDaysBetween(ctx, user._id, windowStart, args.today);
+    const stakes = new Map<Id<'stakes'>, Doc<'stakes'>>();
+    for (const habit of habits) {
+      if (habit.stakeId === undefined) continue;
+      const stake = await ctx.db.get('stakes', habit.stakeId);
+      if (stake !== null) stakes.set(stake._id, stake);
+    }
+
     const latestVerificationByHabit = new Map<Id<'habits'>, Doc<'habitVerifications'>>();
     for (const verification of todaysVerifications) {
       const current = latestVerificationByHabit.get(verification.habitId);
@@ -175,15 +216,21 @@ export const list = query({
           ...habit,
           completedToday,
           weekCount: countThisWeek(days, args.today),
-          streak: habitStreak(habit, days, args.today),
+          streak: habitStreak(habit, days, args.today, frozen),
           verification:
             completedToday || latest === undefined
               ? null
               : { status: latest.status, reason: latest.reason },
+          stakeView: stakeViewOf(habit, stakes),
         };
       });
   },
 });
+
+function stakeViewOf(habit: Doc<'habits'>, stakes: Map<Id<'stakes'>, Doc<'stakes'>>) {
+  const stake = habit.stakeId === undefined ? undefined : stakes.get(habit.stakeId);
+  return stake === undefined ? null : stakeView(stake);
+}
 
 /** Null rather than a throw: a deleted habit's detail screen is an expected state. */
 export const get = authedQuery({
@@ -196,8 +243,15 @@ export const get = authedQuery({
 
 export const stats = authedQuery({
   args: { habitId: v.id('habits'), today: v.string() },
-  returns: v.union(v.object({ total: v.number(), streak: v.number() }), v.null()),
-  handler: async (ctx, args): Promise<{ total: number; streak: number } | null> => {
+  returns: v.union(
+    v.object({
+      total: v.number(),
+      streak: v.number(),
+      stakeView: v.union(stakeViewValidator, v.null()),
+    }),
+    v.null(),
+  ),
+  handler: async (ctx, args) => {
     const habit = await getOwnedHabitOrNull(ctx, args.habitId);
     if (habit === null) {
       return null;
@@ -209,8 +263,19 @@ export const stats = authedQuery({
       .collect();
 
     const days = new Set(completions.map((completion) => completion.day));
+    const frozen = await frozenDaysBetween(
+      ctx,
+      ctx.user._id,
+      daysBefore(args.today, STREAK_WINDOW_DAYS * 6),
+      args.today,
+    );
+    const stake = habit.stakeId === undefined ? null : await ctx.db.get('stakes', habit.stakeId);
 
-    return { total: completions.length, streak: habitStreak(habit, days, args.today) };
+    return {
+      total: completions.length,
+      streak: habitStreak(habit, days, args.today, frozen),
+      stakeView: stake === null ? null : stakeView(stake),
+    };
   },
 });
 
@@ -239,42 +304,249 @@ export const listCompletions = authedQuery({
   },
 });
 
+/** What a habit can be staked on, short of money (which needs a card: `createStaked`). */
+const plainStakeValidator = v.union(
+  v.object({ kind: v.literal('none') }),
+  v.object({ kind: v.literal('lockout'), days: lockoutDaysValidator }),
+  v.object({ kind: v.literal('friend'), friend: friendInputValidator }),
+);
+
+type PlainStake = typeof plainStakeValidator.type;
+
+const newHabitFields = {
+  title: v.string(),
+  description: v.optional(v.string()),
+  /** 1 to 7 days a week; omitted means every day. */
+  timesPerWeek: v.optional(v.number()),
+};
+
+async function requireNewHabit(
+  ctx: MutationCtx,
+  user: Doc<'users'>,
+  args: { title: string; description?: string; timesPerWeek?: number },
+): Promise<number> {
+  await requireUnlocked(ctx, user._id);
+  await requirePro(ctx, user._id);
+  requireCommitmentText(args.title, args.description);
+  const timesPerWeek = args.timesPerWeek ?? DAILY;
+  if (!isValidTimesPerWeek(timesPerWeek)) {
+    throw new Error('A habit is due 1 to 7 days a week');
+  }
+  return timesPerWeek;
+}
+
+async function insertHabit(
+  ctx: MutationCtx,
+  user: Doc<'users'>,
+  args: { title: string; description?: string; timesPerWeek: number },
+): Promise<Doc<'habits'>> {
+  const existing = await ctx.db
+    .query('habits')
+    .withIndex('by_user', (q) => q.eq('userId', user._id))
+    .collect();
+
+  const order = existing.reduce((max, habit) => Math.max(max, habit.order), -1) + 1;
+
+  const habitId = await ctx.db.insert('habits', {
+    userId: user._id,
+    title: args.title,
+    description: args.description,
+    timesPerWeek: args.timesPerWeek,
+    order,
+    startDay: user.timeZone === undefined ? undefined : localDay(Date.now(), user.timeZone),
+  });
+  const habit = await ctx.db.get('habits', habitId);
+  if (habit === null) throw new Error('Habit not found');
+  return habit;
+}
+
+async function armPlain(
+  ctx: MutationCtx,
+  user: Doc<'users'>,
+  habit: Doc<'habits'>,
+  stake: PlainStake,
+): Promise<void> {
+  let spec: ArmSpec;
+  switch (stake.kind) {
+    case 'none':
+      return;
+    case 'lockout':
+      spec = { kind: 'lockout', days: stake.days };
+      break;
+    case 'friend':
+      spec = { kind: 'friend', friend: await resolveFriend(ctx, user, stake.friend) };
+      break;
+  }
+  await armStake(ctx, { habit }, spec);
+}
+
+/**
+ * A habit on a lockout, a friend, or the user's word. Builds from before
+ * stakes send no `stake`, and get the lockout their screens still describe.
+ * Money goes through `createStaked`.
+ */
 export const create = authedMutation({
-  args: {
-    title: v.string(),
-    description: v.optional(v.string()),
-    /** 1 to 7 days a week; omitted means every day. */
-    timesPerWeek: v.optional(v.number()),
-  },
+  args: { ...newHabitFields, stake: v.optional(plainStakeValidator) },
   returns: v.id('habits'),
   handler: async (ctx, args): Promise<Id<'habits'>> => {
-    await requireUnlocked(ctx, ctx.user._id);
-    await requirePro(ctx, ctx.user._id);
+    const timesPerWeek = await requireNewHabit(ctx, ctx.user, args);
+    const habit = await insertHabit(ctx, ctx.user, { ...args, timesPerWeek });
+    await armPlain(
+      ctx,
+      ctx.user,
+      habit,
+      args.stake ?? { kind: 'lockout', days: DEFAULT_LOCKOUT_DAYS },
+    );
+    await touchReminders(ctx, ctx.user._id);
+
+    return habit._id;
+  },
+});
+
+/** A habit with money on it, once the PaymentSheet saved the card (`stakes.beginMoney`). */
+export const createStaked = authedAction({
+  args: { ...newHabitFields, amountCents: v.number(), setupIntentId: v.string() },
+  returns: v.id('habits'),
+  handler: async (ctx, args): Promise<Id<'habits'>> => {
     requireCommitmentText(args.title, args.description);
-    const timesPerWeek = args.timesPerWeek ?? DAILY;
-    if (!isValidTimesPerWeek(timesPerWeek)) {
-      throw new Error('A habit is due 1 to 7 days a week');
-    }
-
-    const existing = await ctx.db
-      .query('habits')
-      .withIndex('by_user', (q) => q.eq('userId', ctx.user._id))
-      .collect();
-
-    const order = existing.reduce((max, habit) => Math.max(max, habit.order), -1) + 1;
-
-    const habitId = await ctx.db.insert('habits', {
+    const { kind: _kind, ...card } = await verifySavedCard(
+      ctx,
+      args.setupIntentId,
+      args.amountCents,
+    );
+    const habitId: Id<'habits'> = await ctx.runMutation(internal.habits.insertStaked, {
       userId: ctx.user._id,
       title: args.title,
       description: args.description,
-      timesPerWeek,
-      order,
-      startDay:
-        ctx.user.timeZone === undefined ? undefined : localDay(Date.now(), ctx.user.timeZone),
+      timesPerWeek: args.timesPerWeek,
+      ...card,
     });
-    await touchReminders(ctx, ctx.user._id);
-
     return habitId;
+  },
+});
+
+const moneyArgs = {
+  amountCents: moneyFields.amountCents,
+  stripeCustomerId: moneyFields.stripeCustomerId,
+  stripePaymentMethodId: moneyFields.stripePaymentMethodId,
+  stripeSetupIntentId: moneyFields.stripeSetupIntentId,
+  cardBrand: moneyFields.cardBrand,
+  cardLast4: moneyFields.cardLast4,
+};
+
+export const insertStaked = internalMutation({
+  args: { userId: v.id('users'), ...newHabitFields, ...moneyArgs },
+  returns: v.id('habits'),
+  handler: async (ctx, args): Promise<Id<'habits'>> => {
+    const user = await ctx.db.get('users', args.userId);
+    if (user === null) throw new Error('User not found');
+    const { userId: _userId, title, description, timesPerWeek: requested, ...card } = args;
+    const timesPerWeek = await requireNewHabit(ctx, user, {
+      title,
+      description,
+      timesPerWeek: requested,
+    });
+    const habit = await insertHabit(ctx, user, { title, description, timesPerWeek });
+    // Checks the cap and replays; throwing here rolls the habit back with it.
+    await armStake(ctx, { habit }, { kind: 'money', ...card });
+    await touchReminders(ctx, user._id);
+    return habit._id;
+  },
+});
+
+/**
+ * Whether the habit can take new stakes: its streak broke (the stake is
+ * spent), or nothing live is on it (none, or a friend who opted out). A live
+ * stake can't be swapped out; that would be a way around it.
+ */
+async function requireRestartable(
+  ctx: MutationCtx,
+  user: Doc<'users'>,
+  habitId: Id<'habits'>,
+): Promise<Doc<'habits'>> {
+  const habit = await ctx.db.get('habits', habitId);
+  if (habit === null || habit.userId !== user._id) throw new Error('Habit not found');
+  if (habit.endsAfter !== undefined) throw new Error('This habit is ending');
+  await requirePro(ctx, user._id);
+  if (habit.brokenAt !== undefined || habit.stakeId === undefined) return habit;
+
+  const stake = await ctx.db.get('stakes', habit.stakeId);
+  if (stake !== null && isStakeLive(stake)) {
+    throw new Error('This habit already has something on the line');
+  }
+  return habit;
+}
+
+/**
+ * Picks the habit back up with new stakes. History stays; the streak starts
+ * over, and today is free.
+ */
+async function restartHabit(ctx: MutationCtx, user: Doc<'users'>, habit: Doc<'habits'>) {
+  await ctx.db.patch('habits', habit._id, {
+    brokenAt: undefined,
+    stakeId: undefined,
+    startDay: user.timeZone === undefined ? habit.startDay : localDay(Date.now(), user.timeZone),
+  });
+  const fresh = await ctx.db.get('habits', habit._id);
+  if (fresh === null) throw new Error('Habit not found');
+  return fresh;
+}
+
+export const restart = authedMutation({
+  args: { habitId: v.id('habits'), stake: plainStakeValidator },
+  returns: v.null(),
+  handler: async (ctx, args): Promise<null> => {
+    const habit = await requireRestartable(ctx, ctx.user, args.habitId);
+    const fresh = await restartHabit(ctx, ctx.user, habit);
+    await armPlain(ctx, ctx.user, fresh, args.stake);
+    await touchReminders(ctx, ctx.user._id);
+    return null;
+  },
+});
+
+/**
+ * Restarts with money: a freshly saved card (`setupIntentId`), or the card an
+ * earlier stake was on (`reuseFromStakeId`, "go again at the same amount").
+ */
+export const restartStaked = authedAction({
+  args: {
+    habitId: v.id('habits'),
+    amountCents: v.number(),
+    setupIntentId: v.optional(v.string()),
+    reuseFromStakeId: v.optional(v.id('stakes')),
+  },
+  returns: v.null(),
+  handler: async (ctx, args): Promise<null> => {
+    let card: SavedCard;
+    if (args.setupIntentId !== undefined) {
+      card = await verifySavedCard(ctx, args.setupIntentId, args.amountCents);
+    } else if (args.reuseFromStakeId !== undefined) {
+      card = await reuseCard(ctx, args.reuseFromStakeId, args.amountCents);
+    } else {
+      throw new Error('Add a card for the stake');
+    }
+    const { kind: _kind, ...fields } = card;
+    await ctx.runMutation(internal.habits.restartWithMoney, {
+      userId: ctx.user._id,
+      habitId: args.habitId,
+      ...fields,
+    });
+    return null;
+  },
+});
+
+export const restartWithMoney = internalMutation({
+  args: { userId: v.id('users'), habitId: v.id('habits'), ...moneyArgs },
+  returns: v.null(),
+  handler: async (ctx, args): Promise<null> => {
+    const user = await ctx.db.get('users', args.userId);
+    if (user === null) throw new Error('User not found');
+    const { userId: _userId, habitId, ...card } = args;
+    const habit = await requireRestartable(ctx, user, habitId);
+    const fresh = await restartHabit(ctx, user, habit);
+    await armStake(ctx, { habit: fresh }, { kind: 'money', ...card });
+    await touchReminders(ctx, user._id);
+    return null;
   },
 });
 
@@ -347,8 +619,17 @@ export const remove = authedMutation({
   },
 });
 
-/** The habit and everything logged against it, photos included. */
+/**
+ * The habit and everything logged against it, photos included. Its stake is
+ * let go (the habit ended before it came due) and kept as a record.
+ */
 export async function deleteHabit(ctx: MutationCtx, habitId: Id<'habits'>): Promise<void> {
+  const habit = await ctx.db.get('habits', habitId);
+  if (habit?.stakeId !== undefined) {
+    const stake = await ctx.db.get('stakes', habit.stakeId);
+    if (stake !== null) await releaseStake(ctx, stake);
+  }
+
   const completions = await ctx.db
     .query('habitCompletions')
     .withIndex('by_habit_and_day', (q) => q.eq('habitId', habitId))

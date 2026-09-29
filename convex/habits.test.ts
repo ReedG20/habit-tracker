@@ -95,7 +95,7 @@ describe('habits', () => {
 
     const [habit] = await alice.as.query(api.habits.list, { today: TODAY });
     expect(habit).toMatchObject({ completedToday: true, weekCount: 1, streak: 2 });
-    expect(await alice.as.query(api.habits.stats, { habitId, today: TODAY })).toEqual({
+    expect(await alice.as.query(api.habits.stats, { habitId, today: TODAY })).toMatchObject({
       total: 5,
       streak: 2,
     });
