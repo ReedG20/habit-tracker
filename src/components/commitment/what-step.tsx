@@ -139,17 +139,19 @@ export function WhatStep({ draft, onChange, onNext, suggestions }: WhatStepProps
           disabled={wording.checking}
           onPress={() => void next()}
         />
+      }
+      // Pinned, so switching between habit and goal is always one tap away.
+      header={
+        <SegmentedPicker
+          options={kindOptions}
+          value={draft.kind}
+          // Carry the typed text across: the fields stay mounted, but the draft should match them.
+          onChange={(kind) => {
+            wording.dismiss();
+            onChange({ ...readFields(), kind });
+          }}
+        />
       }>
-      <SegmentedPicker
-        options={kindOptions}
-        value={draft.kind}
-        // Carry the typed text across: the fields stay mounted, but the draft should match them.
-        onChange={(kind) => {
-          wording.dismiss();
-          onChange({ ...readFields(), kind });
-        }}
-      />
-
       {suggestions !== undefined && suggestions[draft.kind].length > 0 ? (
         <View style={styles.suggestions}>
           <ThemedText type="small" themeColor="textSecondary">
