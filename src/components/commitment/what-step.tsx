@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
-import { MIN_LEAD_MS, wordingSignature, type CommitmentDraft, type CommitmentKind } from './draft';
+import {
+  draftProofMethod,
+  MIN_LEAD_MS,
+  wordingSignature,
+  type CommitmentDraft,
+  type CommitmentKind,
+} from './draft';
 import { FrequencyPicker } from './frequency-picker';
 import { GoalProofExplainer } from './goal-proof-explainer';
 import { Note } from './note';
@@ -16,6 +22,7 @@ import { DeadlineField } from '@/components/deadline-field';
 import { SegmentedPicker } from '@/components/segmented-picker';
 import { TextField, type TextFieldHandle } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
+import { PROOF_METHODS } from '@/constants/proof-methods';
 import { Spacing } from '@/constants/theme';
 
 const kindOptions: { value: CommitmentKind; label: string }[] = [
@@ -23,21 +30,27 @@ const kindOptions: { value: CommitmentKind; label: string }[] = [
   { value: 'goal', label: 'Goal · one deadline' },
 ];
 
-const proofLabels: Record<CommitmentKind, string> = {
-  habit: 'What does the photo need to show?',
-  goal: 'What will the photos show when it’s done?',
+const titlePlaceholders: Record<CommitmentKind, string> = {
+  habit: 'Go to the gym',
+  goal: 'Ship the landing page',
 };
 
-const placeholders: Record<CommitmentKind, { title: string; proof: string }> = {
-  habit: {
-    title: 'Go to the gym',
-    proof: 'Me at the gym with the equipment in view, not the parking lot',
-  },
-  goal: {
-    title: 'Ship the landing page',
-    proof: 'The live site open on my laptop, not a screenshot',
-  },
-};
+/** A habit's proof field follows its method; a goal's is always about photos. */
+function proofField(draft: CommitmentDraft): { label: string; placeholder: string; empty: string } {
+  if (draft.kind === 'goal') {
+    return {
+      label: 'What will the photos show when it’s done?',
+      placeholder: 'The live site open on my laptop, not a screenshot',
+      empty: PROOF_METHODS.photo.emptyProof,
+    };
+  }
+  const method = PROOF_METHODS[draft.proofMethod];
+  return {
+    label: method.proofLabel,
+    placeholder: method.proofPlaceholder,
+    empty: method.emptyProof,
+  };
+}
 
 export type WhatStepProps = {
   draft: CommitmentDraft;
@@ -85,10 +98,7 @@ export function WhatStep({ draft, onChange, onNext, suggestions }: WhatStepProps
       return;
     }
     if (proof.trim().length === 0) {
-      Alert.alert(
-        'Say what the photo needs to show',
-        'That is what the proof gets judged against.',
-      );
+      Alert.alert(proofField(draft).empty, 'That is what the proof gets judged against.');
       return;
     }
     if (draft.kind === 'goal' && draft.dueAt < Date.now() + MIN_LEAD_MS) {
@@ -96,13 +106,17 @@ export function WhatStep({ draft, onChange, onNext, suggestions }: WhatStepProps
       return;
     }
 
-    const signature = wordingSignature({ kind: draft.kind, title, proof });
+    const proofMethod = draftProofMethod(draft);
+    const signature = wordingSignature({ kind: draft.kind, proofMethod, title, proof });
     // Already passed, or one of onboarding's own suggestions: no need to ask again.
+    // The suggestions are written for photos, so only a photo habit takes them as read.
     const vetted =
       draft.checkedWording === signature ||
-      (suggestions?.[draft.kind] ?? []).some(
-        (suggestion) => wordingSignature({ kind: draft.kind, ...suggestion }) === signature,
-      );
+      (proofMethod === 'photo' &&
+        (suggestions?.[draft.kind] ?? []).some(
+          (suggestion) =>
+            wordingSignature({ kind: draft.kind, proofMethod, ...suggestion }) === signature,
+        ));
 
     if (!vetted) {
       const revision = await wording.run({
@@ -110,6 +124,9 @@ export function WhatStep({ draft, onChange, onNext, suggestions }: WhatStepProps
         title,
         proof,
         timesPerWeek: draft.kind === 'habit' ? draft.timesPerWeek : undefined,
+        proofMethod: draft.kind === 'habit' ? proofMethod : undefined,
+        timerMinutes:
+          draft.kind === 'habit' && proofMethod === 'timer' ? draft.timerMinutes : undefined,
       });
       if (revision !== null) return;
       onChange({ checkedWording: signature });
@@ -123,7 +140,11 @@ export function WhatStep({ draft, onChange, onNext, suggestions }: WhatStepProps
     onChange({
       ...suggestion,
       // The model wrote it to pass; asking it again would only add a wait.
-      checkedWording: wordingSignature({ kind: draft.kind, ...suggestion }),
+      checkedWording: wordingSignature({
+        kind: draft.kind,
+        proofMethod: draftProofMethod(draft),
+        ...suggestion,
+      }),
     });
     setFieldsKey((key) => key + 1);
   };
@@ -182,7 +203,7 @@ export function WhatStep({ draft, onChange, onNext, suggestions }: WhatStepProps
         defaultValue={draft.title}
         readValueRef={readTitle}
         onChangeText={wording.dismiss}
-        placeholder={placeholders[draft.kind].title}
+        placeholder={titlePlaceholders[draft.kind]}
         autoCapitalize="sentences"
         returnKeyType="next"
         onSubmit={() => proofRef.current?.focus()}
@@ -194,7 +215,15 @@ export function WhatStep({ draft, onChange, onNext, suggestions }: WhatStepProps
             value={draft.timesPerWeek}
             onChange={(timesPerWeek) => onChange({ ...readFields(), timesPerWeek })}
           />
-          <ProofMethodPicker />
+          <ProofMethodPicker
+            value={draft.proofMethod}
+            onChange={(proofMethod) => {
+              wording.dismiss();
+              onChange({ ...readFields(), proofMethod });
+            }}
+            timerMinutes={draft.timerMinutes}
+            onTimerMinutesChange={(timerMinutes) => onChange({ ...readFields(), timerMinutes })}
+          />
         </>
       ) : (
         <>
@@ -207,11 +236,11 @@ export function WhatStep({ draft, onChange, onNext, suggestions }: WhatStepProps
         <TextField
           ref={proofRef}
           key={`proof-${fieldsKey}`}
-          label={proofLabels[draft.kind]}
+          label={proofField(draft).label}
           defaultValue={draft.proof}
           readValueRef={readProof}
           onChangeText={wording.dismiss}
-          placeholder={placeholders[draft.kind].proof}
+          placeholder={proofField(draft).placeholder}
           multiline
         />
         <Note>be specific. vague proof is a way out.</Note>

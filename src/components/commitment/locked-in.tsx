@@ -1,6 +1,6 @@
 import { StyleSheet, View } from 'react-native';
 
-import { friendName } from './contract-text';
+import { friendName, proofSummary } from './contract-text';
 import { lockoutLabel, type CommitmentDraft } from './draft';
 import { Note } from './note';
 import { StepLayout } from './step-layout';
@@ -33,7 +33,7 @@ export function LockedIn({ draft, onDone }: LockedInProps) {
 
       <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
         <Row label={draft.kind === 'habit' ? 'Habit' : 'Goal'} value={draft.title.trim()} />
-        <Row label="Proof" value={`Photo: ${draft.proof.trim()}`} />
+        <Row label="Proof" value={proofSummary(draft)} />
         {draft.kind === 'goal' ? (
           <View style={styles.row}>
             <ThemedText type="small" themeColor="textSecondary">

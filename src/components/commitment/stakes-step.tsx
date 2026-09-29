@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { friendName } from './contract-text';
+import { friendName, proofAction } from './contract-text';
 import {
   cardForStake,
   isFriendComplete,
@@ -302,8 +302,8 @@ export function whatHappens(draft: CommitmentDraft): string[] {
     draft.kind === 'goal'
       ? `Before ${formatDueAt(draft.dueAt)}, submit a photo. AI checks it against what you wrote.`
       : daily
-        ? 'Every day, prove it with a photo before midnight. The day you start is free.'
-        : `Any ${days} a week, prove it with a photo. Weeks run Monday to Sunday, from the first full one.`;
+        ? `Every day, ${proofAction(draft)} before midnight. The day you start is free.`
+        : `Any ${days} a week, ${proofAction(draft)}. Weeks run Monday to Sunday, from the first full one.`;
   const miss =
     draft.kind === 'goal'
       ? 'Miss it, or the proof doesn’t hold up,'

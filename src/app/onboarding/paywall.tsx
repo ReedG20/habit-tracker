@@ -13,7 +13,12 @@ import { showToast } from '@/components/toast';
 import { SparklesIcon } from '@/constants/icons';
 import { Fonts, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
-import { friendInput, plainStake, type CommitmentDraft } from '@/components/commitment/draft';
+import {
+  friendInput,
+  plainStake,
+  proofInput,
+  type CommitmentDraft,
+} from '@/components/commitment/draft';
 import { commitmentNoun, freshDueAt } from '@/data/onboarding';
 import { useSessionUserId } from '@/hooks/use-signed-in-session';
 import { captureError, track } from '@/lib/analytics';
@@ -79,6 +84,7 @@ export default function OnboardingPaywallScreen() {
               title: pending.title.trim(),
               description: pending.proof.trim(),
               timesPerWeek: pending.timesPerWeek,
+              ...proofInput(pending),
               stake: plainStake(pending),
             })
           : createGoal({

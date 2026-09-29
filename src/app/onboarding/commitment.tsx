@@ -5,7 +5,12 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { defaultDueAt, freshStake, type CommitmentDraft } from '@/components/commitment/draft';
+import {
+  defaultDueAt,
+  FRESH_PROOF,
+  freshStake,
+  type CommitmentDraft,
+} from '@/components/commitment/draft';
 import { SignStep } from '@/components/commitment/sign-step';
 import {
   phaseBeforeSigning,
@@ -75,6 +80,7 @@ export default function OnboardingCommitmentScreen() {
         title: '',
         proof: '',
         timesPerWeek: DAILY,
+        ...FRESH_PROOF,
         dueAt: defaultDueAt(),
         ...freshStake(suggestKind(getOnboarding().answers), false),
       }

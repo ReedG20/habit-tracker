@@ -19,8 +19,16 @@ import {
 } from './lib/days';
 import { DAILY, isValidTimesPerWeek, targetPerWeek } from './lib/frequency';
 import { requirePro } from './lib/entitlements';
-import { endOfPeriod, isOwed, localDay, requireDevOverrides, requireUnlocked } from './lib/lockout';
+import {
+  devOverridesEnabled,
+  endOfPeriod,
+  isOwed,
+  localDay,
+  requireDevOverrides,
+  requireUnlocked,
+} from './lib/lockout';
 import { touchReminders } from './lib/notify';
+import { proofMethodValidator, requireProofSettings, type ProofMethod } from './lib/proofMethods';
 import {
   DEFAULT_LOCKOUT_DAYS,
   isStakeLive,
@@ -44,6 +52,8 @@ const habitValidator = v.object({
   endsAfter: v.optional(v.string()),
   stakeId: v.optional(v.id('stakes')),
   brokenAt: v.optional(v.number()),
+  proofMethod: v.optional(proofMethodValidator),
+  timerMinutes: v.optional(v.number()),
 });
 
 /**
@@ -59,6 +69,7 @@ const verificationSummaryValidator = v.object({
     v.literal('failed'),
   ),
   reason: v.optional(v.string()),
+  method: v.optional(proofMethodValidator),
 });
 
 /** A habit plus the per-day state the list screen renders. */
@@ -220,7 +231,7 @@ export const list = query({
           verification:
             completedToday || latest === undefined
               ? null
-              : { status: latest.status, reason: latest.reason },
+              : { status: latest.status, reason: latest.reason, method: latest.method },
           stakeView: stakeViewOf(habit, stakes),
         };
       });
@@ -318,13 +329,33 @@ const newHabitFields = {
   description: v.optional(v.string()),
   /** 1 to 7 days a week; omitted means every day. */
   timesPerWeek: v.optional(v.number()),
+  /** Omitted means photo, which is what builds from before methods make. */
+  proofMethod: v.optional(proofMethodValidator),
+  /** Required for a timer habit, and only for one. */
+  timerMinutes: v.optional(v.number()),
+};
+
+type NewHabitArgs = {
+  title: string;
+  description?: string;
+  timesPerWeek?: number;
+  proofMethod?: ProofMethod;
+  timerMinutes?: number;
+};
+
+type ValidHabitFields = {
+  title: string;
+  description?: string;
+  timesPerWeek: number;
+  proofMethod: ProofMethod;
+  timerMinutes?: number;
 };
 
 async function requireNewHabit(
   ctx: MutationCtx,
   user: Doc<'users'>,
-  args: { title: string; description?: string; timesPerWeek?: number },
-): Promise<number> {
+  args: NewHabitArgs,
+): Promise<ValidHabitFields> {
   await requireUnlocked(ctx, user._id);
   await requirePro(ctx, user._id);
   requireCommitmentText(args.title, args.description);
@@ -332,13 +363,14 @@ async function requireNewHabit(
   if (!isValidTimesPerWeek(timesPerWeek)) {
     throw new Error('A habit is due 1 to 7 days a week');
   }
-  return timesPerWeek;
+  const proof = requireProofSettings(args, devOverridesEnabled());
+  return { title: args.title, description: args.description, timesPerWeek, ...proof };
 }
 
 async function insertHabit(
   ctx: MutationCtx,
   user: Doc<'users'>,
-  args: { title: string; description?: string; timesPerWeek: number },
+  args: ValidHabitFields,
 ): Promise<Doc<'habits'>> {
   const existing = await ctx.db
     .query('habits')
@@ -352,6 +384,8 @@ async function insertHabit(
     title: args.title,
     description: args.description,
     timesPerWeek: args.timesPerWeek,
+    proofMethod: args.proofMethod,
+    timerMinutes: args.timerMinutes,
     order,
     startDay: user.timeZone === undefined ? undefined : localDay(Date.now(), user.timeZone),
   });
@@ -389,8 +423,8 @@ export const create = authedMutation({
   args: { ...newHabitFields, stake: v.optional(plainStakeValidator) },
   returns: v.id('habits'),
   handler: async (ctx, args): Promise<Id<'habits'>> => {
-    const timesPerWeek = await requireNewHabit(ctx, ctx.user, args);
-    const habit = await insertHabit(ctx, ctx.user, { ...args, timesPerWeek });
+    const fields = await requireNewHabit(ctx, ctx.user, args);
+    const habit = await insertHabit(ctx, ctx.user, fields);
     await armPlain(
       ctx,
       ctx.user,
@@ -419,6 +453,8 @@ export const createStaked = authedAction({
       title: args.title,
       description: args.description,
       timesPerWeek: args.timesPerWeek,
+      proofMethod: args.proofMethod,
+      timerMinutes: args.timerMinutes,
       ...card,
     });
     return habitId;
@@ -440,13 +476,23 @@ export const insertStaked = internalMutation({
   handler: async (ctx, args): Promise<Id<'habits'>> => {
     const user = await ctx.db.get('users', args.userId);
     if (user === null) throw new Error('User not found');
-    const { userId: _userId, title, description, timesPerWeek: requested, ...card } = args;
-    const timesPerWeek = await requireNewHabit(ctx, user, {
+    const {
+      userId: _userId,
       title,
       description,
-      timesPerWeek: requested,
+      timesPerWeek,
+      proofMethod,
+      timerMinutes,
+      ...card
+    } = args;
+    const fields = await requireNewHabit(ctx, user, {
+      title,
+      description,
+      timesPerWeek,
+      proofMethod,
+      timerMinutes,
     });
-    const habit = await insertHabit(ctx, user, { title, description, timesPerWeek });
+    const habit = await insertHabit(ctx, user, fields);
     // Checks the cap and replays; throwing here rolls the habit back with it.
     await armStake(ctx, { habit }, { kind: 'money', ...card });
     await touchReminders(ctx, user._id);
@@ -645,8 +691,17 @@ export async function deleteHabit(ctx: MutationCtx, habitId: Id<'habits'>): Prom
     .collect();
 
   for (const verification of verifications) {
-    await ctx.storage.delete(verification.photoId);
+    if (verification.photoId !== undefined) await ctx.storage.delete(verification.photoId);
     await ctx.db.delete('habitVerifications', verification._id);
+  }
+
+  const timerRuns = await ctx.db
+    .query('habitTimerRuns')
+    .withIndex('by_habit_and_day', (q) => q.eq('habitId', habitId))
+    .collect();
+
+  for (const run of timerRuns) {
+    await ctx.db.delete('habitTimerRuns', run._id);
   }
 
   await ctx.db.delete('habits', habitId);

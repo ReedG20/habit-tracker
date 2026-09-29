@@ -14,7 +14,10 @@ export type PushPermission = 'granted' | 'provisional' | 'denied' | 'undetermine
 
 /** What a push carries in `data`, as set by `convex/reminders.ts` and `convex/lib/notify.ts`. */
 export type PushData = {
-  kind?: 'reminder' | 'lineup' | 'proof' | 'receipt' | 'account' | 'test';
+  /** `timer` is the app's own local notification when a timer is cut short (`use-proof-timer.ts`). */
+  kind?: 'reminder' | 'lineup' | 'proof' | 'receipt' | 'account' | 'test' | 'timer';
+  /** The habit a `timer` notification is about. */
+  habitId?: string;
   url?: string;
   final?: boolean;
   /** A stake that came due; opens its loss screen. */

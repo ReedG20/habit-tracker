@@ -44,7 +44,11 @@ export type AnalyticsEvents = {
   'commitment restarted': { stake_kind: StakeKind; same_stakes: boolean };
   'commitment deleted': { kind: CommitmentKind };
 
-  'habit checked in': { photo_source: 'camera' | 'library' };
+  /** Sent for review; the verdict comes later from the server. */
+  'habit checked in':
+    | { method: 'photo'; photo_source: 'camera' | 'library' }
+    | { method: 'location' }
+    | { method: 'timer'; duration_minutes: number };
   'goal proof submitted': { photo_count: number; has_note: boolean };
 
   'stake lost viewed': {

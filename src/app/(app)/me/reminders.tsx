@@ -64,7 +64,7 @@ const toggles: Toggle[] = [
   {
     key: 'approvals',
     label: 'Approval notes',
-    detail: 'When a photo passes.',
+    detail: 'When a photo or check-in passes.',
     icon: CheckmarkCircle02Icon,
   },
 ];
