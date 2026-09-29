@@ -26,7 +26,7 @@ import type { Habit } from '@/data/habits';
 import { captureError, track } from '@/lib/analytics';
 import { todayKey } from '@/lib/dates';
 import { pressHaptic } from '@/lib/haptics';
-import { proofErrorMessage } from '@/lib/proof-errors';
+import { userErrorMessage } from '@/lib/user-errors';
 
 /** Good enough to tell one building from the next; past this, wait a moment for better. */
 const GOOD_ACCURACY_M = 65;
@@ -128,7 +128,7 @@ export function LocationStage({ habit, onClose }: { habit: Habit; onClose: () =>
       captureError(error, 'habit location proof');
       Alert.alert(
         'Couldn’t check in',
-        proofErrorMessage(error, 'Check your connection and try again.'),
+        userErrorMessage(error, 'Check your connection and try again.'),
       );
       setPhase('ready');
     }

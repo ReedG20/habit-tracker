@@ -31,7 +31,7 @@ import type { Habit } from '@/data/habits';
 import { captureError, track } from '@/lib/analytics';
 import { todayKey } from '@/lib/dates';
 import { pressHaptic } from '@/lib/haptics';
-import { proofErrorMessage } from '@/lib/proof-errors';
+import { userErrorMessage } from '@/lib/user-errors';
 import { uploadPhoto } from '@/lib/proof-upload';
 
 /** The simulator has no camera. */
@@ -74,7 +74,7 @@ export function PhotoStage({ habit, onClose }: { habit: Habit; onClose: () => vo
       captureError(error, 'habit photo proof');
       Alert.alert(
         'Couldn’t send the photo',
-        proofErrorMessage(error, 'Check your connection and try again.'),
+        userErrorMessage(error, 'Check your connection and try again.'),
       );
       setPhoto(null);
     }

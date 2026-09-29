@@ -1,4 +1,4 @@
-import { v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
@@ -82,29 +82,29 @@ export const create = authedMutation({
   handler: async (ctx, args): Promise<Id<'goalSubmissions'>> => {
     const goal = await requireOwnedGoal(ctx, args.goalId);
     if (goal.completedAt !== undefined) {
-      throw new Error('This goal is already done');
+      throw new ConvexError('This goal is already done');
     }
     if (Date.now() >= goal.dueAt) {
-      throw new Error('The deadline has passed');
+      throw new ConvexError('The deadline has passed');
     }
     if (args.photoIds.length === 0) {
-      throw new Error('Add at least one photo');
+      throw new ConvexError('Add at least one photo');
     }
     if (args.photoIds.length > MAX_SUBMISSION_PHOTOS) {
-      throw new Error(`At most ${MAX_SUBMISSION_PHOTOS} photos per submission`);
+      throw new ConvexError(`At most ${MAX_SUBMISSION_PHOTOS} photos per submission`);
     }
 
     // Cheap gate before spending a model call: every upload must really be an image.
     for (const photoId of args.photoIds) {
       const file = await ctx.db.system.get('_storage', photoId);
       if (file === null || !IMAGE_CONTENT_TYPES.has(file.contentType ?? '')) {
-        throw new Error('An uploaded file is not a supported image');
+        throw new ConvexError('An uploaded file is not a supported image');
       }
     }
 
     const text = args.text?.trim();
     if (text !== undefined && text.length > MAX_TEXT_LENGTH) {
-      throw new Error(`Keep the note under ${MAX_TEXT_LENGTH} characters`);
+      throw new ConvexError(`Keep the note under ${MAX_TEXT_LENGTH} characters`);
     }
 
     const latest = await ctx.db
@@ -113,7 +113,7 @@ export const create = authedMutation({
       .order('desc')
       .first();
     if (latest?.status === 'pending') {
-      throw new Error('A submission for this goal is already being verified');
+      throw new ConvexError('A submission for this goal is already being verified');
     }
 
     const submissionId = await ctx.db.insert('goalSubmissions', {
