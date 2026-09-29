@@ -1,3 +1,4 @@
+import type { ProofMethod } from '@/convex/lib/proofMethods';
 import type { StakeKind } from '@/convex/lib/stakeRules';
 import type { FocusArea, History, Motivator } from '@/data/onboarding';
 
@@ -41,6 +42,8 @@ export type AnalyticsEvents = {
     source: 'new' | 'onboarding';
   };
   'card saved': { amount_cents: number };
+  /** One of the name check's proof ideas put in the proof field. */
+  'proof idea picked': { kind: CommitmentKind; method: ProofMethod };
   'commitment restarted': { stake_kind: StakeKind; same_stakes: boolean };
   'commitment deleted': { kind: CommitmentKind };
 

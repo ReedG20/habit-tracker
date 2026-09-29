@@ -14,44 +14,41 @@ import { BorderRadius, PillRadius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { selectionHaptic } from '@/lib/haptics';
 
-/** The rule under the cards, so each method says what it asks of you. */
-const rules: Record<ProofMethod, string> = {
-  photo: 'Snap it in the app. AI checks it against what you write below.',
-  location: 'Check in when you get there. Ante matches the places around you.',
-  timer: 'Keep Ante open until the timer runs out. Leaving stops it.',
-};
-
 export type ProofMethodPickerProps = {
   value: ProofMethod;
   onChange: (method: ProofMethod) => void;
   timerMinutes: number;
   onTimerMinutesChange: (minutes: number) => void;
+  /** The method the name check thinks suits this habit best, badged on its card. */
+  bestMethod?: ProofMethod | null;
 };
 
-/** How a habit is proved; a timer also picks its length. Fixed once the habit is made. */
+/**
+ * How a habit is proved; a timer also picks its length. Fixed once the habit
+ * is made, so under the cards the chosen method spells out what it will ask.
+ */
 export function ProofMethodPicker({
   value,
   onChange,
   timerMinutes,
   onTimerMinutesChange,
+  bestMethod,
 }: ProofMethodPickerProps) {
   const theme = useTheme();
 
   return (
     <Animated.View style={styles.field} layout={LinearTransition.duration(220)}>
-      <ThemedText type="small" themeColor="textSecondary">
-        How will you prove it?
-      </ThemedText>
       <View style={styles.row} accessibilityRole="radiogroup">
         {PROOF_METHOD_ORDER.map((key) => {
           const method = PROOF_METHODS[key];
           const selected = key === value;
+          const best = key === bestMethod;
 
           return (
             <Pressable
               key={key}
               accessibilityRole="radio"
-              accessibilityLabel={`${method.label}, ${method.hint}`}
+              accessibilityLabel={`${method.label}, ${method.hint}${best ? ', best fit' : ''}`}
               accessibilityState={{ selected }}
               onPress={() => {
                 if (selected) return;
@@ -80,6 +77,15 @@ export function ProofMethodPicker({
               <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
                 {method.hint}
               </ThemedText>
+              {best ? (
+                <Animated.View
+                  entering={FadeIn.duration(200)}
+                  style={[styles.badge, { backgroundColor: theme.primary }]}>
+                  <ThemedText style={[styles.badgeText, { color: theme.onPrimary }]}>
+                    Best fit
+                  </ThemedText>
+                </Animated.View>
+              ) : null}
             </Pressable>
           );
         })}
@@ -123,9 +129,26 @@ export function ProofMethodPicker({
         </Animated.View>
       ) : null}
 
-      <ThemedText type="small" themeColor="textSecondary">
-        {rules[value]}
-      </ThemedText>
+      <Animated.View
+        key={value}
+        entering={FadeIn.duration(200)}
+        style={[styles.how, { backgroundColor: theme.backgroundElement }]}>
+        <ThemedText type="smallBold" themeColor="text">
+          How {PROOF_METHODS[value].label.toLowerCase()} proof works
+        </ThemedText>
+        {PROOF_METHODS[value].howItWorks.map((line, index) => (
+          <View key={line} style={styles.howLine}>
+            <View style={[styles.howNumber, { backgroundColor: theme.backgroundSelected }]}>
+              <ThemedText style={styles.howNumberText} themeColor="textSecondary">
+                {index + 1}
+              </ThemedText>
+            </View>
+            <ThemedText type="small" themeColor="textSecondary" style={styles.howText}>
+              {line}
+            </ThemedText>
+          </View>
+        ))}
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -159,6 +182,47 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.two,
     paddingHorizontal: Spacing.three,
     borderRadius: PillRadius,
+  },
+  // Sits on the card's top edge, so the card keeps its height.
+  badge: {
+    position: 'absolute',
+    top: -10,
+    right: Spacing.two,
+    paddingHorizontal: Spacing.two,
+    paddingVertical: 1,
+    borderRadius: PillRadius,
+  },
+  badgeText: {
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: 700,
+  },
+  how: {
+    gap: Spacing.two,
+    padding: Spacing.three,
+    borderRadius: BorderRadius,
+  },
+  howLine: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.two,
+  },
+  // Centred on the first line of its text.
+  howNumber: {
+    width: 20,
+    height: 20,
+    marginTop: 0,
+    borderRadius: PillRadius,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  howNumberText: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: 700,
+  },
+  howText: {
+    flex: 1,
   },
   pressed: {
     opacity: 0.7,
