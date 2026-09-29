@@ -309,7 +309,8 @@ export function whatHappens(draft: CommitmentDraft): string[] {
         : 'End a week short';
   const restart = 'Then the habit waits for you to restart it.';
   const name = friendName(draft);
-  const theirName = name === 'my friend' ? 'your friend' : name;
+  const them = name === 'my friend' ? 'them' : name;
+  const they = name === 'my friend' ? 'they' : name;
 
   switch (draft.stakeKind) {
     case 'money':
@@ -326,11 +327,11 @@ export function whatHappens(draft: CommitmentDraft): string[] {
           ];
     case 'friend':
       return [
-        `We email ${theirName} now, so they know they’re on the hook. If they reply, it comes to you.`,
+        `We email ${them} a heads-up now. If they reply, it comes to you.`,
         cadence,
         draft.kind === 'habit'
-          ? `${miss} and ${theirName} gets one email saying so, with a nudge to check in on you. ${restart}`
-          : `${miss} and ${theirName} gets one email saying so, with a nudge to check in on you.`,
+          ? `${miss} and ${they} ${they === 'they' ? 'get' : 'gets'} one email nudging them to check in. The habit then waits for a restart.`
+          : `${miss} and ${they} ${they === 'they' ? 'get' : 'gets'} one email nudging them to check in on you.`,
       ];
     case 'lockout':
       return [
@@ -350,7 +351,7 @@ function noteFor(draft: CommitmentDraft): string | null {
     case 'money':
       return null;
     case 'friend':
-      return 'pick someone whose opinion you actually care about.';
+      return 'pick someone you’d hate to let down.';
     case 'lockout':
       return 'the lock is the point. it’s cheaper to just do it.';
     case 'none':
