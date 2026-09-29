@@ -15,7 +15,11 @@ import {
 } from '@/components/commitment/draft';
 import { LockedIn } from '@/components/commitment/locked-in';
 import { SignStep } from '@/components/commitment/sign-step';
-import { StakesStep } from '@/components/commitment/stakes-step';
+import {
+  phaseBeforeSigning,
+  StakesStep,
+  type StakesPhase,
+} from '@/components/commitment/stakes-step';
 import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
 import { ArrowLeft01Icon, Cancel01Icon } from '@/constants/icons';
@@ -114,6 +118,10 @@ function RestartFlow({
       draft.stakeKind !== 'money' || reuseForStake(draft) !== null || cardForStake(draft) !== null;
     return again && ready ? 'sign' : 'stakes';
   });
+  // Going again starts at the signature; Back from there lands on the tuning page.
+  const [stakesPhase, setStakesPhase] = useState<StakesPhase>(() =>
+    again ? phaseBeforeSigning(draft) : 'pick',
+  );
   const [busy, setBusy] = useState(false);
   const update = useCallback(
     (patch: Partial<CommitmentDraft>) => setDraft((current) => ({ ...current, ...patch })),
@@ -130,6 +138,7 @@ function RestartFlow({
         const card = cardForStake(draft);
         const reuse = reuseForStake(draft);
         if (card === null && reuse === null) {
+          setStakesPhase('tune');
           setStep('stakes');
           return;
         }
@@ -154,9 +163,16 @@ function RestartFlow({
   };
 
   const back = () => {
-    if (step === 'sign') setStep('stakes');
-    else router.back();
+    if (step === 'sign') {
+      setStakesPhase(phaseBeforeSigning(draft));
+      setStep('stakes');
+    } else if (stakesPhase === 'tune') {
+      setStakesPhase('pick');
+    } else {
+      router.back();
+    }
   };
+  const closing = step === 'stakes' && stakesPhase === 'pick';
 
   return (
     <>
@@ -166,24 +182,24 @@ function RestartFlow({
         <View style={styles.header}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={step === 'stakes' ? 'Close' : 'Change the stakes'}
+            accessibilityLabel={closing ? 'Close' : 'Back'}
             onPress={back}
             disabled={busy}
             hitSlop={Spacing.three}
             style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
             <Icon
-              icon={step === 'stakes' ? Cancel01Icon : ArrowLeft01Icon}
+              icon={closing ? Cancel01Icon : ArrowLeft01Icon}
               size={18}
               themeColor="textSecondary"
             />
             <ThemedText type="small" themeColor="textSecondary">
-              {step === 'stakes' ? 'Close' : 'Change the stakes'}
+              {closing ? 'Close' : step === 'sign' ? 'Change the stakes' : 'Back'}
             </ThemedText>
           </Pressable>
           <ThemedText style={styles.title} themeColor="text">
             {step === 'stakes' ? `Back to ${habit.title}.` : 'Sign it again.'}
           </ThemedText>
-          {step === 'stakes' ? (
+          {closing ? (
             <ThemedText themeColor="textSecondary">
               Same habit, fresh streak, and today’s free. What’s on the line this time?
             </ThemedText>
@@ -193,7 +209,13 @@ function RestartFlow({
 
       <Animated.View key={step} entering={FadeIn.duration(220)} style={styles.step}>
         {step === 'stakes' ? (
-          <StakesStep draft={draft} onChange={update} onNext={() => setStep('sign')} />
+          <StakesStep
+            draft={draft}
+            onChange={update}
+            onNext={() => setStep('sign')}
+            phase={stakesPhase}
+            onPhaseChange={setStakesPhase}
+          />
         ) : null}
         {step === 'sign' ? (
           <SignStep draft={draft} busy={busy} onConfirm={() => void lockIn()} />

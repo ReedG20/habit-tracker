@@ -7,7 +7,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { defaultDueAt, freshStake, type CommitmentDraft } from '@/components/commitment/draft';
 import { SignStep } from '@/components/commitment/sign-step';
-import { StakesStep } from '@/components/commitment/stakes-step';
+import {
+  phaseBeforeSigning,
+  StakesStep,
+  type StakesPhase,
+} from '@/components/commitment/stakes-step';
 import { WhatStep } from '@/components/commitment/what-step';
 import { Icon } from '@/components/icon';
 import { DismissKeyboardArea } from '@/components/keyboard/dismiss-keyboard-area';
@@ -61,6 +65,7 @@ export default function OnboardingCommitmentScreen() {
   });
 
   const [step, setStep] = useState<Step>('what');
+  const [stakesPhase, setStakesPhase] = useState<StakesPhase>('pick');
   const [draft, setDraft] = useState<CommitmentDraft>(() => {
     const existing = getOnboarding().draft;
     return (
@@ -79,6 +84,12 @@ export default function OnboardingCommitmentScreen() {
     setDraft((current) => ({ ...current, ...patch }));
 
   const back = () => {
+    // The stakes step is two pages: Back walks through both.
+    if (step === 'stakes' && stakesPhase === 'tune') {
+      setStakesPhase('pick');
+      return;
+    }
+    if (step === 'sign') setStakesPhase(phaseBeforeSigning(draft));
     const previous = STEPS[STEPS.indexOf(step) - 1];
     if (previous === undefined) {
       router.back();
@@ -140,6 +151,8 @@ export default function OnboardingCommitmentScreen() {
             draft={draft}
             onChange={update}
             onNext={() => setStep('sign')}
+            phase={stakesPhase}
+            onPhaseChange={setStakesPhase}
             allowMoney={false}
           />
         ) : null}

@@ -17,7 +17,11 @@ import {
 } from '@/components/commitment/draft';
 import { LockedIn } from '@/components/commitment/locked-in';
 import { SignStep } from '@/components/commitment/sign-step';
-import { StakesStep } from '@/components/commitment/stakes-step';
+import {
+  phaseBeforeSigning,
+  StakesStep,
+  type StakesPhase,
+} from '@/components/commitment/stakes-step';
 import { StepProgress } from '@/components/commitment/step-progress';
 import { WhatStep } from '@/components/commitment/what-step';
 import { Icon } from '@/components/icon';
@@ -74,6 +78,7 @@ export default function NewCommitmentScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const [step, setStep] = useState<Step>('what');
+  const [stakesPhase, setStakesPhase] = useState<StakesPhase>('pick');
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState<CommitmentDraft>(() => {
     const kind = params.kind === 'goal' ? 'goal' : 'habit';
@@ -118,6 +123,16 @@ export default function NewCommitmentScreen() {
   const goTo = (next: Step) => setStep(next);
 
   const back = () => {
+    // The stakes step is two pages: Back walks through both.
+    if (step === 'stakes' && stakesPhase === 'tune') {
+      setStakesPhase('pick');
+      return;
+    }
+    if (step === 'sign') {
+      setStakesPhase(phaseBeforeSigning(draft));
+      goTo('stakes');
+      return;
+    }
     const index = STEPS.indexOf(step);
     const previous = STEPS[index - 1];
     if (index <= 0 || previous === undefined) {
@@ -174,6 +189,7 @@ export default function NewCommitmentScreen() {
       const card = cardForStake(draft);
       if (card === null && (reuse === null || draft.kind === 'habit')) {
         // The amount changed after the card was saved; step 2 collects a new one.
+        setStakesPhase('tune');
         goTo('stakes');
         return;
       }
@@ -267,7 +283,13 @@ export default function NewCommitmentScreen() {
           <WhatStep draft={draft} onChange={update} onNext={() => goTo('stakes')} />
         ) : null}
         {step === 'stakes' ? (
-          <StakesStep draft={draft} onChange={update} onNext={() => goTo('sign')} />
+          <StakesStep
+            draft={draft}
+            onChange={update}
+            onNext={() => goTo('sign')}
+            phase={stakesPhase}
+            onPhaseChange={setStakesPhase}
+          />
         ) : null}
         {step === 'sign' ? (
           <SignStep draft={draft} busy={busy} onConfirm={() => void lockIn()} />

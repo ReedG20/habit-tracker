@@ -1,6 +1,7 @@
 import { useQuery } from 'convex/react';
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { friendName } from './contract-text';
 import {
@@ -18,7 +19,9 @@ import { StepLayout } from './step-layout';
 import { WhatHappens } from './what-happens';
 
 import { ActionButton } from '@/components/action-button';
+import { Icon } from '@/components/icon';
 import { ChoiceCard } from '@/components/onboarding/choice-card';
+import { ThemedText } from '@/components/themed-text';
 import { LockIcon, Mail01Icon, Money03Icon, Tick02Icon } from '@/constants/icons';
 import { Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
@@ -28,10 +31,25 @@ import { useStakePayment } from '@/hooks/use-stake-payment';
 import { formatDueAt } from '@/lib/dates';
 import { formatCents } from '@/lib/money';
 
+/**
+ * The step has two pages under one title: `pick` the kind of stake, then
+ * `tune` it (the amount, the friend, how long). "Just my word" has nothing to
+ * tune, so it goes from `pick` straight to signing.
+ */
+export type StakesPhase = 'pick' | 'tune';
+
+/** Where Back from signing lands: the tuning page, unless there was nothing to tune. */
+export function phaseBeforeSigning(draft: Pick<CommitmentDraft, 'stakeKind'>): StakesPhase {
+  return draft.stakeKind === 'none' ? 'pick' : 'tune';
+}
+
 export type StakesStepProps = {
   draft: CommitmentDraft;
   onChange: (patch: Partial<CommitmentDraft>) => void;
   onNext: () => void;
+  /** Held by the screen, so its Back button can go from `tune` to `pick`. */
+  phase: StakesPhase;
+  onPhaseChange: (phase: StakesPhase) => void;
   /**
    * `false` before there is an account to save a card to (onboarding): money
    * comes with the next commitment.
@@ -40,13 +58,21 @@ export type StakesStepProps = {
 };
 
 /**
- * Step 2: what's on the line. Money first, because it works best; then a
- * friend who hears about a miss; for habits, a lockout; and last, their word.
- * Each kind is tuned right under the list, and "Exactly what happens" says
- * what a miss does, which for money is also the disclosure Stripe requires
- * before a card is saved for later.
+ * Step 2: what's on the line. First the pick, on a page of its own: money
+ * first, because it works best; then a friend who hears about a miss; for
+ * habits, a lockout; and last, their word. Then the chosen kind is tuned on
+ * the next page, above "Exactly what happens", which says what a miss does
+ * and, for money, is also the disclosure Stripe requires before a card is
+ * saved for later.
  */
-export function StakesStep({ draft, onChange, onNext, allowMoney = true }: StakesStepProps) {
+export function StakesStep({
+  draft,
+  onChange,
+  onNext,
+  phase,
+  onPhaseChange,
+  allowMoney = true,
+}: StakesStepProps) {
   const stakePayment = useStakePayment();
   const signedIn = allowMoney;
   const headroom = useQuery(api.stakes.headroom, signedIn ? {} : 'skip') ?? null;
@@ -103,6 +129,42 @@ export function StakesStep({ draft, onChange, onNext, allowMoney = true }: Stake
     draft.stakeKind === 'money' && cardForStake(draft) === null && reuseForStake(draft) === null;
   const ready = draft.stakeKind !== 'friend' || isFriendComplete(draft.friend);
 
+  if (phase === 'pick') {
+    return (
+      <StepLayout
+        footer={
+          <ActionButton
+            label={pickLabel(draft.stakeKind)}
+            variant="primary"
+            fill
+            onPress={() => (draft.stakeKind === 'none' ? onNext() : onPhaseChange('tune'))}
+          />
+        }>
+        <Animated.View entering={FadeIn.duration(200)} style={styles.kinds}>
+          {kinds.map((kind) => {
+            const copy = kindCopy(kind, draft, moneyBlocked);
+            return (
+              <ChoiceCard
+                key={kind}
+                title={copy.title}
+                detail={copy.detail}
+                icon={copy.icon}
+                badge={copy.badge}
+                badgeTone={kind === 'none' ? 'muted' : 'primary'}
+                selected={draft.stakeKind === kind}
+                disabled={kind === 'money' && moneyBlocked !== null}
+                onPress={() => onChange({ stakeKind: kind })}
+              />
+            );
+          })}
+        </Animated.View>
+
+        {draft.stakeKind === 'none' ? <Note>{noteFor(draft)}</Note> : null}
+      </StepLayout>
+    );
+  }
+
+  const chosen = kindCopy(draft.stakeKind, draft, moneyBlocked);
   return (
     <StepLayout
       footer={
@@ -120,40 +182,56 @@ export function StakesStep({ draft, onChange, onNext, allowMoney = true }: Stake
           onPress={() => void next()}
         />
       }>
-      <View style={styles.kinds}>
-        {kinds.map((kind) => {
-          const copy = kindCopy(kind, draft, moneyBlocked);
-          return (
-            <ChoiceCard
-              key={kind}
-              title={copy.title}
-              detail={copy.detail}
-              icon={copy.icon}
-              badge={copy.badge}
-              badgeTone={kind === 'none' ? 'muted' : 'primary'}
-              selected={draft.stakeKind === kind}
-              disabled={busy || (kind === 'money' && moneyBlocked !== null)}
-              onPress={() => onChange({ stakeKind: kind })}
-            />
-          );
-        })}
-      </View>
+      <Animated.View entering={FadeIn.duration(200)} style={styles.tune}>
+        {/* Which kind this page tunes, with the way back to the others. */}
+        <View style={styles.chosen}>
+          <Icon icon={chosen.icon} size={20} strokeWidth={2} themeColor="primary" />
+          <ThemedText type="smallSemibold" style={styles.chosenTitle}>
+            {chosen.title}
+          </ThemedText>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Pick a different kind of stake"
+            disabled={busy}
+            onPress={() => onPhaseChange('pick')}
+            hitSlop={Spacing.two}
+            style={({ pressed }) => pressed && styles.pressed}>
+            <ThemedText type="smallSemibold" themeColor="primary">
+              Change
+            </ThemedText>
+          </Pressable>
+        </View>
 
-      {draft.stakeKind === 'money' ? (
-        <MoneyStakeConfig draft={draft} onChange={onChange} disabled={busy} headroom={headroom} />
-      ) : null}
-      {draft.stakeKind === 'friend' ? (
-        <FriendStakeConfig draft={draft} onChange={onChange} signedIn={signedIn} />
-      ) : null}
-      {draft.stakeKind === 'lockout' ? (
-        <LockoutStakeConfig draft={draft} onChange={onChange} />
-      ) : null}
+        {draft.stakeKind === 'money' ? (
+          <MoneyStakeConfig draft={draft} onChange={onChange} disabled={busy} headroom={headroom} />
+        ) : null}
+        {draft.stakeKind === 'friend' ? (
+          <FriendStakeConfig draft={draft} onChange={onChange} signedIn={signedIn} />
+        ) : null}
+        {draft.stakeKind === 'lockout' ? (
+          <LockoutStakeConfig draft={draft} onChange={onChange} />
+        ) : null}
 
-      <WhatHappens steps={whatHappens(draft)} />
+        <WhatHappens steps={whatHappens(draft)} />
 
-      {noteFor(draft) === null ? null : <Note>{noteFor(draft)}</Note>}
+        {noteFor(draft) === null ? null : <Note>{noteFor(draft)}</Note>}
+      </Animated.View>
     </StepLayout>
   );
+}
+
+/** The pick page's button says what the next page is for. */
+function pickLabel(kind: StakeKind): string {
+  switch (kind) {
+    case 'money':
+      return 'Next: set the amount';
+    case 'friend':
+      return 'Next: pick who';
+    case 'lockout':
+      return 'Next: pick how long';
+    case 'none':
+      return 'Next: sign it';
+  }
 }
 
 function moneyBlockedReason({
@@ -283,5 +361,19 @@ function noteFor(draft: CommitmentDraft): string | null {
 const styles = StyleSheet.create({
   kinds: {
     gap: Spacing.two,
+  },
+  tune: {
+    gap: Spacing.four,
+  },
+  chosen: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  chosenTitle: {
+    flex: 1,
+  },
+  pressed: {
+    opacity: 0.6,
   },
 });
