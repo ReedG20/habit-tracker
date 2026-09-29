@@ -1,8 +1,9 @@
 import { useQuery } from 'convex/react';
-import { router, usePathname, type Href } from 'expo-router';
+import { usePathname } from 'expo-router';
 import { useEffect, useRef } from 'react';
 
 import { api } from '@/convex/_generated/api';
+import { openLoss } from '@/lib/loss-screen';
 
 /**
  * Opens the loss screen, full page, the first time a lost stake is there to
@@ -20,6 +21,6 @@ export function useLossPresenter() {
     // Not over the top of a commitment being signed, nor a second copy of itself.
     if (presented.current.has(id) || pathname.startsWith('/lost') || pathname === '/new') return;
     presented.current.add(id);
-    router.push(`/lost/${id}` as Href);
+    openLoss(id);
   }, [loss, pathname]);
 }

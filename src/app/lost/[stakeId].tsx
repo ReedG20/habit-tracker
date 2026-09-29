@@ -26,6 +26,7 @@ import { lossStory, textFriendBody, type LossStory } from '@/data/loss-story';
 import { useSettleUp } from '@/hooks/use-settle-up';
 import { captureError, track, type AnalyticsEvents } from '@/lib/analytics';
 import { lossHaptic, successHaptic } from '@/lib/haptics';
+import { watchLoss } from '@/lib/loss-screen';
 import { cardLabel, formatCents } from '@/lib/money';
 import { userErrorMessage } from '@/lib/user-errors';
 
@@ -65,6 +66,7 @@ export default function LostScreen() {
   const loss = useQuery(api.stakes.loss, { stakeId: stakeId as Id<'stakes'> });
   const markSeen = useMutation(api.stakes.markSeen);
   const insets = useSafeAreaInsets();
+  useEffect(() => watchLoss(stakeId), [stakeId]);
 
   const seen = useRef(false);
   const leave = (next?: Href) => {
