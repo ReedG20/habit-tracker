@@ -35,6 +35,7 @@ import { useSubscription } from '@/hooks/use-subscription';
 import { useTheme } from '@/hooks/use-theme';
 import { todayKey } from '@/lib/dates';
 import { setForceDelete, showDevTools, useForceDelete } from '@/lib/dev-tools';
+import { openLoss } from '@/lib/loss-screen';
 import { formatCents } from '@/lib/money';
 import { resetOnboarding } from '@/lib/onboarding';
 import { manageSubscriptionsUrl, revenueCatSupported } from '@/lib/revenuecat';
@@ -263,7 +264,7 @@ export default function MeScreen() {
                   onPress={() => {
                     const preview = (args: Parameters<typeof devLose>[0]) => {
                       devLose(args)
-                        .then((stakeId) => router.push(`/lost/${stakeId}`))
+                        .then(openLoss)
                         .catch((error: unknown) => console.error('Failed to preview', error));
                     };
                     Alert.alert('Preview a loss', undefined, [

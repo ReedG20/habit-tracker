@@ -173,10 +173,14 @@ export async function clearDeliveredReminders(): Promise<void> {
   );
 }
 
-/** Where a tapped push goes: a stake that came due opens its loss screen. */
+/** The lost stake a push is about, if any: tapping it opens its loss screen. */
+export function lossOfPush(data: PushData): string | null {
+  return typeof data.lossStakeId === 'string' && /^[a-z0-9]+$/.test(data.lossStakeId)
+    ? data.lossStakeId
+    : null;
+}
+
+/** Where a tapped push goes, when it isn't about a loss. */
 export function routeForPush(data: PushData): string {
-  if (typeof data.lossStakeId === 'string' && /^[a-z0-9]+$/.test(data.lossStakeId)) {
-    return `/lost/${data.lossStakeId}`;
-  }
   return typeof data.url === 'string' && data.url.startsWith('/') ? data.url : '/';
 }
