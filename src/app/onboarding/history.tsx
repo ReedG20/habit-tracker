@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 
 import { SingleChoiceStep } from '@/components/onboarding/single-choice-step';
 import { historyOptions } from '@/data/onboarding';
+import { track } from '@/lib/analytics';
 import { getOnboarding, setAnswers } from '@/lib/onboarding';
 
 export default function HistoryScreen() {
@@ -14,6 +15,7 @@ export default function HistoryScreen() {
       initial={getOnboarding().answers.history}
       onChoose={(history) => {
         setAnswers({ history });
+        track('onboarding step completed', { step: 'history', history });
         router.push('/onboarding/motivator');
       }}
     />

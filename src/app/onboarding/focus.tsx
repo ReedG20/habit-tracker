@@ -18,6 +18,7 @@ import {
 } from '@/constants/icons';
 import { Spacing } from '@/constants/theme';
 import { focusAreaOptions, type FocusArea } from '@/data/onboarding';
+import { track } from '@/lib/analytics';
 import { selectionHaptic } from '@/lib/haptics';
 import { getOnboarding, setAnswers } from '@/lib/onboarding';
 
@@ -57,6 +58,7 @@ export default function FocusScreen() {
           disabled={areas.length === 0}
           onPress={() => {
             setAnswers({ areas });
+            track('onboarding step completed', { step: 'focus', areas });
             router.push('/onboarding/history');
           }}
         />

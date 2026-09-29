@@ -30,6 +30,7 @@ import type { Doc, Id } from '@/convex/_generated/dataModel';
 import { DAILY } from '@/convex/lib/frequency';
 import type { Loss } from '@/convex/stakes';
 import { useTheme } from '@/hooks/use-theme';
+import { captureError, track } from '@/lib/analytics';
 import { cardLabel } from '@/lib/money';
 
 type Step = 'stakes' | 'sign' | 'done';
@@ -153,9 +154,11 @@ function RestartFlow({
             : { reuseFromStakeId: reuse?.fromStakeId }),
         });
       }
+      track('commitment restarted', { stake_kind: draft.stakeKind, same_stakes: again });
       setStep('done');
     } catch (error: unknown) {
       console.error('Failed to restart the habit', error);
+      captureError(error, 'restart habit');
       Alert.alert(
         "Couldn't restart it",
         error instanceof Error ? error.message : 'Check your connection and try again.',

@@ -8,17 +8,29 @@
       "developmentClient": true,
       "distribution": "internal",
       "environment": "development",
-      "channel": "development"
+      "channel": "development",
+      "env": {
+        "POSTHOG_CLI_PROJECT_ID": "636348",
+        "POSTHOG_CLI_HOST": "https://us.posthog.com"
+      }
     },
     "preview": {
       "distribution": "internal",
       "environment": "preview",
-      "channel": "preview"
+      "channel": "preview",
+      "env": {
+        "POSTHOG_CLI_PROJECT_ID": "636348",
+        "POSTHOG_CLI_HOST": "https://us.posthog.com"
+      }
     },
     "production": {
       "environment": "production",
       "autoIncrement": true,
-      "channel": "production"
+      "channel": "production",
+      "env": {
+        "POSTHOG_CLI_PROJECT_ID": "636348",
+        "POSTHOG_CLI_HOST": "https://us.posthog.com"
+      }
     }
   },
   "submit": {

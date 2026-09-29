@@ -35,6 +35,8 @@ import { ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import { DAILY } from '@/convex/lib/frequency';
+import { captureError, track } from '@/lib/analytics';
+import { commitmentCreatedProperties } from '@/lib/analytics-events';
 import { cardLabel } from '@/lib/money';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useTheme } from '@/hooks/use-theme';
@@ -157,6 +159,11 @@ export default function NewCommitmentScreen() {
       return;
     }
 
+    const createdProperties = commitmentCreatedProperties(draft, {
+      source: 'new',
+      isRedo: params.again !== undefined,
+    });
+
     setBusy(true);
     try {
       // Pro as far as the store knows, but the server has not heard yet.
@@ -185,6 +192,7 @@ export default function NewCommitmentScreen() {
                 : undefined,
           });
         }
+        track('commitment created', createdProperties);
         goTo('done');
         return;
       }
@@ -217,9 +225,11 @@ export default function NewCommitmentScreen() {
             : { reuseFromStakeId: reuse?.fromStakeId }),
         });
       }
+      track('commitment created', { ...createdProperties, reused_card: card === null });
       goTo('done');
     } catch (error: unknown) {
       console.error('Failed to lock in the commitment', error);
+      captureError(error, 'create commitment');
       Alert.alert(
         "Couldn't lock it in",
         error instanceof Error ? error.message : 'Check your connection and try again.',
@@ -247,7 +257,7 @@ export default function NewCommitmentScreen() {
         </View>
         <ScrollView contentContainerStyle={styles.paywall} alwaysBounceVertical={false}>
           {/* A purchase flips `isPro`, and the first step takes this one's place. */}
-          <ProPaywall onDismiss={() => router.back()} onFinished={() => {}} />
+          <ProPaywall source="new" onDismiss={() => router.back()} onFinished={() => {}} />
         </ScrollView>
       </View>
     );

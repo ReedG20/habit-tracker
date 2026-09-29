@@ -98,6 +98,10 @@ const config: ExpoConfig = {
     'expo-notifications',
     // UIScene adoption, required by the iOS 27 SDK; see the plugin for details.
     './plugins/with-scene-lifecycle.js',
+    // Uploads Hermes source maps and dSYMs to PostHog during release builds, so
+    // crash stack traces are readable. Needs POSTHOG_CLI_API_KEY in the EAS
+    // environment; the project id and host come from eas.json. See docs/deploy.md.
+    ['posthog-react-native/expo', { uploadNativeSymbols: true, skipOnConflict: true }],
   ],
   updates: {
     url: 'https://u.expo.dev/d5f78f95-028f-41ed-bbe2-777ce72ac974',

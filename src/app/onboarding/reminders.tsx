@@ -11,6 +11,7 @@ import { Spacing } from '@/constants/theme';
 import { DEFAULT_REMINDER_SETTINGS } from '@/convex/lib/reminderPresets';
 import { commitmentNoun, freshDueAt } from '@/data/onboarding';
 import { previewPushes, type PreviewSubject } from '@/data/reminder-preview';
+import { track } from '@/lib/analytics';
 import { endOfDay, todayKey } from '@/lib/dates';
 import { canNotify, requestPermission, useNotificationPermission } from '@/lib/notifications';
 import { useOnboarding } from '@/lib/onboarding';
@@ -33,7 +34,10 @@ export default function RemindersStepScreen() {
     return <Redirect href="/onboarding" />;
   }
 
-  const next = () => router.push(isAuthenticated ? '/onboarding/paywall' : '/onboarding/save');
+  const next = (granted: boolean) => {
+    track('onboarding step completed', { step: 'reminders', notifications_granted: granted });
+    router.push(isAuthenticated ? '/onboarding/paywall' : '/onboarding/save');
+  };
 
   const noun = commitmentNoun(draft.kind);
   const title = draft.title.trim();
@@ -54,14 +58,15 @@ export default function RemindersStepScreen() {
 
   const turnOn = async () => {
     setAsking(true);
+    let granted = false;
     try {
-      await requestPermission();
+      granted = canNotify(await requestPermission());
     } catch (error: unknown) {
       console.warn('Could not ask for notifications', error);
     } finally {
       setAsking(false);
     }
-    next();
+    next(granted);
   };
 
   const allowed = canNotify(permission);
@@ -78,12 +83,12 @@ export default function RemindersStepScreen() {
             variant="primary"
             fill
             disabled={asking}
-            onPress={allowed ? next : () => void turnOn()}
+            onPress={allowed ? () => next(true) : () => void turnOn()}
           />
           {allowed ? null : (
             <Pressable
               accessibilityRole="button"
-              onPress={next}
+              onPress={() => next(false)}
               hitSlop={Spacing.two}
               style={({ pressed }) => [styles.notNow, pressed && styles.pressed]}>
               <ThemedText type="small" themeColor="textSecondary">

@@ -6,6 +6,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ActionButton } from '@/components/action-button';
 import { DetailHeader } from '@/components/detail-header';
 import { EmptyState } from '@/components/empty-state';
+import { ReplayMask } from '@/components/replay-mask';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -25,6 +26,7 @@ import { isMissed } from '@/data/goals';
 import { describeGoalStake } from '@/data/stakes';
 import { useNow } from '@/hooks/use-now';
 import { useTheme } from '@/hooks/use-theme';
+import { track } from '@/lib/analytics';
 import { confirmDestructive, notify } from '@/lib/confirm';
 import { formatCompletedAt, formatDueAt } from '@/lib/dates';
 import { useForceDelete } from '@/lib/dev-tools';
@@ -102,9 +104,11 @@ export default function GoalDetailScreen() {
             confirmLabel: 'Delete',
             onConfirm: () => {
               router.back();
-              void remove({ goalId, force: forceDelete || undefined }).catch((error: unknown) => {
-                console.error('Failed to delete the goal', error);
-              });
+              remove({ goalId, force: forceDelete || undefined })
+                .then(() => track('commitment deleted', { kind: 'goal' }))
+                .catch((error: unknown) => {
+                  console.error('Failed to delete the goal', error);
+                });
             },
           });
         }}
@@ -199,7 +203,7 @@ export default function GoalDetailScreen() {
                   </ThemedText>
                 </View>
 
-                <View style={styles.thumbnails}>
+                <ReplayMask style={styles.thumbnails}>
                   {submission.photoUrls.map((url, photoIndex) =>
                     url === null ? null : (
                       <Image
@@ -211,7 +215,7 @@ export default function GoalDetailScreen() {
                       />
                     ),
                   )}
-                </View>
+                </ReplayMask>
 
                 {submission.text ? (
                   <ThemedText type="small" themeColor="text">

@@ -21,6 +21,8 @@ import {
 } from '@/components/commitment/draft';
 import { commitmentNoun, freshDueAt } from '@/data/onboarding';
 import { useSessionUserId } from '@/hooks/use-signed-in-session';
+import { captureError, track } from '@/lib/analytics';
+import { commitmentCreatedProperties } from '@/lib/analytics-events';
 import { showDevTools } from '@/lib/dev-tools';
 import { successHaptic } from '@/lib/haptics';
 import { completeOnboarding, getOnboarding, markDraftSaved } from '@/lib/onboarding';
@@ -63,6 +65,7 @@ export default function OnboardingPaywallScreen() {
     }).catch((error: unknown) => {
       // The survey is nice to have; it never blocks the commitment.
       console.error('Failed to save the onboarding answers', error);
+      captureError(error, 'onboarding survey');
     });
   }, [userId, saveOnboarding]);
 
@@ -96,6 +99,17 @@ export default function OnboardingPaywallScreen() {
 
     save
       .then(() => {
+        if (pending !== null) {
+          track(
+            'commitment created',
+            commitmentCreatedProperties(pending, { source: 'onboarding', isRedo: false }),
+          );
+        }
+        track('onboarding completed', {
+          outcome,
+          kind: draft?.kind ?? null,
+          stake_kind: draft?.stakeKind ?? null,
+        });
         markDraftSaved();
         completeOnboarding();
         successHaptic();
@@ -108,10 +122,11 @@ export default function OnboardingPaywallScreen() {
       })
       .catch((error: unknown) => {
         console.error('Failed to save the first commitment', error);
+        captureError(error, 'onboarding first commitment');
         started.current = false;
         setPhase('failed');
       });
-  }, [userId, phase, outcome, noun, createHabit, createGoal]);
+  }, [userId, phase, outcome, noun, draft, createHabit, createGoal]);
 
   if (!isAuthenticated) {
     return <Redirect href="/onboarding/save" />;
@@ -154,6 +169,7 @@ export default function OnboardingPaywallScreen() {
         </View>
       ) : phase === 'offer' ? (
         <ProPaywall
+          source="onboarding"
           header={
             <View style={styles.proHeader}>
               <View style={styles.proTitleRow}>

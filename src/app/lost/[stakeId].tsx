@@ -24,6 +24,7 @@ import { api } from '@/convex/_generated/api';
 import type { Loss } from '@/convex/stakes';
 import { lossStory, textFriendBody, type LossStory } from '@/data/loss-story';
 import { useSettleUp } from '@/hooks/use-settle-up';
+import { captureError, track, type AnalyticsEvents } from '@/lib/analytics';
 import { lossHaptic, successHaptic } from '@/lib/haptics';
 import { cardLabel, formatCents } from '@/lib/money';
 
@@ -81,6 +82,18 @@ export default function LostScreen() {
   };
 
   const story = loss == null ? null : lossStory(loss);
+
+  const viewed = useRef(false);
+  useEffect(() => {
+    if (loss == null || viewed.current) return;
+    viewed.current = true;
+    track('stake lost viewed', {
+      kind: loss.habitId !== undefined ? 'habit' : 'goal',
+      stake_kind: loss.stake.kind,
+      stake_status: loss.stake.status,
+      amount_cents: loss.stake.kind === 'money' ? loss.stake.amountCents : 0,
+    });
+  }, [loss]);
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -252,6 +265,10 @@ function Actions({ loss, onLeave }: { loss: Loss; onLeave: (next?: Href) => void
   const restartable = loss.habitId !== undefined && loss.habitExists;
   const restartHref = (again: boolean): Href =>
     `/restart/${loss.habitId}${again ? `?again=${stake._id}` : ''}` as Href;
+  const leave = (action: AnalyticsEvents['stake lost action']['action'], next?: Href) => {
+    track('stake lost action', { action });
+    onLeave(next);
+  };
 
   const secondary = (label: string, onPress: () => void) => (
     <Pressable
@@ -268,14 +285,17 @@ function Actions({ loss, onLeave }: { loss: Loss; onLeave: (next?: Href) => void
     const pay = async () => {
       if (busy) return;
       setBusy(true);
+      track('stake lost action', { action: 'pay' });
       try {
         const result = await settleUp.settle(stake._id);
+        track('stake settled', { result });
         if (result === 'canceled') return;
         successHaptic();
         if (result === 'pending') {
           Alert.alert('Payment received', 'It can take a minute to show up here.');
         }
       } catch (error: unknown) {
+        captureError(error, 'settle up');
         Alert.alert(
           'That didn’t go through',
           error instanceof Error ? error.message : 'Try another card.',
@@ -295,7 +315,7 @@ function Actions({ loss, onLeave }: { loss: Loss; onLeave: (next?: Href) => void
             onPress={() => void pay()}
           />
         ) : null}
-        {secondary('Not now', () => onLeave())}
+        {secondary('Not now', () => leave('not_now'))}
       </>
     );
   }
@@ -307,15 +327,15 @@ function Actions({ loss, onLeave }: { loss: Loss; onLeave: (next?: Href) => void
           label="Set it again"
           variant="primary"
           fill
-          onPress={() => onLeave(`/new?kind=goal&again=${stake._id}` as Href)}
+          onPress={() => leave('redo', `/new?kind=goal&again=${stake._id}` as Href)}
         />
-        {secondary('Not now', () => onLeave())}
+        {secondary('Not now', () => leave('not_now'))}
       </>
     );
   }
 
   if (!restartable) {
-    return <ActionButton label="Done" variant="primary" fill onPress={() => onLeave()} />;
+    return <ActionButton label="Done" variant="primary" fill onPress={() => leave('done')} />;
   }
 
   if (stake.kind === 'money') {
@@ -329,10 +349,10 @@ function Actions({ loss, onLeave }: { loss: Loss; onLeave: (next?: Href) => void
           label={again}
           variant="primary"
           fill
-          onPress={() => onLeave(restartHref(true))}
+          onPress={() => leave('go_again', restartHref(true))}
         />
-        {secondary('Change the stakes', () => onLeave(restartHref(false)))}
-        {secondary('Not now', () => onLeave())}
+        {secondary('Change the stakes', () => leave('change_stakes', restartHref(false)))}
+        {secondary('Not now', () => leave('not_now'))}
       </>
     );
   }
@@ -346,11 +366,12 @@ function Actions({ loss, onLeave }: { loss: Loss; onLeave: (next?: Href) => void
           variant="primary"
           fill
           onPress={() => {
+            track('stake lost action', { action: 'text_friend' });
             void Linking.openURL(`sms:&body=${encodeURIComponent(textFriendBody(loss.title))}`);
           }}
         />
-        {secondary(`Restart ${loss.title}`, () => onLeave(restartHref(true)))}
-        {secondary('Not now', () => onLeave())}
+        {secondary(`Restart ${loss.title}`, () => leave('restart', restartHref(true)))}
+        {secondary('Not now', () => leave('not_now'))}
       </>
     );
   }
@@ -361,9 +382,9 @@ function Actions({ loss, onLeave }: { loss: Loss; onLeave: (next?: Href) => void
         label={`Restart ${loss.title}`}
         variant="primary"
         fill
-        onPress={() => onLeave(restartHref(true))}
+        onPress={() => leave('restart', restartHref(true))}
       />
-      {secondary('Not now', () => onLeave())}
+      {secondary('Not now', () => leave('not_now'))}
     </>
   );
 }

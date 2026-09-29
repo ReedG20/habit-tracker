@@ -22,11 +22,13 @@ import { ScanLine } from './scan-line';
 import { useVerdict } from './use-verdict';
 
 import { ActionButton } from '@/components/action-button';
+import { ReplayMask } from '@/components/replay-mask';
 import { CameraRotated01Icon, FlashIcon, FlashOffIcon, Image01Icon } from '@/constants/icons';
 import { Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import type { Habit } from '@/data/habits';
+import { captureError, track } from '@/lib/analytics';
 import { todayKey } from '@/lib/dates';
 import { pressHaptic } from '@/lib/haptics';
 import { proofErrorMessage } from '@/lib/proof-errors';
@@ -61,13 +63,15 @@ export function PhotoStage({ habit, onClose }: { habit: Habit; onClose: () => vo
   const flash = useSharedValue(0);
   const flashStyle = useAnimatedStyle(() => ({ opacity: flash.get() }));
 
-  const send = async (next: Photo) => {
+  const send = async (next: Photo, source: 'camera' | 'library') => {
     setPhoto(next);
     try {
       const storageId = await uploadPhoto(await generateUploadUrl(), next);
       setVerificationId(await submit({ habitId: habit._id, day: todayKey(), photoId: storageId }));
+      track('habit checked in', { method: 'photo', photo_source: source });
     } catch (error: unknown) {
       console.error('Failed to submit the photo', error);
+      captureError(error, 'habit photo proof');
       Alert.alert(
         'Couldn’t send the photo',
         proofErrorMessage(error, 'Check your connection and try again.'),
@@ -83,7 +87,7 @@ export function PhotoStage({ habit, onClose }: { habit: Habit; onClose: () => vo
     flash.set(withSequence(withTiming(0.85, { duration: 60 }), withTiming(0, { duration: 260 })));
     try {
       const picture = await camera.current.takePictureAsync({ quality: 0.5, exif: false });
-      await send({ uri: picture.uri, mimeType: 'image/jpeg' });
+      await send({ uri: picture.uri, mimeType: 'image/jpeg' }, 'camera');
     } catch (error: unknown) {
       console.error('Failed to take the photo', error);
       Alert.alert('Couldn’t take the photo', 'Try again.');
@@ -102,7 +106,7 @@ export function PhotoStage({ habit, onClose }: { habit: Habit; onClose: () => vo
     });
     const asset = result.canceled ? undefined : result.assets[0];
     if (asset !== undefined)
-      await send({ uri: asset.uri, mimeType: asset.mimeType ?? 'image/jpeg' });
+      await send({ uri: asset.uri, mimeType: asset.mimeType ?? 'image/jpeg' }, 'library');
   };
 
   const retry = () => {
@@ -115,23 +119,26 @@ export function PhotoStage({ habit, onClose }: { habit: Habit; onClose: () => vo
 
   const stage = (
     <View style={styles.stage}>
-      {HAS_CAMERA && granted ? (
-        <CameraView
-          ref={camera}
-          style={StyleSheet.absoluteFill}
-          facing={facing}
-          enableTorch={torch && facing === 'back'}
-          mirror={facing === 'front'}
-          animateShutter={false}
-          active={photo === null}
-          onCameraReady={() => setReady(true)}
-        />
-      ) : null}
-      {photo !== null ? (
-        <Animated.View entering={FadeIn.duration(220)} style={StyleSheet.absoluteFill}>
-          <Image source={{ uri: photo.uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
-        </Animated.View>
-      ) : null}
+      {/* The viewfinder and the shot show someone's surroundings: kept out of replays. */}
+      <ReplayMask style={StyleSheet.absoluteFill}>
+        {HAS_CAMERA && granted ? (
+          <CameraView
+            ref={camera}
+            style={StyleSheet.absoluteFill}
+            facing={facing}
+            enableTorch={torch && facing === 'back'}
+            mirror={facing === 'front'}
+            animateShutter={false}
+            active={photo === null}
+            onCameraReady={() => setReady(true)}
+          />
+        ) : null}
+        {photo !== null ? (
+          <Animated.View entering={FadeIn.duration(220)} style={StyleSheet.absoluteFill}>
+            <Image source={{ uri: photo.uri }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          </Animated.View>
+        ) : null}
+      </ReplayMask>
       {photo !== null && verdict === null ? <ScanLine /> : null}
       {verdict !== null ? (
         <Animated.View entering={FadeIn} style={[StyleSheet.absoluteFill, styles.settled]} />

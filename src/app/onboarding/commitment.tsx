@@ -27,6 +27,7 @@ import { ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { DAILY } from '@/convex/lib/frequency';
 import { historyReply, suggestionsFor, suggestKind } from '@/data/onboarding';
 import { useTheme } from '@/hooks/use-theme';
+import { track } from '@/lib/analytics';
 import { useNotificationPermission } from '@/lib/notifications';
 import { getOnboarding, setDraft as saveDraft } from '@/lib/onboarding';
 
@@ -106,10 +107,12 @@ export default function OnboardingCommitmentScreen() {
 
   const lockIn = () => {
     // No money in onboarding: there's no account to save a card to yet.
-    saveDraft({
-      ...draft,
-      stakeKind: draft.stakeKind === 'money' ? 'none' : draft.stakeKind,
-      card: null,
+    const stakeKind = draft.stakeKind === 'money' ? 'none' : draft.stakeKind;
+    saveDraft({ ...draft, stakeKind, card: null });
+    track('onboarding step completed', {
+      step: 'commitment',
+      kind: draft.kind,
+      stake_kind: stakeKind,
     });
     // Right after signing is when a heads-up makes the most sense; only asked once.
     if (permission === 'undetermined') {

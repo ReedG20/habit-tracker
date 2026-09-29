@@ -23,6 +23,7 @@ import { Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import type { Habit } from '@/data/habits';
+import { captureError, track } from '@/lib/analytics';
 import { todayKey } from '@/lib/dates';
 import { pressHaptic } from '@/lib/haptics';
 import { proofErrorMessage } from '@/lib/proof-errors';
@@ -121,8 +122,10 @@ export function LocationStage({ habit, onClose }: { habit: Habit; onClose: () =>
       });
       setVerificationId(id);
       setPhase('sent');
+      track('habit checked in', { method: 'location' });
     } catch (error: unknown) {
       console.error('Failed to check in', error);
+      captureError(error, 'habit location proof');
       Alert.alert(
         'Couldn’t check in',
         proofErrorMessage(error, 'Check your connection and try again.'),

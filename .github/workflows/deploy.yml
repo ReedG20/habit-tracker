@@ -15,7 +15,8 @@
 #
 # Secrets: EXPO_TOKEN (expo.dev → Access tokens), CONVEX_DEPLOY_KEY (Convex →
 # prod deployment → Deploy keys, `deployment:deploy` only) and
-# CONVEX_DEPLOY_KEY_DEV (the same, on the shared dev deployment). EXPO_PUBLIC_*
+# CONVEX_DEPLOY_KEY_DEV (the same, on the shared dev deployment), and optionally
+# POSTHOG_CLI_API_KEY (source maps for OTA updates; see docs/deploy.md). EXPO_PUBLIC_*
 # values come from the EAS environment named by --environment.
 name: Deploy
 
@@ -82,6 +83,25 @@ jobs:
         run: |
           bunx eas-cli@latest update --platform ios --channel preview --environment preview \
             --message "$(git log -1 --pretty=%s)" --non-interactive
+
+      # Builds upload their own maps from Xcode; an OTA bundle is built here, so
+      # its maps (in dist/, next to the bundle) go up here. A failed upload only
+      # costs readable stack traces, so it warns rather than failing the deploy.
+      - name: Upload the update's source maps to PostHog
+        if: steps.native.outputs.preview == 'true'
+        env:
+          POSTHOG_CLI_API_KEY: ${{ secrets.POSTHOG_CLI_API_KEY }}
+          POSTHOG_CLI_PROJECT_ID: '636348'
+          POSTHOG_CLI_HOST: https://us.posthog.com
+        run: |
+          if [ -z "$POSTHOG_CLI_API_KEY" ]; then
+            echo "::warning::POSTHOG_CLI_API_KEY secret is not set; skipping the source map upload"
+            exit 0
+          fi
+          # The project's own CLI: a commit from before PostHog has none, and no maps to send.
+          [ -x node_modules/.bin/posthog-cli ] || exit 0
+          node_modules/.bin/posthog-cli hermes upload --directory dist \
+            || echo "::warning::Source map upload to PostHog failed"
 
       - name: Build preview (internal)
         if: steps.native.outputs.preview == 'false'

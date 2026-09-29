@@ -15,10 +15,13 @@ import { sheetScreenOptions } from '@/constants/sheet-screen-options';
 import { shouldShowOnboarding } from '@/data/onboarding';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useNotifications } from '@/hooks/use-notifications';
+import { useScreenTracking } from '@/hooks/use-screen-tracking';
 import { useSignedInSession } from '@/hooks/use-signed-in-session';
 import { loadOnboarding, markExistingUserOnboarded, useOnboarding } from '@/lib/onboarding';
 import { configureRevenueCat } from '@/lib/revenuecat';
 import { loadThemePreference } from '@/lib/theme-preference';
+
+export { AppErrorBoundary as ErrorBoundary } from '@/components/app-error-boundary';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -88,6 +91,7 @@ function RootNavigator() {
   const onboarding = shouldShowOnboarding(status, isAuthenticated);
   useSignedInSession(isAuthenticated);
   useNotifications({ ready: !isLoading && isAuthenticated && !onboarding });
+  useScreenTracking(!isLoading);
 
   useEffect(() => {
     if (!isLoading) {

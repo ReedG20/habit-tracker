@@ -7,6 +7,7 @@ import { AppState } from 'react-native';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import type { Habit } from '@/data/habits';
+import { captureError, track } from '@/lib/analytics';
 import { todayKey } from '@/lib/dates';
 import { notificationsSupported, type PushData } from '@/lib/notifications';
 import { proofErrorMessage } from '@/lib/proof-errors';
@@ -150,6 +151,12 @@ export function useProofTimer(habit: Habit) {
     for (let attempt = 0; ; attempt += 1) {
       try {
         const { logged } = await finishRun({ runId: current.runId });
+        if (logged) {
+          track('habit checked in', {
+            method: 'timer',
+            duration_minutes: Math.round(current.durationMs / 60_000),
+          });
+        }
         // Only when the run ended long before the app got to finish it: it was left.
         setPhase(
           logged
@@ -164,6 +171,7 @@ export function useProofTimer(habit: Habit) {
           continue;
         }
         console.error('Failed to finish the timer', error);
+        captureError(error, 'habit timer proof');
         const message = proofErrorMessage(error, '');
         setPhase({
           kind: 'error',

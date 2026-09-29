@@ -14,6 +14,7 @@ import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import { describeEnding, isDaily } from '@/data/habits';
 import { useTheme } from '@/hooks/use-theme';
+import { track } from '@/lib/analytics';
 import { confirmDestructive } from '@/lib/confirm';
 import { formatCompletedAt, todayKey } from '@/lib/dates';
 import { useForceDelete } from '@/lib/dev-tools';
@@ -80,6 +81,7 @@ export default function HabitDetailScreen() {
               router.back();
               remove({ habitId, force: forceDelete || undefined })
                 .then((result) => {
+                  track('commitment deleted', { kind: 'habit' });
                   if (result === 'scheduled') {
                     showToast(
                       `${habit.title} is ending`,

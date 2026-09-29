@@ -9,6 +9,8 @@ import { Note } from './note';
 import { SignaturePad } from './signature-pad';
 import { StepLayout } from './step-layout';
 
+import { ReplayMask } from '@/components/replay-mask';
+
 import { ThemedText } from '@/components/themed-text';
 import { CardRadius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -76,16 +78,19 @@ export function SignStep({ draft, busy, onConfirm }: SignStepProps) {
         </ThemedText>
 
         <View style={styles.signatureArea}>
-          <SignaturePad
-            key={padKey}
-            color={theme.text}
-            height={SIGNATURE_HEIGHT}
-            onSignedChange={(next) => {
-              setSigned(next);
-              if (next) setShowSignHint(false);
-            }}
-            onDrawingChange={setDrawing}
-          />
+          {/* A signature is a signature, even a scribbled one: kept out of replays. */}
+          <ReplayMask>
+            <SignaturePad
+              key={padKey}
+              color={theme.text}
+              height={SIGNATURE_HEIGHT}
+              onSignedChange={(next) => {
+                setSigned(next);
+                if (next) setShowSignHint(false);
+              }}
+              onDrawingChange={setDrawing}
+            />
+          </ReplayMask>
           <View
             pointerEvents="none"
             style={[styles.signatureLine, { backgroundColor: theme.textSecondary }]}

@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ControlHeight, Fonts, MaxContentWidth, PillRadius, Spacing } from '@/constants/theme';
+import { track } from '@/lib/analytics';
 import { completeOnboarding, resetOnboarding, useOnboarding } from '@/lib/onboarding';
 
 // The splash screen's colour, so launch runs straight into this screen.
@@ -71,6 +72,7 @@ export default function WelcomeScreen() {
             accessibilityRole="button"
             onPress={() => {
               resetOnboarding();
+              track('onboarding started');
               router.push('/onboarding/how');
             }}
             style={({ pressed }) => [styles.primary, pressed && styles.pressed]}>
