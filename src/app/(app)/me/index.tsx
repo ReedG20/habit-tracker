@@ -7,7 +7,9 @@ import * as Updates from 'expo-updates';
 import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { Icon } from '@/components/icon';
+import { ProgressCalendar } from '@/components/progress-calendar';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
+import { StatsPager } from '@/components/stats-pager';
 import { Switch } from '@/components/switch';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -108,44 +110,47 @@ export default function MeScreen() {
         </View>
       </View>
 
-      <View style={styles.stats}>
-        <View style={styles.statRow}>
-          <ThemedView type="backgroundElement" style={styles.statTile}>
-            <ThemedText style={styles.statValue} themeColor="text">
-              {streak === undefined ? ' ' : formatStreak(streak)}
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              Current streak
-            </ThemedText>
-          </ThemedView>
-          <ThemedView type="backgroundElement" style={styles.statTile}>
-            <ThemedText style={styles.statValue} themeColor="text">
-              {loggedCount === undefined ? ' ' : String(loggedCount)}
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              Habits logged
-            </ThemedText>
-          </ThemedView>
+      <StatsPager pageLabels={['Show stats', 'Show calendar']}>
+        <View style={styles.stats}>
+          <View style={styles.statRow}>
+            <ThemedView type="backgroundElement" style={styles.statTile}>
+              <ThemedText style={styles.statValue} themeColor="text">
+                {streak === undefined ? ' ' : formatStreak(streak)}
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                Current streak
+              </ThemedText>
+            </ThemedView>
+            <ThemedView type="backgroundElement" style={styles.statTile}>
+              <ThemedText style={styles.statValue} themeColor="text">
+                {loggedCount === undefined ? ' ' : String(loggedCount)}
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                Habits logged
+              </ThemedText>
+            </ThemedView>
+          </View>
+          <View style={styles.statRow}>
+            <ThemedView type="backgroundElement" style={styles.statTile}>
+              <ThemedText style={styles.statValue} themeColor="text">
+                {stakeTotals === undefined ? ' ' : formatCents(stakeTotals.onTheLineCents)}
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                On the line
+              </ThemedText>
+            </ThemedView>
+            <ThemedView type="backgroundElement" style={styles.statTile}>
+              <ThemedText style={styles.statValue} themeColor="text">
+                {stakeTotals === undefined ? ' ' : formatCents(stakeTotals.keptCents)}
+              </ThemedText>
+              <ThemedText type="small" themeColor="textSecondary">
+                Put up and kept
+              </ThemedText>
+            </ThemedView>
+          </View>
         </View>
-        <View style={styles.statRow}>
-          <ThemedView type="backgroundElement" style={styles.statTile}>
-            <ThemedText style={styles.statValue} themeColor="text">
-              {stakeTotals === undefined ? ' ' : formatCents(stakeTotals.onTheLineCents)}
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              On the line
-            </ThemedText>
-          </ThemedView>
-          <ThemedView type="backgroundElement" style={styles.statTile}>
-            <ThemedText style={styles.statValue} themeColor="text">
-              {stakeTotals === undefined ? ' ' : formatCents(stakeTotals.keptCents)}
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              Put up and kept
-            </ThemedText>
-          </ThemedView>
-        </View>
-      </View>
+        <ProgressCalendar />
+      </StatsPager>
 
       <ThemedView type="backgroundElement" style={styles.settingsGroup}>
         {/* Hidden where there is no store: nothing to buy or manage on web. */}
