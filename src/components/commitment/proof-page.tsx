@@ -83,11 +83,7 @@ export function ProofPage({
   const method = draftProofMethod(draft);
   const checked = nameCheck.lookup(draft.title);
   const ideas =
-    checked !== undefined
-      ? checked.ideas[method]
-      : nameCheck.isChecking(draft.title)
-        ? null
-        : [];
+    checked !== undefined ? checked.ideas[method] : nameCheck.isChecking(draft.title) ? null : [];
 
   const readProofNow = () => readProof.current?.() ?? draft.proof;
 
@@ -185,9 +181,7 @@ export function ProofPage({
             onChange({ proof: readProofNow(), proofMethod });
           }}
           timerMinutes={draft.timerMinutes}
-          onTimerMinutesChange={(timerMinutes) =>
-            onChange({ proof: readProofNow(), timerMinutes })
-          }
+          onTimerMinutesChange={(timerMinutes) => onChange({ proof: readProofNow(), timerMinutes })}
         />
       ) : (
         <GoalProofExplainer />

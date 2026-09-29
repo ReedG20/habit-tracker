@@ -128,8 +128,7 @@ export function useNameCheck(kind: CommitmentKind, timesPerWeek: number) {
   );
 
   /** The result for this name, if it's back. */
-  const lookup = (title: string): NameCheckResult | undefined =>
-    results.get(cacheKey(kind, title));
+  const lookup = (title: string): NameCheckResult | undefined => results.get(cacheKey(kind, title));
 
   /** Whether this name is still out being checked. */
   const isChecking = (title: string): boolean => inFlight.has(cacheKey(kind, title));
