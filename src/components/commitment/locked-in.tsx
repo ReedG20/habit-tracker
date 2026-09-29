@@ -1,6 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
-import type { CommitmentDraft } from './draft';
+import { friendName } from './contract-text';
+import { lockoutLabel, type CommitmentDraft } from './draft';
 import { Note } from './note';
 import { StepLayout } from './step-layout';
 
@@ -9,7 +10,6 @@ import { Countdown } from '@/components/countdown';
 import { ThemedText } from '@/components/themed-text';
 import { CardRadius, ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { DAILY, frequencyLabel } from '@/convex/lib/frequency';
-import { useReentryPrice } from '@/hooks/use-reentry-product';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDueAt } from '@/lib/dates';
 import { formatCents } from '@/lib/money';
@@ -22,18 +22,8 @@ export type LockedInProps = {
 /** The confirmation after locking in: what was just agreed to, in one card. */
 export function LockedIn({ draft, onDone }: LockedInProps) {
   const theme = useTheme();
-  const reentryPrice = useReentryPrice();
-
   const daily = draft.timesPerWeek >= DAILY;
-  const lockTerms = reentryPrice === null ? '' : ` until you pay ${reentryPrice}`;
-  const stakes =
-    draft.kind === 'habit'
-      ? daily
-        ? `Miss a day and Ante locks${lockTerms}`
-        : `End a week short and Ante locks${lockTerms}`
-      : draft.amountCents === null
-        ? 'Your word'
-        : `${formatCents(draft.amountCents)} on your card`;
+  const stakes = stakesLine(draft, daily);
 
   return (
     <StepLayout footer={<ActionButton label="Done" variant="primary" fill onPress={onDone} />}>
@@ -74,6 +64,23 @@ export function LockedIn({ draft, onDone }: LockedInProps) {
       </Note>
     </StepLayout>
   );
+}
+
+/** The stakes row: what's on the line, in the words of the kind picked. */
+function stakesLine(draft: CommitmentDraft, daily: boolean): string {
+  const miss = draft.kind === 'goal' ? 'Miss it' : daily ? 'Miss a day' : 'End a week short';
+  switch (draft.stakeKind) {
+    case 'money':
+      return draft.kind === 'goal'
+        ? `${formatCents(draft.amountCents)} on your card`
+        : `${formatCents(draft.amountCents)} on your card, charged once if the streak breaks`;
+    case 'friend':
+      return `${miss} and ${friendName(draft)} hears about it. We just sent them a heads-up.`;
+    case 'lockout':
+      return `${miss} and your habits freeze for ${lockoutLabel(draft.lockoutDays)}`;
+    case 'none':
+      return 'Your word';
+  }
 }
 
 function Row({ label, value }: { label: string; value: string }) {

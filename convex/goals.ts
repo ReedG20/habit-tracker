@@ -25,8 +25,10 @@ import {
   dropGoalStake,
   mintCardSetup,
   moneyTotals,
+  reuseCard,
   verifySavedCard,
   type CardSetup,
+  type SavedCard,
 } from './stakes';
 
 /**
@@ -274,17 +276,24 @@ export const createStaked = authedAction({
     description: v.optional(v.string()),
     dueAt: v.number(),
     amountCents: v.number(),
-    setupIntentId: v.string(),
+    /** A card just saved through the PaymentSheet… */
+    setupIntentId: v.optional(v.string()),
+    /** …or the one an earlier stake of theirs was on ("set it again"). */
+    reuseFromStakeId: v.optional(v.id('stakes')),
   },
   returns: v.id('goals'),
   handler: async (ctx, args): Promise<Id<'goals'>> => {
     requireLead(args.dueAt);
     requireCommitmentText(args.title, args.description);
-    const { kind: _kind, ...card } = await verifySavedCard(
-      ctx,
-      args.setupIntentId,
-      args.amountCents,
-    );
+    let saved: SavedCard;
+    if (args.setupIntentId !== undefined) {
+      saved = await verifySavedCard(ctx, args.setupIntentId, args.amountCents);
+    } else if (args.reuseFromStakeId !== undefined) {
+      saved = await reuseCard(ctx, args.reuseFromStakeId, args.amountCents);
+    } else {
+      throw new Error('Add a card for the stake');
+    }
+    const { kind: _kind, ...card } = saved;
 
     const goalId: Id<'goals'> = await ctx.runMutation(internal.goals.insertStaked, {
       userId: ctx.user._id,

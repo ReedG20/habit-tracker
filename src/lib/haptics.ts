@@ -13,3 +13,12 @@ export function selectionHaptic() {
 export function successHaptic() {
   if (supported) void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 }
+
+/** Something was lost: a heavy thud, then the error buzz. */
+export function lossHaptic() {
+  if (!supported) return;
+  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+  setTimeout(() => {
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+  }, 180);
+}

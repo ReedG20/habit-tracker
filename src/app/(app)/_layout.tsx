@@ -5,6 +5,7 @@ import AppTabs from '@/components/app-tabs';
 import { ToastHost } from '@/components/toast';
 import { api } from '@/convex/_generated/api';
 import { useGoalSubmissionToasts } from '@/hooks/use-goal-submission-toasts';
+import { useLossPresenter } from '@/hooks/use-loss-presenter';
 import { useVerificationToasts } from '@/hooks/use-verification-toasts';
 import { todayKey } from '@/lib/dates';
 
@@ -18,6 +19,8 @@ export default function AppLayout() {
   const goals = useQuery(api.goals.list);
   useVerificationToasts(habits);
   useGoalSubmissionToasts(goals);
+  // A stake that came due opens its own page, whichever tab is up.
+  useLossPresenter();
 
   return (
     <View style={styles.root}>

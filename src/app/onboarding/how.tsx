@@ -7,15 +7,13 @@ import { Note } from '@/components/commitment/note';
 import { Icon } from '@/components/icon';
 import { OnboardingScreen } from '@/components/onboarding/onboarding-screen';
 import { ThemedText } from '@/components/themed-text';
-import { Camera01Icon, LockIcon, Target02Icon } from '@/constants/icons';
+import { Camera01Icon, CoinsDollarIcon, Target02Icon } from '@/constants/icons';
 import { BorderRadius, ControlHeight, Spacing, type ThemeColor } from '@/constants/theme';
-import { useReentryPrice } from '@/hooks/use-reentry-product';
 import { useTheme } from '@/hooks/use-theme';
 
 type Rule = { icon: IconSvgElement; tint: ThemeColor; title: string; body: string };
 
-/** The rules, quoting the re-entry fee once the store has priced it. */
-const rulesFor = (reentryPrice: string | null): Rule[] => [
+const RULES: Rule[] = [
   {
     icon: Target02Icon,
     tint: 'primary',
@@ -29,16 +27,16 @@ const rulesFor = (reentryPrice: string | null): Rule[] => [
     body: 'You say what the photo has to show. AI checks every one. There is no honour system.',
   },
   {
-    icon: LockIcon,
+    icon: CoinsDollarIcon,
     tint: 'accent',
     title: 'Miss it, and it costs you',
-    body: `Fall short on a habit and Ante locks until you pay ${reentryPrice ?? 'a fee'} to get back in. Miss a goal you put money on, and it’s charged. Both are separate from your subscription.`,
+    body: 'You choose the stakes: money on your card, a friend who hears about it, or a lockout. Money works best, and it’s separate from your subscription.',
   },
 ];
 
 export default function HowScreen() {
   const theme = useTheme();
-  const rules = rulesFor(useReentryPrice());
+  const rules = RULES;
 
   return (
     <OnboardingScreen

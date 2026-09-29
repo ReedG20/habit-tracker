@@ -18,8 +18,8 @@ import {
 configureForegroundHandling();
 
 /**
- * Keeps this device's reminders wired up. Lives in the root navigator, so a
- * locked user, who never sees the tabs, still hears about goal deadlines.
+ * Keeps this device's reminders wired up. Lives in the root navigator, so it
+ * runs whichever screen is up.
  *
  * - Re-reads the permission on launch and each return to the foreground, since
  *   it can change in Settings at any time.
@@ -28,7 +28,7 @@ configureForegroundHandling();
  * - Clears delivered reminders on open: the screen says it all now.
  * - Opens the right screen when a push is tapped, once there is a navigator.
  */
-export function useNotifications({ ready, locked }: { ready: boolean; locked: boolean }) {
+export function useNotifications({ ready }: { ready: boolean }) {
   const register = useMutation(api.push.register);
   const userId = useSessionUserId();
   const permission = useNotificationPermission();
@@ -72,5 +72,5 @@ export function useNotifications({ ready, locked }: { ready: boolean; locked: bo
     };
   }, [userId, permission, register]);
 
-  useNotificationTaps({ ready, locked });
+  useNotificationTaps({ ready });
 }

@@ -13,9 +13,8 @@ import { HabitIcon } from '@/constants/icons';
 import { Fonts, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { groupIntoHomeSections, type HomeSection } from '@/data/home-sections';
-import { formatHoursMinutes, pickTodayMoment, type Fee } from '@/data/today-moment';
+import { formatHoursMinutes, pickTodayMoment } from '@/data/today-moment';
 import { useNow } from '@/hooks/use-now';
-import { useReentryProduct } from '@/hooks/use-reentry-product';
 import { useSubscription } from '@/hooks/use-subscription';
 import { endOfDay, todayKey } from '@/lib/dates';
 
@@ -28,30 +27,27 @@ export default function TodayScreen() {
   const now = useNow();
   const goals = useQuery(api.goals.list);
   const sections = habits && goals ? groupIntoHomeSections(habits, goals, today, now) : undefined;
-  const reentry = useReentryProduct();
-  // Without Pro nothing is checked, so there is no fee to warn about.
+  // Without Pro nothing is checked, so there are no stakes to warn about.
   const subscription = useSubscription();
   const paused = !subscription.isPro && !subscription.isLoading;
-  // Held back until the store answers, so the hero doesn't swap its headline mid-count.
-  const fee: Fee | null | undefined =
-    reentry.status === 'ready'
-      ? {
-          amount: reentry.product.price,
-          currency: reentry.product.currencyCode,
-          text: reentry.product.priceString,
-        }
-      : reentry.status === 'loading'
-        ? undefined
-        : null;
-  // The day back from a lock is free; the hero must not quote a fee on it.
+  // The first day is free; the hero must not warn about a skip on it.
   const accountableFrom = useQuery(api.lockouts.accountableFrom);
+  const freeze = useQuery(api.freezes.current);
   const moment =
-    habits && goals && fee !== undefined && accountableFrom !== undefined
-      ? pickTodayMoment({ habits, goals, today, now, fee, accountableFrom })
+    habits && goals && accountableFrom !== undefined && freeze !== undefined
+      ? pickTodayMoment({
+          habits,
+          goals,
+          today,
+          now,
+          accountableFrom,
+          frozenUntil: freeze?.endsAt ?? null,
+        })
       : undefined;
 
-  /** "6h 12m left" beside today's title, while habits there can still lock Ante. */
-  const owesToday = !paused && moment != null && moment.kind !== 'clear';
+  /** "6h 12m left" beside today's title, while habits there still have something riding on them. */
+  const owesToday =
+    !paused && moment != null && moment.kind !== 'clear' && moment.kind !== 'frozen';
   const sectionMeta = (section: HomeSection) =>
     section.id === 'today' && owesToday && section.items.some((item) => item.kind === 'habit')
       ? `${formatHoursMinutes(endOfDay(today) - now)} left`
@@ -106,8 +102,9 @@ export default function TodayScreen() {
                   <HabitCard
                     key={item.habit._id}
                     habit={item.habit}
-                    deadlineAt={paused ? undefined : item.deadlineAt}
+                    deadlineAt={paused || freeze != null ? undefined : item.deadlineAt}
                     paused={paused}
+                    frozenUntil={freeze?.endsAt}
                   />
                 ),
               )}

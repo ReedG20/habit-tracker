@@ -1,4 +1,4 @@
-import type { CommitmentDraft } from './draft';
+import { lockoutLabel, type CommitmentDraft } from './draft';
 
 import { DAILY, frequencyLabel } from '@/convex/lib/frequency';
 import { formatDueAt } from '@/lib/dates';
@@ -7,18 +7,29 @@ import { formatCents } from '@/lib/money';
 /** A run of contract text; `strong` runs are the terms the user filled in. */
 export type ContractRun = { text: string; strong?: boolean };
 
-/**
- * The contract as one "I will…" paragraph, with the user's own terms marked.
- * `reentryPrice` is the fee as the store sells it (`$9.99`), when known.
- */
-export function contractRuns(draft: CommitmentDraft, reentryPrice: string | null): ContractRun[] {
-  const lock = {
-    text:
-      reentryPrice === null
-        ? 'Ante locks until I pay to get back in'
-        : `Ante locks until I pay ${reentryPrice} to get back in`,
-    strong: true,
-  };
+/** The friend's first name, or "my friend" before one is picked. */
+export function friendName(draft: CommitmentDraft): string {
+  const name = draft.friend.name.trim();
+  return name.length > 0 ? name : 'my friend';
+}
+
+/** What a miss costs, as the end of "If I miss a day, ___". */
+export function missConsequence(draft: CommitmentDraft): string {
+  switch (draft.stakeKind) {
+    case 'money':
+      return `${formatCents(draft.amountCents)} is charged to my card`;
+    case 'friend':
+      return `${friendName(draft)} hears about it`;
+    case 'lockout':
+      return `all my habits freeze for ${lockoutLabel(draft.lockoutDays)}`;
+    case 'none':
+      return draft.kind === 'habit' ? 'my streak starts over' : 'I broke my word to myself';
+  }
+}
+
+/** The contract as one "I will…" paragraph, with the user's own terms marked. */
+export function contractRuns(draft: CommitmentDraft): ContractRun[] {
+  const lock = { text: missConsequence(draft), strong: true };
 
   if (draft.kind === 'habit' && draft.timesPerWeek < DAILY) {
     return [
@@ -54,9 +65,7 @@ export function contractRuns(draft: CommitmentDraft, reentryPrice: string | null
     { text: '. I’ll prove it with a photo showing ' },
     { text: lowerFirst(draft.proof), strong: true },
     { text: '. If I don’t, ' },
-    draft.amountCents === null
-      ? { text: 'I broke my word to myself', strong: true }
-      : { text: `${formatCents(draft.amountCents)} is charged to my card`, strong: true },
+    lock,
     { text: '.' },
   ];
 }

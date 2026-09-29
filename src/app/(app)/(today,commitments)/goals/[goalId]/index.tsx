@@ -20,36 +20,14 @@ import {
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import type { SubmissionWithPhotos } from '@/convex/goalSubmissions';
-import { isMissed, type GoalWithStatus } from '@/data/goals';
+import { isStakeLive } from '@/convex/lib/stakeRules';
+import { isMissed } from '@/data/goals';
+import { describeGoalStake } from '@/data/stakes';
 import { useNow } from '@/hooks/use-now';
 import { useTheme } from '@/hooks/use-theme';
 import { confirmDestructive, notify } from '@/lib/confirm';
 import { formatCompletedAt, formatDueAt } from '@/lib/dates';
 import { useForceDelete } from '@/lib/dev-tools';
-import { formatCents } from '@/lib/money';
-
-function describeStake(goal: GoalWithStatus): string {
-  const { stake } = goal;
-  if (stake === undefined) return 'Nothing on it';
-
-  const amount = formatCents(stake.amountCents);
-  switch (stake.status) {
-    case 'armed':
-      return `${amount} · charged if missed`;
-    case 'charging':
-      return `${amount} · charging`;
-    case 'charged':
-      return `${amount} · charged`;
-    case 'charge_failed':
-      return `${amount} · charge failed${stake.failureReason ? ` (${stake.failureReason})` : ''}`;
-    case 'released':
-      return `${amount} · safe`;
-    case 'refunded':
-      return `${amount} · refunded`;
-    case 'disputed':
-      return `${amount} · disputed`;
-  }
-}
 
 const STATUS_LABEL: Record<SubmissionWithPhotos['status'], string> = {
   pending: 'Verifying…',
@@ -94,8 +72,8 @@ export default function GoalDetailScreen() {
   const missed = isMissed(goal, now);
   const verifying = goal.submission?.status === 'pending';
   const canSubmit = !done && !missed && !verifying;
-  const armed = goal.stake?.status === 'armed';
-  const stakeLive = armed || goal.stake?.status === 'charging';
+  const stakeLive = goal.stakeView !== null && isStakeLive(goal.stakeView);
+  const lost = goal.stakeView?.lostAt !== undefined;
 
   return (
     <ScreenScrollView>
@@ -107,15 +85,19 @@ export default function GoalDetailScreen() {
         onDelete={() => {
           if (stakeLive && !forceDelete) {
             notify(
-              'This goal has money on it',
-              'It runs to its deadline. Submit proof before then and nothing is charged.',
+              goal.stakeView?.kind === 'friend'
+                ? 'This goal has a friend on it'
+                : 'This goal has money on it',
+              goal.stakeView?.kind === 'friend'
+                ? 'It runs to its deadline. Submit proof before then and nobody hears a thing.'
+                : 'It runs to its deadline. Submit proof before then and nothing is charged.',
             );
             return;
           }
           confirmDestructive({
             title: 'Delete goal',
             message: stakeLive
-              ? 'Force delete is on: the stake is called off and nothing is charged.'
+              ? 'Force delete is on: the stake is called off and nothing happens.'
               : 'This cannot be undone.',
             confirmLabel: 'Delete',
             onConfirm: () => {
@@ -149,10 +131,10 @@ export default function GoalDetailScreen() {
           </ThemedText>
           <ThemedText
             type="smallBold"
-            themeColor={goal.stake?.status === 'charged' ? 'accent' : 'text'}
+            themeColor={lost ? 'accent' : 'text'}
             style={styles.metaValue}
             numberOfLines={2}>
-            {describeStake(goal)}
+            {describeGoalStake(goal.stakeView, 'detail')}
           </ThemedText>
         </View>
         {goal.completedAt !== undefined ? (

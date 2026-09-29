@@ -17,6 +17,8 @@ export type PushData = {
   kind?: 'reminder' | 'lineup' | 'proof' | 'receipt' | 'account' | 'test';
   url?: string;
   final?: boolean;
+  /** A stake that came due; opens its loss screen. */
+  lossStakeId?: string;
 };
 
 export const notificationsSupported = Platform.OS === 'ios' || Platform.OS === 'android';
@@ -126,7 +128,7 @@ export async function currentPushToken(): Promise<string | null> {
  * What a push does while Ante is open. Early nudges and photo verdicts stay
  * quiet (the screen and the toasts already say it); a last call still shows,
  * since the app being open doesn't mean they've seen that screen. Receipts and
- * account notices (still locked, trial ending) always show: they're about
+ * account notices (trial ending) always show: they're about
  * money, and hiding one leaves no trace of it in Notification Center. Never badges.
  */
 export function configureForegroundHandling() {
@@ -168,13 +170,10 @@ export async function clearDeliveredReminders(): Promise<void> {
   );
 }
 
-/**
- * Where a tapped push goes. While locked only the locked stack exists, so a
- * goal opens its locked-mode proof screen and anything else the lock itself.
- */
-export function routeForPush(data: PushData, locked: boolean): string {
-  const url = typeof data.url === 'string' && data.url.startsWith('/') ? data.url : '/';
-  if (!locked) return url;
-  const goal = /^\/goals\/([^/]+)$/.exec(url);
-  return goal === null ? '/locked' : `/locked/goal/${goal[1]}`;
+/** Where a tapped push goes: a stake that came due opens its loss screen. */
+export function routeForPush(data: PushData): string {
+  if (typeof data.lossStakeId === 'string' && /^[a-z0-9]+$/.test(data.lossStakeId)) {
+    return `/lost/${data.lossStakeId}`;
+  }
+  return typeof data.url === 'string' && data.url.startsWith('/') ? data.url : '/';
 }

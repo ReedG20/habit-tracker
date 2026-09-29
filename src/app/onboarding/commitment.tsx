@@ -5,11 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import {
-  DEFAULT_STAKE_CENTS,
-  defaultDueAt,
-  type CommitmentDraft,
-} from '@/components/commitment/draft';
+import { defaultDueAt, freshStake, type CommitmentDraft } from '@/components/commitment/draft';
 import { SignStep } from '@/components/commitment/sign-step';
 import { StakesStep } from '@/components/commitment/stakes-step';
 import { WhatStep } from '@/components/commitment/what-step';
@@ -74,8 +70,7 @@ export default function OnboardingCommitmentScreen() {
         proof: '',
         timesPerWeek: DAILY,
         dueAt: defaultDueAt(),
-        amountCents: DEFAULT_STAKE_CENTS,
-        card: null,
+        ...freshStake(suggestKind(getOnboarding().answers), false),
       }
     );
   });
@@ -93,8 +88,12 @@ export default function OnboardingCommitmentScreen() {
   };
 
   const lockIn = () => {
-    // No money in onboarding: a goal is on the user's word until they have an account.
-    saveDraft({ ...draft, amountCents: null, card: null });
+    // No money in onboarding: there's no account to save a card to yet.
+    saveDraft({
+      ...draft,
+      stakeKind: draft.stakeKind === 'money' ? 'none' : draft.stakeKind,
+      card: null,
+    });
     // Right after signing is when a heads-up makes the most sense; only asked once.
     if (permission === 'undetermined') {
       router.push('/onboarding/reminders');

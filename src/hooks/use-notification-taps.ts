@@ -9,7 +9,7 @@ import { routeForPush, type PushData } from '@/lib/notifications';
  * the app cold. Waits for `ready` (signed in, past onboarding) so there is a
  * navigator to push onto, and handles each push once.
  */
-export function useNotificationTaps({ ready, locked }: { ready: boolean; locked: boolean }) {
+export function useNotificationTaps({ ready }: { ready: boolean }) {
   const response = Notifications.useLastNotificationResponse();
   const handled = useRef<string | null>(null);
 
@@ -21,7 +21,7 @@ export function useNotificationTaps({ ready, locked }: { ready: boolean; locked:
     handled.current = identifier;
 
     const data = response.notification.request.content.data as PushData;
-    router.push(routeForPush(data, locked) as Href);
+    router.push(routeForPush(data) as Href);
     void Notifications.clearLastNotificationResponseAsync().catch(() => {});
-  }, [ready, response, locked]);
+  }, [ready, response]);
 }

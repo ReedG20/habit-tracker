@@ -4,10 +4,10 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Note } from './note';
 
 import { Icon } from '@/components/icon';
-import { MAX_STAKE_CENTS, MIN_STAKE_CENTS } from '@/components/stake-picker';
 import { ThemedText } from '@/components/themed-text';
 import { Add01Icon, MinusSignIcon } from '@/constants/icons';
 import { Fonts, PillRadius, Spacing } from '@/constants/theme';
+import { MAX_STAKE_CENTS, MIN_STAKE_CENTS } from '@/convex/lib/stakeRules';
 import { useTheme } from '@/hooks/use-theme';
 import { formatCents } from '@/lib/money';
 
@@ -26,6 +26,8 @@ export type StakeAmountPickerProps = {
   amountCents: number;
   onChange: (amountCents: number) => void;
   disabled?: boolean;
+  /** Lower than the usual $50 when the cap on money at risk leaves less room. */
+  maxCents?: number;
 };
 
 /** The forfeit as one big number, with ± steppers and the common amounts under it. */
@@ -33,18 +35,20 @@ export function StakeAmountPicker({
   amountCents,
   onChange,
   disabled = false,
+  maxCents = MAX_STAKE_CENTS,
 }: StakeAmountPickerProps) {
   const theme = useTheme();
+  const max = Math.max(MIN_STAKE_CENTS, Math.min(MAX_STAKE_CENTS, maxCents));
 
   const set = (next: number) => {
-    const clamped = Math.min(MAX_STAKE_CENTS, Math.max(MIN_STAKE_CENTS, next));
+    const clamped = Math.min(max, Math.max(MIN_STAKE_CENTS, next));
     if (clamped === amountCents) return;
     void Haptics.selectionAsync();
     onChange(clamped);
   };
 
   const stepper = (delta: number) => {
-    const atLimit = delta < 0 ? amountCents <= MIN_STAKE_CENTS : amountCents >= MAX_STAKE_CENTS;
+    const atLimit = delta < 0 ? amountCents <= MIN_STAKE_CENTS : amountCents >= max;
 
     return (
       <Pressable
@@ -82,7 +86,7 @@ export function StakeAmountPicker({
       <Note style={styles.note}>{describeStake(amountCents)}</Note>
 
       <View style={styles.chips}>
-        {PRESETS_CENTS.map((cents) => {
+        {PRESETS_CENTS.filter((cents) => cents <= max).map((cents) => {
           const selected = cents === amountCents;
 
           return (

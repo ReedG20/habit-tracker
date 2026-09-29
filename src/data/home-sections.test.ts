@@ -26,6 +26,7 @@ function habit(fields: Partial<HabitWithProgress>): HabitWithProgress {
     weekCount: 0,
     streak: 0,
     verification: null,
+    stakeView: null,
     ...fields,
   };
 }
@@ -40,6 +41,7 @@ function goal(fields: Partial<GoalWithStatus>): GoalWithStatus {
     order: nextId,
     dueAt: 0,
     submission: null,
+    stakeView: null,
     ...fields,
   };
 }

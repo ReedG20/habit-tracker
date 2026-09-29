@@ -8,6 +8,7 @@ import {
   type HabitWithProgress,
   type Streak,
 } from '@/data/habits';
+import { skipConsequence, stakeCost } from '@/data/stakes';
 import { dayOfWeek, nextDay, weekEnd } from '@/convex/lib/days';
 import { targetPerWeek } from '@/convex/lib/frequency';
 import { endOfDay, formatShortDate, fromDayKey, toDayKey } from '@/lib/dates';
@@ -27,22 +28,12 @@ const DAY = 24 * HOUR;
 export const LAST_CALL_MS = 3 * HOUR;
 /** Inside this window a goal's deadline beats everything but a retake. */
 export const GOAL_CRUNCH_MS = 3 * HOUR;
-/** A shorter run is not worth leading with; the fee lands harder. */
+/** A shorter run is not worth leading with; the stake lands harder. */
 const STREAK_WORTH_LEADING = 3;
 const MILESTONES = [7, 14, 30, 50, 100, 365];
 /** How close a milestone has to be to get a mention. */
 const MILESTONE_WINDOW = 7;
 const MAX_ALSO = 4;
-
-/** The re-entry fee as the store sells it. */
-export type Fee = {
-  /** In major units (`9.99`), for counting up. */
-  amount: number;
-  /** ISO code, so the count-up formats like the store does. */
-  currency: string;
-  /** The store's own string (`$9.99`), which the count-up lands on. */
-  text: string;
-};
 
 export type MomentFigure =
   | { kind: 'money'; amount: number; currency?: string; text: string }
@@ -51,7 +42,7 @@ export type MomentFigure =
   | { kind: 'time'; text: string };
 
 export type MomentKind =
-  'retake' | 'goalCrunch' | 'lastCall' | 'goalToday' | 'streak' | 'fee' | 'clear';
+  'retake' | 'goalCrunch' | 'frozen' | 'lastCall' | 'goalToday' | 'streak' | 'stakes' | 'clear';
 
 export type TodayMoment = {
   kind: MomentKind;
@@ -73,10 +64,10 @@ export type TodayMomentInput = {
   goals: GoalWithStatus[];
   today: string;
   now: number;
-  /** `null` when the store has no price to give (web, or the product is not live). */
-  fee: Fee | null;
   /** `lockouts.accountableFrom`: days before it are free. */
   accountableFrom: string | null;
+  /** When a lockout's freeze lifts, while every habit is frozen; else `null`. */
+  frozenUntil: number | null;
 };
 
 /**
@@ -94,7 +85,8 @@ export const MARGIN_NOTES = {
     'you’ve had harder days than this.',
     'moods don’t count. days do.',
   ],
-  fee: ['it’s cheaper to just do it.', 'the lock is the point.', 'showing up is the cheap option.'],
+  stakes: ['it’s cheaper to just do it.', 'showing up is the cheap option.'],
+  frozen: ['rest up. it all counts again soon.', 'the lock is the point.'],
   done: ['that’s the trick. again tomorrow.', 'nice. same time tomorrow.'],
   dayBack: ['free day. it all counts tomorrow.'],
   firstDay: ['first day’s free. use it anyway.'],
@@ -158,8 +150,12 @@ function countsToday(
   return today >= firstWeek;
 }
 
-/** Still owed today with something riding on it. A failed check is excused by the server. */
+/**
+ * Still owed today. A failed check is excused by the server; a broken habit
+ * isn't judged until it's restarted.
+ */
 function isOwed(habit: HabitWithProgress, today: string, accountableFrom: string | null): boolean {
+  if (habit.brokenAt !== undefined) return false;
   if (isDoneForToday(habit) || !countsToday(habit, today, accountableFrom)) return false;
   const status = habit.verification?.status;
   if (status === 'pending' || status === 'failed') return false;
@@ -177,7 +173,8 @@ function isOpen(goal: GoalWithStatus, now: number): boolean {
 }
 
 function stakeCents(goal: GoalWithStatus): number | null {
-  return goal.stake?.status === 'armed' ? goal.stake.amountCents : null;
+  const cost = stakeCost(goal.stakeView);
+  return cost.kind === 'money' ? cost.cents : null;
 }
 
 function goalMoney(goal: GoalWithStatus): MomentFigure | null {
@@ -222,8 +219,9 @@ function describeGoal(goal: GoalWithStatus, now: number, today: string): string 
     : `${goal.title}: ${formatCents(cents)} on it, due ${due}`;
 }
 
-function feeLine(fee: Fee | null): string {
-  return fee === null ? 'Skip a habit and Ante locks' : `${fee.text} to get back in if you skip`;
+/** "Skip one and $25 is charged". */
+function skipLine(owed: HabitWithProgress[]): string {
+  return `Skip ${owed.length === 1 ? 'it' : 'one'} and ${skipConsequence(owed).phrase}`;
 }
 
 /** What a skip would be of: "Gym", or "any of today's 2 habits". */
@@ -241,8 +239,8 @@ export function pickTodayMoment({
   goals,
   today,
   now,
-  fee,
   accountableFrom,
+  frozenUntil,
 }: TodayMomentInput): TodayMoment | null {
   const openGoals = goals.filter((goal) => isOpen(goal, now));
   const pendingGoals = goals.filter(
@@ -256,17 +254,20 @@ export function pickTodayMoment({
   const midnight = endOfDay(today);
   const leftToday = midnight - now;
   const clock = formatHoursMinutes(leftToday);
-  const owed = habits.filter((habit) => isOwed(habit, today, accountableFrom));
+  // Frozen, nothing can be logged or missed: no habit is owed.
+  const owed =
+    frozenUntil === null ? habits.filter((habit) => isOwed(habit, today, accountableFrom)) : [];
   const risk = streakAtRisk(owed);
   const milestone = nextMilestone(risk.streak);
   const slack = weeklySlack(habits, today);
 
   // The "also" line: every stake the headline left out, most pressing first.
-  type Skip = { fee?: boolean; clock?: boolean; streak?: boolean; goal?: GoalWithStatus };
+  type Skip = { cost?: boolean; clock?: boolean; streak?: boolean; goal?: GoalWithStatus };
+  const broken = habits.filter((habit) => habit.brokenAt !== undefined);
   const also = (skip: Skip = {}) => {
     const lines: string[] = [];
     const goal = openGoals.find((candidate) => candidate !== skip.goal);
-    if (owed.length > 0 && !skip.fee) lines.push(feeLine(fee));
+    if (owed.length > 0 && !skip.cost) lines.push(skipLine(owed));
     if (owed.length > 0 && !skip.clock) lines.push(`${clock} left today`);
     if (risk.habit !== undefined && risk.streak.count >= STREAK_WORTH_LEADING && !skip.streak) {
       lines.push(`${risk.habit.title}: ${formatStreak(risk.streak)} in a row`);
@@ -274,6 +275,7 @@ export function pickTodayMoment({
     if (milestone !== null) lines.push(milestone);
     if (goal !== undefined) lines.push(describeGoal(goal, now, today));
     lines.push(...slack);
+    lines.push(...broken.map((habit) => `${habit.title}: streak lost. Restart it`));
     return lines.slice(0, MAX_ALSO);
   };
 
@@ -327,32 +329,51 @@ export function pickTodayMoment({
         };
   }
 
-  // 3. Late with habits still open: the clock is the argument.
+  // 3. Frozen by a lockout: nothing to log, so say when it's over.
+  if (frozenUntil !== null && habits.length > 0) {
+    const back = weekdayFormat.format(new Date(frozenUntil + HOUR));
+    return {
+      kind: 'frozen',
+      tone: 'normal',
+      kicker: 'Your habits are frozen',
+      figure: { kind: 'time', text: formatTimeLeft(frozenUntil - now) },
+      sentence: `until they’re back on ${back}. Goals still count.`,
+      emphasis: [back],
+      also: also(),
+      note: pickNote('frozen', today),
+    };
+  }
+
+  // 4. Late with habits still open: the clock is the argument.
   if (owed.length > 0 && leftToday <= LAST_CALL_MS) {
-    const pay = fee === null ? 'you pay to get back in' : `it’s ${fee.text} to get back in`;
+    const cost = skipConsequence(owed);
     // Only the habit that owns the run can end it, so only name it when it's the one.
     const one = owed.length === 1;
     const run = one && risk.habit !== undefined ? `${streakAdjective(risk.streak)} streak` : null;
-    const lose = run === null ? '' : `your ${run} ends, and `;
+    const outcome =
+      cost.kind === 'none'
+        ? run === null
+          ? 'the streak starts over'
+          : `your ${run} ends`
+        : run === null
+          ? cost.phrase
+          : `your ${run} ends, and ${cost.phrase}`;
+    const money = cost.cents > 0 ? [formatCents(cost.cents)] : [];
     return {
       kind: 'lastCall',
       tone: 'urgent',
-      kicker: 'Ante locks at midnight',
+      kicker: `${cost.short} at midnight`,
       figure: { kind: 'time', text: clock },
       sentence: one
-        ? `${owed[0].title}’s still open. Skip it and ${lose}${pay}.`
-        : `${owed.length} habits are still open. Skip one and ${pay}.`,
-      emphasis: [
-        ...(one ? [owed[0].title] : []),
-        ...(run === null ? [] : [run]),
-        ...(fee === null ? [] : [fee.text]),
-      ],
-      also: also({ fee: true, clock: true, streak: one }),
+        ? `${owed[0].title}’s still open. Skip it and ${outcome}.`
+        : `${owed.length} habits are still open. Skip one and ${cost.phrase}.`,
+      emphasis: [...(one ? [owed[0].title] : []), ...(run === null ? [] : [run]), ...money],
+      also: also({ cost: true, clock: true, streak: one }),
       note: pickNote('lastCall', today),
     };
   }
 
-  // 4. A staked goal settles before tonight's habits do.
+  // 5. A staked goal settles before tonight's habits do.
   const dueToday = openGoals.find((goal) => goal.dueAt < midnight && stakeCents(goal) !== null);
   if (dueToday !== undefined) {
     return {
@@ -367,7 +388,7 @@ export function pickTodayMoment({
     };
   }
 
-  // 5. A run worth protecting: lead with what a skip would end.
+  // 6. A run worth protecting: lead with what a skip would end.
   if (risk.habit !== undefined && risk.streak.count >= STREAK_WORTH_LEADING) {
     const { streak, habit } = risk;
     const next =
@@ -390,8 +411,9 @@ export function pickTodayMoment({
     };
   }
 
-  // 6. Early days: the fee is the stake that bites.
+  // 7. Early days: the stake is what bites.
   if (owed.length > 0) {
+    const cost = skipConsequence(owed);
     const them = owed.length === 1 ? 'it' : 'them';
     const day = risk.streak.unit === 'day' ? risk.streak.count + 1 : null;
     const upside =
@@ -400,37 +422,41 @@ export function pickTodayMoment({
         : day === 1
           ? `Log ${them} and day 1 is on the board.`
           : `Log ${them} and day ${day} is yours.`;
-    return fee === null
+    const what = owed.length === 1 ? `${owed[0].title} today` : skipping(owed);
+    return cost.cents > 0
       ? {
-          kind: 'fee',
+          kind: 'stakes',
           tone: 'normal',
-          kicker: `Skip ${skipping(owed)} and Ante locks`,
+          kicker: `Skip ${what} and it costs`,
+          figure: { kind: 'money', amount: cost.cents / 100, text: formatCents(cost.cents) },
+          sentence: `charged the moment the streak breaks. ${upside}`,
+          emphasis: day === null ? [] : [`day ${day}`],
+          also: also({ cost: true }),
+          note: pickNote('stakes', today),
+        }
+      : {
+          kind: 'stakes',
+          tone: 'normal',
+          kicker: `Skip ${skipping(owed)} and ${cost.phrase}`,
           figure: { kind: 'time', text: clock },
           sentence: `left today. ${upside}`,
           emphasis: day === null ? [] : [`day ${day}`],
-          also: also({ fee: true, clock: true }),
-          note: pickNote('fee', today),
-        }
-      : {
-          kind: 'fee',
-          tone: 'normal',
-          kicker: `Skip ${owed.length === 1 ? `${owed[0].title} today` : skipping(owed)} and it costs`,
-          figure: { kind: 'money', amount: fee.amount, currency: fee.currency, text: fee.text },
-          sentence: `to get back in. ${upside}`,
-          emphasis: day === null ? [] : [`day ${day}`],
-          also: also({ fee: true }),
-          note: pickNote('fee', today),
+          also: also({ cost: true, clock: true }),
+          note: pickNote('stakes', today),
         };
   }
 
-  // 7. Nothing owed: bank the win and point at what's next.
+  // 8. Nothing owed: bank the win and point at what's next.
   const headline = currentStreak(habits);
   const nextGoal = openGoals[0];
   const pending = habits.some(isPending) || pendingGoals.length > 0;
   // Unlogged but owing nothing: made today, or excused by a failed check.
   const unlogged = habits.filter(
     (habit) =>
-      !isDoneForToday(habit) && !isPending(habit) && (isDaily(habit) || mustLogToday(habit, today)),
+      habit.brokenAt === undefined &&
+      !isDoneForToday(habit) &&
+      !isPending(habit) &&
+      (isDaily(habit) || mustLogToday(habit, today)),
   );
   const startingTomorrow = unlogged.filter((habit) => !countsToday(habit, today, accountableFrom));
 

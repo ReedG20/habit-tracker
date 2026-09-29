@@ -11,6 +11,7 @@ import { FlameIcon, HabitIcon } from '@/constants/icons';
 import { ActionCardRadius, ControlHeight, Spacing } from '@/constants/theme';
 import { targetPerWeek } from '@/convex/lib/frequency';
 import { describeEnding, isDaily, isWeekDone, type HabitWithProgress } from '@/data/habits';
+import { stakeChip } from '@/data/stakes';
 import { useTheme } from '@/hooks/use-theme';
 import { todayKey } from '@/lib/dates';
 
@@ -20,9 +21,13 @@ export type HabitCardProps = {
   deadlineAt?: number;
   /** Ante Pro has ended: nothing is checked, so logging leads to the paywall. */
   paused?: boolean;
+  /** A lockout froze every habit until then: nothing can be logged. */
+  frozenUntil?: number;
 };
 
-export function HabitCard({ habit, deadlineAt, paused = false }: HabitCardProps) {
+const weekday = new Intl.DateTimeFormat(undefined, { weekday: 'short' });
+
+export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: HabitCardProps) {
   const theme = useTheme();
 
   const daily = isDaily(habit);
@@ -30,6 +35,10 @@ export function HabitCard({ habit, deadlineAt, paused = false }: HabitCardProps)
   const logged = habit.completedToday || weekDone;
   const verifying = !logged && habit.verification?.status === 'pending';
   const ending = describeEnding(habit, todayKey());
+  const broken = habit.brokenAt !== undefined;
+  // A friend who opted out left the habit on the user's word until they pick someone.
+  const friendGone = habit.stakeView?.kind === 'friend' && habit.stakeView.status === 'void';
+  const chip = broken ? null : stakeChip(habit.stakeView);
 
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
@@ -60,9 +69,28 @@ export function HabitCard({ habit, deadlineAt, paused = false }: HabitCardProps)
                 </ThemedText>
               </View>
             ) : null}
-            <ThemedText type="small" themeColor="textSecondary">
-              {daily ? 'Daily' : `${habit.weekCount} of ${targetPerWeek(habit)} this week`}
-            </ThemedText>
+            {broken ? (
+              <ThemedText type="small" themeColor="accent">
+                Streak lost
+              </ThemedText>
+            ) : (
+              <ThemedText type="small" themeColor="textSecondary">
+                {daily ? 'Daily' : `${habit.weekCount} of ${targetPerWeek(habit)} this week`}
+              </ThemedText>
+            )}
+            {chip === null ? null : (
+              <ThemedText
+                type="smallSemibold"
+                themeColor="accent"
+                accessibilityLabel={`On the line: ${chip}`}>
+                {chip}
+              </ThemedText>
+            )}
+            {friendGone ? (
+              <ThemedText type="small" themeColor="accent">
+                Pick a new friend
+              </ThemedText>
+            ) : null}
             {ending === null ? null : (
               <ThemedText type="small" themeColor="accent">
                 {ending}
@@ -72,7 +100,23 @@ export function HabitCard({ habit, deadlineAt, paused = false }: HabitCardProps)
         </View>
       </Pressable>
 
-      {weekDone ? (
+      {broken ? (
+        <ActionButton
+          label="Restart"
+          accessibilityLabel={`Restart ${habit.title}`}
+          variant="primary"
+          onPress={() => router.navigate(`/restart/${habit._id}`)}
+          style={styles.logAction}
+        />
+      ) : frozenUntil !== undefined && !logged ? (
+        <ActionButton
+          label={`Frozen till ${weekday.format(new Date(frozenUntil + 60 * 60 * 1000))}`}
+          accessibilityLabel={`${habit.title} is frozen`}
+          disabled
+          onPress={() => {}}
+          style={styles.logAction}
+        />
+      ) : weekDone ? (
         <ActionButton label="Done this week" disabled onPress={() => {}} style={styles.logAction} />
       ) : logged ? (
         <ActionButton label="Logged" disabled onPress={() => {}} style={styles.logAction} />

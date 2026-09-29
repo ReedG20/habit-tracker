@@ -25,8 +25,9 @@ export default function EditGoalScreen() {
 function EditGoalForm({ goal }: { goal: Goal }) {
   const update = useMutation(api.goals.update);
   const wording = useWordingCheck();
-  // The deadline is part of the commitment: locked once money is on it or it is done.
-  const deadlineLocked = goal.stake !== undefined || goal.completedAt !== undefined;
+  // The deadline is part of the commitment: locked once something is staked on it or it is done.
+  const deadlineLocked =
+    goal.stakeId !== undefined || goal.stake !== undefined || goal.completedAt !== undefined;
   const [initial, setInitial] = useState<GoalDraft>({
     title: goal.title,
     description: goal.description ?? '',

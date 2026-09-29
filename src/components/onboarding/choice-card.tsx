@@ -13,19 +13,32 @@ export type ChoiceCardProps = {
   icon?: IconSvgElement;
   /** A short chip beside the title, e.g. "Suggested". */
   badge?: string;
+  /** `muted` for a chip that warns rather than recommends. */
+  badgeTone?: 'primary' | 'muted';
   selected: boolean;
+  disabled?: boolean;
   onPress: () => void;
 };
 
 /** One option of a single-choice question: the paywall's `PlanCard` radio, generalised. */
-export function ChoiceCard({ title, detail, icon, badge, selected, onPress }: ChoiceCardProps) {
+export function ChoiceCard({
+  title,
+  detail,
+  icon,
+  badge,
+  badgeTone = 'primary',
+  selected,
+  disabled = false,
+  onPress,
+}: ChoiceCardProps) {
   const theme = useTheme();
 
   return (
     <Pressable
       accessibilityRole="radio"
-      accessibilityState={{ selected }}
+      accessibilityState={{ selected, disabled }}
       accessibilityLabel={detail !== undefined ? `${title}, ${detail}` : title}
+      disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
         styles.card,
@@ -33,7 +46,7 @@ export function ChoiceCard({ title, detail, icon, badge, selected, onPress }: Ch
           backgroundColor: theme.backgroundElement,
           borderColor: selected ? theme.primary : theme.border,
         },
-        pressed && styles.pressed,
+        (pressed || disabled) && styles.pressed,
       ]}>
       {icon !== undefined ? (
         <View style={[styles.iconTile, { backgroundColor: theme.background }]}>
@@ -44,8 +57,15 @@ export function ChoiceCard({ title, detail, icon, badge, selected, onPress }: Ch
         <View style={styles.titleRow}>
           <ThemedText type="smallBold">{title}</ThemedText>
           {badge !== undefined ? (
-            <View style={[styles.badge, { backgroundColor: theme.primary }]}>
-              <ThemedText type="smallSemibold" themeColor="onPrimary" style={styles.badgeText}>
+            <View
+              style={[
+                styles.badge,
+                { backgroundColor: badgeTone === 'muted' ? theme.border : theme.primary },
+              ]}>
+              <ThemedText
+                type="smallSemibold"
+                themeColor={badgeTone === 'muted' ? 'textSecondary' : 'onPrimary'}
+                style={styles.badgeText}>
                 {badge}
               </ThemedText>
             </View>

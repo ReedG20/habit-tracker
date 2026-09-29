@@ -1,5 +1,6 @@
 import type { Doc } from '@/convex/_generated/dataModel';
 import { daysLeftInWeek } from '@/convex/lib/days';
+import type { StakeView } from '@/convex/lib/stakeRules';
 import { DAILY, targetPerWeek } from '@/convex/lib/frequency';
 import { fromDayKey } from '@/lib/dates';
 
@@ -19,6 +20,8 @@ export type HabitWithProgress = Habit & {
   weekCount: number;
   streak: number;
   verification: HabitVerificationSummary | null;
+  /** What's on the line; `null` means just their word. */
+  stakeView: StakeView | null;
 };
 
 export function isDaily(habit: Pick<Habit, 'timesPerWeek'>): boolean {

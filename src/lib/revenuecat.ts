@@ -5,7 +5,6 @@ import Purchases, {
   type CustomerInfo,
   type PurchasesError,
   type PurchasesPackage,
-  type PurchasesStoreProduct,
 } from 'react-native-purchases';
 
 // Static property reads: Expo inlines `process.env.EXPO_PUBLIC_*` at build
@@ -41,12 +40,6 @@ if (Platform.OS === 'ios' && !apiKey) {
 
 /** The RevenueCat entitlement every Ante Pro product is attached to. */
 export const PRO_ENTITLEMENT = 'ante_pro';
-
-/**
- * The consumable that lifts a lockout. Bought directly by product id, not
- * through an offering, and attached to no entitlement. Mirrored in `convex/lockouts.ts`.
- */
-export const REENTRY_PRODUCT_ID = 'ante_reentry';
 
 /** Where the user manages or cancels the subscription; Apple owns that screen. */
 export const manageSubscriptionsUrl = 'https://apps.apple.com/account/subscriptions';
@@ -179,29 +172,6 @@ export async function checkTrialEligibility(productId: string): Promise<boolean>
   } catch (error: unknown) {
     console.warn('RevenueCat eligibility check failed', error);
     return false;
-  }
-}
-
-/** The re-entry fee as the store sells it (localized price), or `null` if it is not available. */
-export async function loadReentryProduct(): Promise<PurchasesStoreProduct | null> {
-  if (!revenueCatSupported) return null;
-  const [product] = await Purchases.getProducts(
-    [REENTRY_PRODUCT_ID],
-    PRODUCT_CATEGORY.NON_SUBSCRIPTION,
-  );
-  return product ?? null;
-}
-
-/** Runs the store sheet for the re-entry fee. Throws on anything other than the user backing out. */
-export async function purchaseReentry(product: PurchasesStoreProduct): Promise<PurchaseResult> {
-  try {
-    const { customerInfo } = await Purchases.purchaseStoreProduct(product);
-    return { kind: 'purchased', customerInfo };
-  } catch (error: unknown) {
-    if (isPurchasesError(error) && error.userCancelled) {
-      return { kind: 'cancelled' };
-    }
-    throw error;
   }
 }
 
