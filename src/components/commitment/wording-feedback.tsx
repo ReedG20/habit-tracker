@@ -55,15 +55,21 @@ export function WordingFeedback({ revision, onUseSuggestion }: WordingFeedbackPr
             <ThemedText type="smallBold" themeColor="text">
               {suggestion.title}
             </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {suggestion.proof}
-            </ThemedText>
+            {suggestion.proof.length > 0 ? (
+              <ThemedText type="small" themeColor="textSecondary">
+                {suggestion.proof}
+              </ThemedText>
+            ) : null}
           </View>
           <ActionButton
             label="Use this"
             size="small"
             variant="primary"
-            accessibilityLabel={`Use the suggestion: ${suggestion.title}, proven by ${suggestion.proof}`}
+            accessibilityLabel={
+              suggestion.proof.length > 0
+                ? `Use the suggestion: ${suggestion.title}, proven by ${suggestion.proof}`
+                : `Use the suggestion: ${suggestion.title}`
+            }
             onPress={() => onUseSuggestion(suggestion)}
             style={styles.use}
           />

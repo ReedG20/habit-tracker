@@ -17,7 +17,7 @@ import {
   StakesStep,
   type StakesPhase,
 } from '@/components/commitment/stakes-step';
-import { WhatStep } from '@/components/commitment/what-step';
+import { WhatStep, whatTitle, type WhatPhase } from '@/components/commitment/what-step';
 import { Icon } from '@/components/icon';
 import { DismissKeyboardArea } from '@/components/keyboard/dismiss-keyboard-area';
 import { OnboardingProgress } from '@/components/onboarding/onboarding-progress';
@@ -35,10 +35,10 @@ type Step = 'what' | 'stakes' | 'sign';
 
 const STEPS: Step[] = ['what', 'stakes', 'sign'];
 
-function stepTitle(step: Step): string {
+function stepTitle(step: Step, whatPhase: WhatPhase, kind: CommitmentDraft['kind']): string {
   switch (step) {
     case 'what':
-      return 'What are you committing to?';
+      return whatTitle(whatPhase, kind);
     // No price to set: money waits until there is an account to save a card to.
     case 'stakes':
       return 'What’s at stake?';
@@ -71,6 +71,7 @@ export default function OnboardingCommitmentScreen() {
   });
 
   const [step, setStep] = useState<Step>('what');
+  const [whatPhase, setWhatPhase] = useState<WhatPhase>('name');
   const [stakesPhase, setStakesPhase] = useState<StakesPhase>('pick');
   const [draft, setDraft] = useState<CommitmentDraft>(() => {
     const existing = getOnboarding().draft;
@@ -91,7 +92,11 @@ export default function OnboardingCommitmentScreen() {
     setDraft((current) => ({ ...current, ...patch }));
 
   const back = () => {
-    // The stakes step is two pages: Back walks through both.
+    // Steps 1 and 2 are two pages each: Back walks through both.
+    if (step === 'what' && whatPhase === 'proof') {
+      setWhatPhase('name');
+      return;
+    }
     if (step === 'stakes' && stakesPhase === 'tune') {
       setStakesPhase('pick');
       return;
@@ -101,6 +106,8 @@ export default function OnboardingCommitmentScreen() {
     if (previous === undefined) {
       router.back();
     } else {
+      // Back from the stakes lands on the proof, the page that led there.
+      if (previous === 'what') setWhatPhase('proof');
       setStep(previous);
     }
   };
@@ -141,9 +148,11 @@ export default function OnboardingCommitmentScreen() {
         </Pressable>
         <View style={styles.heading}>
           <ThemedText style={styles.title} themeColor="text">
-            {stepTitle(step)}
+            {stepTitle(step, whatPhase, draft.kind)}
           </ThemedText>
-          {step === 'what' ? <ThemedText themeColor="textSecondary">{reply}</ThemedText> : null}
+          {step === 'what' && whatPhase === 'name' ? (
+            <ThemedText themeColor="textSecondary">{reply}</ThemedText>
+          ) : null}
         </View>
       </DismissKeyboardArea>
 
@@ -153,6 +162,8 @@ export default function OnboardingCommitmentScreen() {
             draft={draft}
             onChange={update}
             onNext={() => setStep('stakes')}
+            phase={whatPhase}
+            onPhaseChange={setWhatPhase}
             suggestions={suggestions}
           />
         ) : null}

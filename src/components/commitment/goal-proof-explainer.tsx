@@ -18,9 +18,6 @@ export function GoalProofExplainer() {
 
   return (
     <View style={styles.field}>
-      <ThemedText type="small" themeColor="textSecondary">
-        How will you prove it?
-      </ThemedText>
       <View accessible style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
         <Icon icon={Camera01Icon} size={24} themeColor="primary" />
         <View style={styles.body}>
@@ -28,8 +25,9 @@ export function GoalProofExplainer() {
             Photos of the finished result
           </ThemedText>
           <ThemedText type="small" themeColor="textSecondary">
-            Up to {MAX_PHOTOS}, before the deadline. AI checks them against what you write below,
-            and you can retry until time’s up.
+            When it’s done, send up to {MAX_PHOTOS} photos before the deadline, from the camera or
+            your library. AI checks them against what you write below. Not accepted? Try again until
+            time runs out.
           </ThemedText>
         </View>
       </View>

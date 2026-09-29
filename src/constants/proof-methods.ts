@@ -28,6 +28,8 @@ export type ProofMethodInfo = {
   proofPlaceholder: string;
   /** Alert when the proof field is left empty. */
   emptyProof: string;
+  /** How it works, a line at a time, under the picker while the habit is made. */
+  howItWorks: string[];
 };
 
 export const PROOF_METHODS: Record<ProofMethod, ProofMethodInfo> = {
@@ -40,6 +42,11 @@ export const PROOF_METHODS: Record<ProofMethod, ProofMethodInfo> = {
     proofLabel: 'What does the photo need to show?',
     proofPlaceholder: 'Me at the gym with the equipment in view, not the parking lot',
     emptyProof: 'Say what the photo needs to show',
+    howItWorks: [
+      'Take it in Ante when you do it, so it can’t be an old one.',
+      'AI checks it against what you write below.',
+      'Rejected? Retake it as often as you like until midnight.',
+    ],
   },
   location: {
     label: 'Location',
@@ -50,6 +57,11 @@ export const PROOF_METHODS: Record<ProofMethod, ProofMethodInfo> = {
     proofLabel: 'Where will you check in?',
     proofPlaceholder: 'Any gym, or one by name like “Equinox Flatiron”',
     emptyProof: 'Say where you’ll check in',
+    howItWorks: [
+      'Tap Check in when you get there.',
+      'Ante looks up the places on the map right around you and matches one to what you write below.',
+      'Needs Precise Location. Homes and private places can’t be matched.',
+    ],
   },
   timer: {
     label: 'Timer',
@@ -60,6 +72,11 @@ export const PROOF_METHODS: Record<ProofMethod, ProofMethodInfo> = {
     proofLabel: 'What will you do while it runs?',
     proofPlaceholder: 'Sit on my cushion and meditate, phone face up beside me',
     emptyProof: 'Say what you’ll do while the timer runs',
+    howItWorks: [
+      'Start it in Ante and keep Ante on screen until it runs out.',
+      'Leaving the app or locking your phone ends the run. Start over any time, no penalty.',
+      'It has to finish before midnight.',
+    ],
   },
 };
 

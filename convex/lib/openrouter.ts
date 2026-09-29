@@ -12,3 +12,15 @@ export function verificationModel() {
   const openrouter = createOpenRouter({ apiKey: env.OPENROUTER_API_KEY });
   return openrouter(VERIFICATION_MODEL);
 }
+
+/**
+ * Proof ideas for a commitment's name (`commitmentIdeas.checkName`). It runs
+ * in the background while the user types, so it can afford a model that
+ * follows the method rules more closely than the one judging proof.
+ */
+const IDEAS_MODEL = 'google/gemini-3.1-flash-lite';
+
+export function ideasModel() {
+  const openrouter = createOpenRouter({ apiKey: env.OPENROUTER_API_KEY });
+  return openrouter(IDEAS_MODEL, { reasoning: { effort: 'none' } });
+}

@@ -19,9 +19,11 @@ const options: { value: FrequencyValue; label: string }[] = [
 
 /** The rule in words, under the control, so "3×" is never a guess. */
 function describe(timesPerWeek: number): string {
-  if (timesPerWeek >= DAILY) return 'Every day, before midnight.';
+  if (timesPerWeek >= DAILY) {
+    return 'Every day, by midnight your time. Today’s free: your first day is tomorrow.';
+  }
   const days = timesPerWeek === 1 ? 'one day' : `${timesPerWeek} days`;
-  return `Any ${days} a week, your pick. Weeks run Monday to Sunday.`;
+  return `Any ${days} a week, your pick. Weeks run Monday to Sunday, and a week that ends short is a miss. Your first full week starts Monday.`;
 }
 
 export type FrequencyPickerProps = {

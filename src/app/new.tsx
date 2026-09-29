@@ -25,7 +25,7 @@ import {
   type StakesPhase,
 } from '@/components/commitment/stakes-step';
 import { StepProgress } from '@/components/commitment/step-progress';
-import { WhatStep } from '@/components/commitment/what-step';
+import { WhatStep, whatTitle, type WhatPhase } from '@/components/commitment/what-step';
 import { Icon } from '@/components/icon';
 import { DismissKeyboardArea } from '@/components/keyboard/dismiss-keyboard-area';
 import { ProPaywall } from '@/components/pro-paywall';
@@ -46,10 +46,10 @@ type Step = 'what' | 'stakes' | 'sign' | 'done';
 
 const STEPS: Step[] = ['what', 'stakes', 'sign'];
 
-function stepTitle(step: Step, draft: CommitmentDraft): string {
+function stepTitle(step: Step, whatPhase: WhatPhase, draft: CommitmentDraft): string {
   switch (step) {
     case 'what':
-      return 'What are you committing to?';
+      return whatTitle(whatPhase, draft.kind);
     case 'stakes':
       return 'What’s at stake?';
     case 'sign':
@@ -83,6 +83,7 @@ export default function NewCommitmentScreen() {
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const [step, setStep] = useState<Step>('what');
+  const [whatPhase, setWhatPhase] = useState<WhatPhase>('name');
   const [stakesPhase, setStakesPhase] = useState<StakesPhase>('pick');
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState<CommitmentDraft>(() => {
@@ -129,7 +130,11 @@ export default function NewCommitmentScreen() {
   const goTo = (next: Step) => setStep(next);
 
   const back = () => {
-    // The stakes step is two pages: Back walks through both.
+    // Steps 1 and 2 are two pages each: Back walks through both.
+    if (step === 'what' && whatPhase === 'proof') {
+      setWhatPhase('name');
+      return;
+    }
     if (step === 'stakes' && stakesPhase === 'tune') {
       setStakesPhase('pick');
       return;
@@ -144,6 +149,8 @@ export default function NewCommitmentScreen() {
     if (index <= 0 || previous === undefined) {
       router.back();
     } else {
+      // Back from the stakes lands on the proof, the page that led there.
+      if (previous === 'what') setWhatPhase('proof');
       goTo(previous);
     }
   };
@@ -156,6 +163,7 @@ export default function NewCommitmentScreen() {
 
     if (draft.kind === 'goal' && draft.dueAt < Date.now() + MIN_LEAD_MS) {
       Alert.alert('That deadline has passed', 'Pick a new one and sign again.');
+      setWhatPhase('name');
       goTo('what');
       return;
     }
@@ -264,6 +272,9 @@ export default function NewCommitmentScreen() {
     );
   }
 
+  // Only the very first page closes the screen; every other one steps back.
+  const firstPage = step === 'what' && whatPhase === 'name';
+
   return (
     <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top }]}>
       {step === 'done' ? (
@@ -277,30 +288,36 @@ export default function NewCommitmentScreen() {
           ]}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={step === 'what' ? 'Close' : 'Previous step'}
+            accessibilityLabel={firstPage ? 'Close' : 'Previous step'}
             onPress={back}
             disabled={busy}
             hitSlop={Spacing.three}
             style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
             <Icon
-              icon={step === 'what' ? Cancel01Icon : ArrowLeft01Icon}
+              icon={firstPage ? Cancel01Icon : ArrowLeft01Icon}
               size={18}
               themeColor="textSecondary"
             />
             <ThemedText type="small" themeColor="textSecondary">
-              {step === 'what' ? 'Close' : 'Back'}
+              {firstPage ? 'Close' : 'Back'}
             </ThemedText>
           </Pressable>
           <StepProgress step={STEPS.indexOf(step) + 1} />
           <ThemedText style={styles.title} themeColor="text">
-            {stepTitle(step, draft)}
+            {stepTitle(step, whatPhase, draft)}
           </ThemedText>
         </DismissKeyboardArea>
       )}
 
       <Animated.View key={step} entering={FadeIn.duration(220)} style={styles.step}>
         {step === 'what' ? (
-          <WhatStep draft={draft} onChange={update} onNext={() => goTo('stakes')} />
+          <WhatStep
+            draft={draft}
+            onChange={update}
+            onNext={() => goTo('stakes')}
+            phase={whatPhase}
+            onPhaseChange={setWhatPhase}
+          />
         ) : null}
         {step === 'stakes' ? (
           <StakesStep
