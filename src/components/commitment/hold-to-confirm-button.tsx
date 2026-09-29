@@ -16,6 +16,8 @@ import { ControlHeight, PillRadius } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 const HOLD_MS = 1600;
+/** The track's border. The fill runs under it, so no sliver of track shows between the two. */
+const BORDER = 1.5;
 const TICKS = [0.25, 0.5, 0.75];
 
 export type HoldToConfirmButtonProps = {
@@ -79,12 +81,13 @@ export function HoldToConfirmButton({
     progress.set(withTiming(0, { duration: 280, easing: Easing.out(Easing.quad) }));
   };
 
+  // `width` is the outer width, so a full bar also covers the right border.
   const fillStyle = useAnimatedStyle(() => ({ width: progress.value * width }));
 
   // The label is drawn twice: once on the track, once on the fill (clipped to
   // it), so each letter flips color as the fill passes under it.
-  const labelLayer = (color: string) => (
-    <View style={[styles.labelLayer, { width }]}>
+  const labelLayer = (color: string, inset = 0) => (
+    <View style={[styles.labelLayer, { width, left: inset }]}>
       <ThemedText type="smallBold" style={[styles.label, { color }]}>
         {label}
       </ThemedText>
@@ -109,7 +112,8 @@ export function HoldToConfirmButton({
       ]}>
       {labelLayer(theme.primary)}
       <Animated.View style={[styles.fill, { backgroundColor: theme.primary }, fillStyle]}>
-        {labelLayer(theme.onPrimary)}
+        {/* The fill starts under the border, so its label shifts back to line up. */}
+        {labelLayer(theme.onPrimary, BORDER)}
       </Animated.View>
     </Pressable>
   );
@@ -119,15 +123,18 @@ const styles = StyleSheet.create({
   track: {
     height: ControlHeight,
     borderRadius: PillRadius,
-    borderWidth: 1.5,
+    borderWidth: BORDER,
     overflow: 'hidden',
     justifyContent: 'center',
   },
+  // Out under the border on every side it touches: at a fractional border
+  // width, lining up with its inner edge leaves a pixel row of track showing.
+  // It's the border's color, and the track's rounded clip still shapes it.
   fill: {
     position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
+    top: -BORDER,
+    bottom: -BORDER,
+    left: -BORDER,
     overflow: 'hidden',
   },
   labelLayer: {
