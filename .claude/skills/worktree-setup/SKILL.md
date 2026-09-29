@@ -72,7 +72,15 @@ Note the port from the result; call it `<port>`.
 
 ## 3. Simulator: own device
 
-Use an iOS 27 iPhone 17 Pro named `Ante · <name>`:
+First tidy up after other sessions. This deletes sims whose worktree is gone
+and shuts down idle ones (no Metro or build running, booted 30+ min). It never
+touches your own sim or one that's in use:
+
+```bash
+scripts/sims-clean.sh <name>
+```
+
+Then use an iOS 27 iPhone 17 Pro named `Ante · <name>`:
 
 ```bash
 udid=$(xcrun simctl list devices | grep -F "Ante · <name> (" | grep -oE '[0-9A-F-]{36}' | head -1)
@@ -86,7 +94,9 @@ xcrun simctl boot "$udid" 2>/dev/null; echo "$udid"
 - Always boot with `simctl boot` directly. Never let `expo run:ios` boot a
   simulator: on Xcode 27 that wedges CoreSimulator.
 - From a worktree, **never** touch `948E5A44…` (the main checkout's) or another
-  `Ante · *` device.
+  `Ante · *` device, except through `scripts/sims-clean.sh`.
+- If your sim was shut down while you were away, the `simctl boot` above brings
+  it back with its app and data intact.
 
 ## 4. App: reuse a cached build when native code is unchanged
 
@@ -147,8 +157,9 @@ Notes:
 
 - When Reed says the feature is done or merged, delete your simulator:
   `xcrun simctl shutdown "$udid"; xcrun simctl delete "$udid"`.
-- While you're at it, delete any `Ante · <other>` simulator whose worktree no
-  longer appears in `git worktree list`.
+- Other sessions' leftover sims are handled by `scripts/sims-clean.sh` at every
+  setup (step 3). Reed can also run it any time from any checkout
+  (`--dry-run` to preview).
 - The Convex deployment expires on its own after 5 days. Don't delete other sessions' resources.
 
 ## Never, from a worktree
@@ -158,4 +169,5 @@ Notes:
   `.env.local` points at `cool-kiwi-961` or prod `whimsical-labrador-585`.
   A PreToolUse hook (`.claude/hooks/guard-convex.sh`) blocks this. If it fires,
   do step 1.
-- Drive, install onto or shut down a simulator that isn't `Ante · <name>`.
+- Drive, install onto or shut down a simulator that isn't `Ante · <name>`
+  (`scripts/sims-clean.sh` is the one exception).
