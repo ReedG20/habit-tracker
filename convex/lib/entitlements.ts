@@ -1,3 +1,5 @@
+import { ConvexError } from 'convex/values';
+
 // Only type imports from `_generated` so the app bundle can import
 // `isSubscriptionActive` too (`src/hooks/use-subscription.ts`).
 import type { Doc, Id } from '../_generated/dataModel';
@@ -42,6 +44,6 @@ export const PRO_REQUIRED = 'Ante Pro is required to make a new commitment';
  */
 export async function requirePro(ctx: QueryCtx | MutationCtx, userId: Id<'users'>): Promise<void> {
   if (!(await isPro(ctx, userId))) {
-    throw new Error(PRO_REQUIRED);
+    throw new ConvexError(PRO_REQUIRED);
   }
 }

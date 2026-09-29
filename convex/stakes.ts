@@ -1,4 +1,4 @@
-import { v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
@@ -12,7 +12,7 @@ import {
 } from './_generated/server';
 import { getCurrentUserOrNull } from './lib/auth';
 import { authedAction, authedMutation } from './lib/customFunctions';
-import { PRO_REQUIRED, requirePro } from './lib/entitlements';
+import { requirePro } from './lib/entitlements';
 import { localDay, requireDevOverrides } from './lib/lockout';
 import {
   isValidStakeAmount,
@@ -86,7 +86,7 @@ export async function armStake(
   let stakeId: Id<'stakes'>;
   switch (spec.kind) {
     case 'money': {
-      if (!isValidStakeAmount(spec.amountCents)) throw new Error(STAKE_AMOUNT_ERROR);
+      if (!isValidStakeAmount(spec.amountCents)) throw new ConvexError(STAKE_AMOUNT_ERROR);
       await requireMoneyHeadroom(ctx, subject.userId, spec.amountCents);
       if (spec.stripeSetupIntentId !== undefined) {
         await requireFreshSetupIntent(ctx, spec.stripeSetupIntentId);
@@ -112,7 +112,7 @@ export async function armStake(
       await ctx.scheduler.runAfter(0, internal.emails.sendHeadsUp, { stakeId });
       break;
     case 'lockout':
-      if ('goal' in target) throw new Error('A lockout only goes on a habit');
+      if ('goal' in target) throw new ConvexError('A lockout only goes on a habit');
       stakeId = await ctx.db.insert('stakes', {
         kind: 'lockout',
         ...common,
@@ -147,7 +147,7 @@ async function requireFreshSetupIntent(ctx: MutationCtx, setupIntentId: string):
     .withIndex('by_setup_intent', (q) => q.eq('stake.stripeSetupIntentId', setupIntentId))
     .first();
   if (row !== null || legacy !== null) {
-    throw new Error('This card confirmation was already used');
+    throw new ConvexError('This card confirmation was already used');
   }
 }
 
@@ -217,14 +217,14 @@ export async function mintCardSetup(
   ctx: AuthedCtx<ActionCtx>,
   amountCents: number,
 ): Promise<CardSetup> {
-  if (!isValidStakeAmount(amountCents)) throw new Error(STAKE_AMOUNT_ERROR);
+  if (!isValidStakeAmount(amountCents)) throw new ConvexError(STAKE_AMOUNT_ERROR);
   // Checked again when the stake is armed; this only saves a Stripe round trip.
   const problem: string | null = await ctx.runQuery(internal.stakes.moneyProblem, {
     userId: ctx.user._id,
     amountCents,
     now: Date.now(),
   });
-  if (problem !== null) throw new Error(problem);
+  if (problem !== null) throw new ConvexError(problem);
 
   const session = await customerSession(ctx);
   const setupIntent = await stripeClient().setupIntents.create({
@@ -258,10 +258,10 @@ export async function verifySavedCard(
   setupIntentId: string,
   amountCents: number,
 ): Promise<SavedCard> {
-  if (!isValidStakeAmount(amountCents)) throw new Error(STAKE_AMOUNT_ERROR);
+  if (!isValidStakeAmount(amountCents)) throw new ConvexError(STAKE_AMOUNT_ERROR);
   const customerId = ctx.user.stripeCustomerId;
   if (customerId === undefined) {
-    throw new Error('No card on file: start the stake again');
+    throw new ConvexError('No card on file: start the stake again');
   }
 
   const stripe = stripeClient();
@@ -269,7 +269,7 @@ export async function verifySavedCard(
     expand: ['payment_method'],
   });
   if (setupIntent.status !== 'succeeded') {
-    throw new Error('The card was not saved');
+    throw new ConvexError('The card was not saved');
   }
   if (setupIntent.customer !== customerId) {
     throw new Error('This card belongs to another customer');
@@ -315,7 +315,7 @@ export async function reuseCard(
   fromStakeId: Id<'stakes'>,
   amountCents: number,
 ): Promise<SavedCard> {
-  if (!isValidStakeAmount(amountCents)) throw new Error(STAKE_AMOUNT_ERROR);
+  if (!isValidStakeAmount(amountCents)) throw new ConvexError(STAKE_AMOUNT_ERROR);
   const card: {
     stripeCustomerId: string;
     stripePaymentMethodId: string;
@@ -325,12 +325,12 @@ export async function reuseCard(
     userId: ctx.user._id,
     stakeId: fromStakeId,
   });
-  if (card === null) throw new Error('That card can’t be reused: add it again');
+  if (card === null) throw new ConvexError('That card can’t be reused: add it again');
 
   const method = await stripeClient().paymentMethods.retrieve(card.stripePaymentMethodId);
   const attachedTo = typeof method.customer === 'string' ? method.customer : method.customer?.id;
   if (attachedTo !== card.stripeCustomerId) {
-    throw new Error('That card was removed: add it again');
+    throw new ConvexError('That card was removed: add it again');
   }
 
   return { kind: 'money', amountCents, ...card };
@@ -369,7 +369,9 @@ export const moneyProblem = internalQuery({
       await requireMoneyHeadroom(ctx, args.userId, args.amountCents);
       return null;
     } catch (error: unknown) {
-      return error instanceof Error ? error.message : PRO_REQUIRED;
+      // Only the refusals; a bug stays a bug.
+      if (error instanceof ConvexError && typeof error.data === 'string') return error.data;
+      throw error;
     }
   },
 });
@@ -665,7 +667,7 @@ export const settleUp = authedAction({
       userId: ctx.user._id,
       stakeId: args.stakeId,
     });
-    if (owed === null) throw new Error('Nothing is owed on this stake');
+    if (owed === null) throw new ConvexError('Nothing is owed on this stake');
 
     const session = await customerSession(ctx);
     // A fresh intent each time: the last one may have been abandoned mid-sheet.

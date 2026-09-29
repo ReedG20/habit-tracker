@@ -1,5 +1,5 @@
 import { paginationOptsValidator } from 'convex/server';
-import { v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
@@ -361,7 +361,7 @@ async function requireNewHabit(
   requireCommitmentText(args.title, args.description);
   const timesPerWeek = args.timesPerWeek ?? DAILY;
   if (!isValidTimesPerWeek(timesPerWeek)) {
-    throw new Error('A habit is due 1 to 7 days a week');
+    throw new ConvexError('A habit is due 1 to 7 days a week');
   }
   const proof = requireProofSettings(args, devOverridesEnabled());
   return { title: args.title, description: args.description, timesPerWeek, ...proof };
@@ -512,13 +512,13 @@ async function requireRestartable(
 ): Promise<Doc<'habits'>> {
   const habit = await ctx.db.get('habits', habitId);
   if (habit === null || habit.userId !== user._id) throw new Error('Habit not found');
-  if (habit.endsAfter !== undefined) throw new Error('This habit is ending');
+  if (habit.endsAfter !== undefined) throw new ConvexError('This habit is ending');
   await requirePro(ctx, user._id);
   if (habit.brokenAt !== undefined || habit.stakeId === undefined) return habit;
 
   const stake = await ctx.db.get('stakes', habit.stakeId);
   if (stake !== null && isStakeLive(stake)) {
-    throw new Error('This habit already has something on the line');
+    throw new ConvexError('This habit already has something on the line');
   }
   return habit;
 }
@@ -569,7 +569,7 @@ export const restartStaked = authedAction({
     } else if (args.reuseFromStakeId !== undefined) {
       card = await reuseCard(ctx, args.reuseFromStakeId, args.amountCents);
     } else {
-      throw new Error('Add a card for the stake');
+      throw new ConvexError('Add a card for the stake');
     }
     const { kind: _kind, ...fields } = card;
     await ctx.runMutation(internal.habits.restartWithMoney, {

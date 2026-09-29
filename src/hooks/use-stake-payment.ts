@@ -3,6 +3,7 @@ import { useAction } from 'convex/react';
 
 import { api } from '@/convex/_generated/api';
 import { formatCents } from '@/lib/money';
+import { UserFacingError } from '@/lib/user-errors';
 
 export type CollectCardResult = { kind: 'saved'; setupIntentId: string } | { kind: 'canceled' };
 
@@ -38,7 +39,7 @@ export function useStakePayment(): StakePayment {
         primaryButtonLabel: `Put ${formatCents(amountCents)} on it`,
       });
       if (init.error) {
-        throw new Error(init.error.message);
+        throw new UserFacingError(init.error.message);
       }
 
       const { error } = await presentPaymentSheet();
@@ -46,7 +47,7 @@ export function useStakePayment(): StakePayment {
         return { kind: 'canceled' };
       }
       if (error) {
-        throw new Error(error.message);
+        throw new UserFacingError(error.message);
       }
 
       return { kind: 'saved', setupIntentId: setup.setupIntentId };

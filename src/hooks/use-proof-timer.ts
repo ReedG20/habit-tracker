@@ -10,7 +10,7 @@ import type { Habit } from '@/data/habits';
 import { captureError, track } from '@/lib/analytics';
 import { todayKey } from '@/lib/dates';
 import { notificationsSupported, type PushData } from '@/lib/notifications';
-import { proofErrorMessage } from '@/lib/proof-errors';
+import { userErrorMessage } from '@/lib/user-errors';
 
 /**
  * A timer that only counts while Ante stays in the foreground.
@@ -165,14 +165,14 @@ export function useProofTimer(habit: Habit) {
         );
         return;
       } catch (error: unknown) {
-        const early = proofErrorMessage(error, '').includes('isn’t done yet');
+        const early = userErrorMessage(error, '').includes('isn’t done yet');
         if (early && attempt < FINISH_RETRIES) {
           await new Promise((resolve) => setTimeout(resolve, FINISH_RETRY_MS));
           continue;
         }
         console.error('Failed to finish the timer', error);
         captureError(error, 'habit timer proof');
-        const message = proofErrorMessage(error, '');
+        const message = userErrorMessage(error, '');
         setPhase({
           kind: 'error',
           message: message || 'We couldn’t log it. Check your connection.',
@@ -234,7 +234,7 @@ export function useProofTimer(habit: Habit) {
       console.error('Failed to start the timer', error);
       setPhase({
         kind: 'error',
-        message: proofErrorMessage(error, 'We couldn’t start the timer. Check your connection.'),
+        message: userErrorMessage(error, 'We couldn’t start the timer. Check your connection.'),
       });
     } finally {
       starting.current = false;

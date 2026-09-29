@@ -1,3 +1,5 @@
+import { ConvexError } from 'convex/values';
+
 /**
  * Limits on what a commitment can say. The wording check enforces the meaning
  * (see `commitmentChecks.ts`); these only stop empty or runaway text, and hold
@@ -9,12 +11,12 @@ export const MAX_PROOF_LENGTH = 300;
 
 export function requireCommitmentText(title: string, proof?: string | null): void {
   if (title.trim().length === 0) {
-    throw new Error('Give it a name');
+    throw new ConvexError('Give it a name');
   }
   if (title.length > MAX_TITLE_LENGTH) {
-    throw new Error(`Keep the name under ${MAX_TITLE_LENGTH} characters`);
+    throw new ConvexError(`Keep the name under ${MAX_TITLE_LENGTH} characters`);
   }
   if (proof !== undefined && proof !== null && proof.length > MAX_PROOF_LENGTH) {
-    throw new Error(`Keep the proof under ${MAX_PROOF_LENGTH} characters`);
+    throw new ConvexError(`Keep the proof under ${MAX_PROOF_LENGTH} characters`);
   }
 }

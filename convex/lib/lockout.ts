@@ -1,3 +1,5 @@
+import { ConvexError } from 'convex/values';
+
 import type { Doc, Id } from '../_generated/dataModel';
 import { env, type MutationCtx, type QueryCtx } from '../_generated/server';
 import { countThisWeek, dayOfWeek, daysBefore, nextDay, weekEnd, weekStart } from './days';
@@ -185,7 +187,7 @@ export async function requireUnlocked(
   userId: Id<'users'>,
 ): Promise<void> {
   if ((await activeLockout(ctx, userId)) !== null) {
-    throw new Error('Ante is locked until the re-entry fee is paid');
+    throw new ConvexError('Ante is locked until the re-entry fee is paid');
   }
 }
 

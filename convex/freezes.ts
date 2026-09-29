@@ -1,4 +1,4 @@
-import { v } from 'convex/values';
+import { ConvexError, v } from 'convex/values';
 
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
@@ -39,7 +39,7 @@ export async function requireHabitsUnfrozen(
 ): Promise<void> {
   const freeze = await activeFreeze(ctx, userId);
   if (freeze !== null) {
-    throw new Error('Your habits are frozen right now. Goals still count.');
+    throw new ConvexError('Your habits are frozen right now. Goals still count.');
   }
 }
 
