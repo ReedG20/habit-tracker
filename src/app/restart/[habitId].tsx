@@ -48,7 +48,7 @@ function draftFor(habit: Doc<'habits'>, lost: Loss | null): CommitmentDraft {
     proofMethod: habit.proofMethod ?? FRESH_PROOF.proofMethod,
     timerMinutes: habit.timerMinutes ?? FRESH_PROOF.timerMinutes,
     dueAt: defaultDueAt(),
-    ...freshStake('habit', true),
+    ...freshStake(true),
   };
   if (lost === null) return draft;
 

@@ -6,6 +6,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { friendName, proofAction } from './contract-text';
 import {
   cardForStake,
+  defaultStakeKind,
   isFriendComplete,
   lockoutLabel,
   reuseForStake,
@@ -91,9 +92,9 @@ export function StakesStep({
   // Money picked where it can't be had: fall back to the next best thing.
   useEffect(() => {
     if (draft.stakeKind === 'money' && moneyBlocked !== null) {
-      onChange({ stakeKind: draft.kind === 'habit' ? 'lockout' : 'friend' });
+      onChange({ stakeKind: defaultStakeKind(false) });
     }
-  }, [draft.stakeKind, draft.kind, moneyBlocked, onChange]);
+  }, [draft.stakeKind, moneyBlocked, onChange]);
 
   // Keep the amount under what the cap leaves.
   useEffect(() => {
@@ -245,11 +246,10 @@ function moneyBlockedReason({
 }: {
   supported: boolean;
   allowMoney: boolean;
-  headroom: { remainingCents: number; capCents: number; blockedByDecline: boolean } | null;
+  headroom: { remainingCents: number; capCents: number } | null;
 }): string | null {
   if (!supported) return 'Money stakes live in the app. On the web, pick another.';
   if (!allowMoney) return 'Money comes once your account is set up.';
-  if (headroom?.blockedByDecline) return 'Settle the stake your card declined first.';
   if (headroom !== null && headroom.remainingCents < MIN_STAKE_CENTS) {
     return `You have ${formatCents(headroom.capCents)} on the line, the most Ante allows at once. Finish one to free some up.`;
   }

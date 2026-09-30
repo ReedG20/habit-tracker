@@ -83,7 +83,7 @@ export default function OnboardingCommitmentScreen() {
         timesPerWeek: DAILY,
         ...FRESH_PROOF,
         dueAt: defaultDueAt(),
-        ...freshStake(suggestKind(getOnboarding().answers), false),
+        ...freshStake(false),
       }
     );
   });
