@@ -72,7 +72,7 @@ export function keptStory(kept: Kept): KeptStory {
         ? ''
         : ` by ${dueFormat.format(new Date(kept.dueAt))}, ${howEarly(kept.dueAt, kept.achievedAt)}`;
     return {
-      kicker: 'Done',
+      kicker: 'Kept',
       headline: { kind: 'words', text: 'Done.' },
       line: `You proved ${kept.title}${when}.`,
       emphasis: [kept.title, ...stake.emphasis],

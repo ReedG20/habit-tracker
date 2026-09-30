@@ -68,7 +68,7 @@ describe('keptStory', () => {
     const story = keptStory(
       kept({ kind: 'goal', title: 'Ship', dueAt: achievedAt + 3 * DAY + 1000, achievedAt }),
     );
-    expect(story.kicker).toBe('Done');
+    expect(story.kicker).toBe('Kept');
     expect(story.headline).toEqual({ kind: 'words', text: 'Done.' });
     expect(story.line).toMatch(/^You proved Ship by .+, 3 days early\.$/);
   });

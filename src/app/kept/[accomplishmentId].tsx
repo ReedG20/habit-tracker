@@ -340,7 +340,8 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     paddingHorizontal: Spacing.four,
     paddingVertical: Spacing.two,
-    marginLeft: -Spacing.four,
+    // Out into the gutter by less than the padding, so the ring clears the screen edge.
+    marginLeft: -Spacing.three,
   },
   ring: {
     position: 'absolute',
