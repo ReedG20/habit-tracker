@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { IconField } from '@/components/commitment/icon-field';
 import { alertRevision, useWordingCheck } from '@/components/commitment/use-wording-check';
 import { FormSheet } from '@/components/form-sheet';
 import { HabitSheetFields, type HabitDraft } from '@/components/habit-sheet-fields';
@@ -37,6 +38,8 @@ function EditHabitForm({ habit }: { habit: Habit }) {
   // Bumped to remount the fields with a suggestion's text.
   const [fieldsKey, setFieldsKey] = useState(0);
   const draftRef = useRef<HabitDraft>({ ...initial });
+  // Set once an icon is picked in this sheet.
+  const [pickedIcon, setPickedIcon] = useState<string | undefined>(undefined);
   // Wording that is already on the habit, or that the check wrote, needs no second look.
   const vetted = useRef(new Set([`${habit.title.trim()}\n${(habit.description ?? '').trim()}`]));
 
@@ -76,6 +79,7 @@ function EditHabitForm({ habit }: { habit: Habit }) {
       title,
       // `null` clears the stored description rather than leaving it behind.
       description: description.length > 0 ? description : null,
+      icon: pickedIcon,
     }).catch((error: unknown) => {
       console.error('Failed to update the habit', error);
     });
@@ -87,6 +91,12 @@ function EditHabitForm({ habit }: { habit: Habit }) {
       submitLabel={wording.checking ? 'Checking…' : 'Save changes'}
       submitDisabled={wording.checking}
       onSubmit={() => void save()}>
+      <IconField
+        kind="habit"
+        icon={pickedIcon ?? habit.icon ?? null}
+        chosen={pickedIcon !== undefined || habit.iconChosen === true}
+        onPick={setPickedIcon}
+      />
       <HabitSheetFields
         key={fieldsKey}
         initial={initial}
