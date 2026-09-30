@@ -6,6 +6,7 @@ import { ActivityList, type ActivityItem } from '@/components/commitment-detail/
 import { DetailSection } from '@/components/commitment-detail/detail-section';
 import { GoalNowPanel } from '@/components/commitment-detail/goal-now-panel';
 import { TermsCard } from '@/components/commitment-detail/terms-card';
+import { RaiseButton } from '@/components/raise/raise-button';
 import { DetailHeader } from '@/components/detail-header';
 import { EmptyState } from '@/components/empty-state';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
@@ -44,6 +45,9 @@ function submissionItem(submission: SubmissionWithPhotos): ActivityItem {
     ),
   };
 }
+
+/** The server won't change the stakes closer to the deadline than this. */
+const RAISE_LEAD_MS = 60 * 1000;
 
 export default function GoalDetailScreen() {
   const { goalId: rawGoalId } = useLocalSearchParams<{ goalId: string }>();
@@ -122,6 +126,11 @@ export default function GoalDetailScreen() {
 
       <DetailSection title="the deal">
         <TermsCard terms={goalTerms(goal, now)} />
+        <RaiseButton
+          target={{ goalId }}
+          stake={goal.stakeView}
+          open={!done && goal.dueAt > now + RAISE_LEAD_MS}
+        />
       </DetailSection>
 
       <DetailSection title="submissions">

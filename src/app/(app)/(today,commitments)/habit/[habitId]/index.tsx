@@ -8,6 +8,7 @@ import { HabitCalendar } from '@/components/commitment-detail/habit-calendar';
 import { HabitNowPanel } from '@/components/commitment-detail/habit-now-panel';
 import { StatTiles, type Stat } from '@/components/commitment-detail/stat-tiles';
 import { TermsCard } from '@/components/commitment-detail/terms-card';
+import { RaiseButton } from '@/components/raise/raise-button';
 import { DetailHeader } from '@/components/detail-header';
 import { EmptyState } from '@/components/empty-state';
 import { EndingBanner } from '@/components/ending-banner';
@@ -162,6 +163,11 @@ export default function HabitDetailScreen() {
       {progress === undefined ? null : (
         <DetailSection title="the deal">
           <TermsCard terms={habitTerms(progress, today)} />
+          <RaiseButton
+            target={{ habitId }}
+            stake={progress.stakeView}
+            open={!ending && progress.brokenAt === undefined}
+          />
         </DetailSection>
       )}
 
