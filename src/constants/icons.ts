@@ -13,11 +13,14 @@ import ArrowLeft01Icon from '@hugeicons/core-free-icons/ArrowLeft01Icon';
 import ArrowRight01Icon from '@hugeicons/core-free-icons/ArrowRight01Icon';
 import Book02Icon from '@hugeicons/core-free-icons/Book02Icon';
 import BrainIcon from '@hugeicons/core-free-icons/BrainIcon';
+import Calendar03Icon from '@hugeicons/core-free-icons/Calendar03Icon';
 import Camera01Icon from '@hugeicons/core-free-icons/Camera01Icon';
+import CameraOff01Icon from '@hugeicons/core-free-icons/CameraOff01Icon';
 import CameraRotated01Icon from '@hugeicons/core-free-icons/CameraRotated01Icon';
 import Cancel01Icon from '@hugeicons/core-free-icons/Cancel01Icon';
 import CheckListIcon from '@hugeicons/core-free-icons/CheckListIcon';
 import CheckmarkCircle02Icon from '@hugeicons/core-free-icons/CheckmarkCircle02Icon';
+import Clock01Icon from '@hugeicons/core-free-icons/Clock01Icon';
 import CoinsDollarIcon from '@hugeicons/core-free-icons/CoinsDollarIcon';
 import Delete02Icon from '@hugeicons/core-free-icons/Delete02Icon';
 import Dumbbell01Icon from '@hugeicons/core-free-icons/Dumbbell01Icon';
@@ -31,6 +34,7 @@ import GoogleIcon from '@hugeicons/core-free-icons/GoogleIcon';
 import Home01Icon from '@hugeicons/core-free-icons/Home01Icon';
 import Image01Icon from '@hugeicons/core-free-icons/Image01Icon';
 import Location01Icon from '@hugeicons/core-free-icons/Location01Icon';
+import LocationOffline01Icon from '@hugeicons/core-free-icons/LocationOffline01Icon';
 import LockIcon from '@hugeicons/core-free-icons/LockIcon';
 import LockKeyholeIcon from '@hugeicons/core-free-icons/LockKeyholeIcon';
 import LockKeyholeOpenIcon from '@hugeicons/core-free-icons/LockKeyholeOpenIcon';
@@ -42,13 +46,16 @@ import Moon02Icon from '@hugeicons/core-free-icons/Moon02Icon';
 import MoreHorizontalIcon from '@hugeicons/core-free-icons/MoreHorizontalIcon';
 import Notification01Icon from '@hugeicons/core-free-icons/Notification01Icon';
 import NotificationOff01Icon from '@hugeicons/core-free-icons/NotificationOff01Icon';
+import RepeatIcon from '@hugeicons/core-free-icons/RepeatIcon';
 import Settings02Icon from '@hugeicons/core-free-icons/Settings02Icon';
 import SparklesIcon from '@hugeicons/core-free-icons/SparklesIcon';
 import Sun03Icon from '@hugeicons/core-free-icons/Sun03Icon';
 import Target02Icon from '@hugeicons/core-free-icons/Target02Icon';
 import Tick02Icon from '@hugeicons/core-free-icons/Tick02Icon';
 import Timer02Icon from '@hugeicons/core-free-icons/Timer02Icon';
+import TimerOffIcon from '@hugeicons/core-free-icons/TimerOffIcon';
 import UserCircleIcon from '@hugeicons/core-free-icons/UserCircleIcon';
+import UserIcon from '@hugeicons/core-free-icons/UserIcon';
 import WorkIcon from '@hugeicons/core-free-icons/WorkIcon';
 
 export {
@@ -59,11 +66,14 @@ export {
   ArrowRight01Icon,
   Book02Icon,
   BrainIcon,
+  Calendar03Icon,
   Camera01Icon,
+  CameraOff01Icon,
   CameraRotated01Icon,
   Cancel01Icon,
   CheckListIcon,
   CheckmarkCircle02Icon,
+  Clock01Icon,
   CoinsDollarIcon,
   Delete02Icon,
   Dumbbell01Icon,
@@ -77,6 +87,7 @@ export {
   Home01Icon,
   Image01Icon,
   Location01Icon,
+  LocationOffline01Icon,
   LockIcon,
   LockKeyholeIcon,
   LockKeyholeOpenIcon,
@@ -88,13 +99,16 @@ export {
   MoreHorizontalIcon,
   Notification01Icon,
   NotificationOff01Icon,
+  RepeatIcon,
   Settings02Icon,
   SparklesIcon,
   Sun03Icon,
   Target02Icon,
   Tick02Icon,
   Timer02Icon,
+  TimerOffIcon,
   UserCircleIcon,
+  UserIcon,
   WorkIcon,
 };
 

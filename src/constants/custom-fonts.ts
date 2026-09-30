@@ -10,3 +10,10 @@ export const wisdomFontFamily = 'Comico-Regular';
 
 /** `fontFamily` for handwritten notes to the user (Mansalva, from `@expo-google-fonts/mansalva`). */
 export const noteFontFamily = 'Mansalva';
+
+/**
+ * `fontFamily` for a commitment's title while it is made (Averia Serif Libre Bold, from
+ * `@expo-google-fonts/averia-serif-libre`). The key is the font's PostScript name, so
+ * SwiftUI finds it by the same name React Native does.
+ */
+export const titleFontFamily = 'AveriaSerifLibre-Bold';

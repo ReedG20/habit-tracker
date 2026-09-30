@@ -1,3 +1,4 @@
+import type { IconSvgElement } from '@hugeicons/react-native';
 import { useEffect, useEffectEvent } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
@@ -16,7 +17,12 @@ import { QuietButton } from './proof-shell';
 
 import { ActionButton } from '@/components/action-button';
 import { Icon } from '@/components/icon';
-import { Alert02Icon, Cancel01Icon } from '@/constants/icons';
+import {
+  Alert02Icon,
+  CameraOff01Icon,
+  LocationOffline01Icon,
+  TimerOffIcon,
+} from '@/constants/icons';
 import type { ProofMethod } from '@/constants/proof-methods';
 import { CardRadius, Fonts, Spacing } from '@/constants/theme';
 import { successHaptic, warningHaptic } from '@/lib/haptics';
@@ -45,6 +51,13 @@ const TITLES: Record<ProofVerdict['status'], Record<ProofMethod, string>> = {
     location: 'That one’s on us.',
     timer: 'That one’s on us.',
   },
+};
+
+// A plain X reads as a close button, so each method shows what didn't count.
+const REJECTED_ICONS: Record<ProofMethod, IconSvgElement> = {
+  photo: CameraOff01Icon,
+  location: LocationOffline01Icon,
+  timer: TimerOffIcon,
 };
 
 const FALLBACK_REASONS: Record<ProofVerdict['status'], string> = {
@@ -77,6 +90,7 @@ export function ProofResult({
   footnote,
 }: ProofResultProps) {
   const approved = verdict.status === 'approved';
+  const badgeIcon = verdict.status === 'failed' ? Alert02Icon : REJECTED_ICONS[method];
   // Once per verdict, though the stage hands over a fresh `onDone` each render.
   const close = useEffectEvent(onDone);
 
@@ -100,12 +114,7 @@ export function ProofResult({
           <DrawnCheck />
         ) : (
           <View style={styles.badge}>
-            <Icon
-              icon={verdict.status === 'failed' ? Alert02Icon : Cancel01Icon}
-              size={26}
-              strokeWidth={2.25}
-              color={PROOF_INK.text}
-            />
+            <Icon icon={badgeIcon} size={26} strokeWidth={2.25} color={PROOF_INK.text} />
           </View>
         )}
         <Text style={styles.title}>{TITLES[verdict.status][method]}</Text>
@@ -227,7 +236,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   actions: {
-    gap: Spacing.one,
+    gap: Spacing.three,
     paddingTop: Spacing.one,
   },
 });

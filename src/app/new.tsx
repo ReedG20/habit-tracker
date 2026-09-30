@@ -159,7 +159,8 @@ export default function NewCommitmentScreen() {
     if (busy) return;
 
     const title = draft.title.trim();
-    const description = draft.proof.trim();
+    // Empty only for a timer, whose description is optional.
+    const description = draft.proof.trim() || undefined;
 
     if (draft.kind === 'goal' && draft.dueAt < Date.now() + MIN_LEAD_MS) {
       Alert.alert('That deadline has passed', 'Pick a new one and sign again.');

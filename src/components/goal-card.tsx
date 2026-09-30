@@ -1,8 +1,8 @@
 import { router, type Href } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { ActionButton } from './action-button';
 import { Countdown } from './countdown';
+import { GoalActionButton } from './goal-action-button';
 import { Icon } from './icon';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
@@ -29,7 +29,6 @@ export function GoalCard({ goal, now, detailHref, submitHref }: GoalCardProps) {
   const done = goal.completedAt !== undefined;
   const missed = isMissed(goal, now);
   const over = done || missed;
-  const verifying = !over && goal.submission?.status === 'pending';
   const countdown = !over && goal.dueAt - now <= COUNTDOWN_WINDOW_MS;
   const stake = describeGoalStake(goal.stakeView, 'pill');
   const armed = goal.stakeView?.status === 'armed';
@@ -78,28 +77,7 @@ export function GoalCard({ goal, now, detailHref, submitHref }: GoalCardProps) {
         </View>
       </Pressable>
 
-      {done ? (
-        <ActionButton label="Done" disabled onPress={() => {}} style={styles.action} />
-      ) : missed ? (
-        <ActionButton label="Missed" disabled onPress={() => {}} style={styles.action} />
-      ) : verifying ? (
-        <ActionButton
-          label="Verifying…"
-          accessibilityLabel={`Verifying ${goal.title}`}
-          disabled
-          onPress={() => {}}
-          style={styles.action}
-        />
-      ) : (
-        <ActionButton
-          label="Submit"
-          accessibilityLabel={`Submit proof for ${goal.title}`}
-          variant="primary"
-          // `navigate` rather than `push`: a double tap must not stack two screens.
-          onPress={() => router.navigate(submitHref ?? `/goals/${goal._id}/submit`)}
-          style={styles.action}
-        />
-      )}
+      <GoalActionButton goal={goal} now={now} submitHref={submitHref} style={styles.action} />
     </ThemedView>
   );
 }
