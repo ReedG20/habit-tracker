@@ -1,3 +1,4 @@
+import { AveriaSerifLibre_700Bold } from '@expo-google-fonts/averia-serif-libre';
 import { Mansalva_400Regular } from '@expo-google-fonts/mansalva';
 import { ClerkProvider, useAuth } from '@clerk/expo';
 import { tokenCache } from '@clerk/expo/token-cache';
@@ -10,7 +11,7 @@ import { useEffect } from 'react';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { StripeProvider } from '@/components/stripe-provider';
-import { noteFontFamily, wisdomFontFamily } from '@/constants/custom-fonts';
+import { noteFontFamily, titleFontFamily, wisdomFontFamily } from '@/constants/custom-fonts';
 import { sheetScreenOptions } from '@/constants/sheet-screen-options';
 import { shouldShowOnboarding } from '@/data/onboarding';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -60,6 +61,7 @@ export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     [wisdomFontFamily]: require('@/assets/fonts/Comico-Regular.otf'),
     [noteFontFamily]: Mansalva_400Regular,
+    [titleFontFamily]: AveriaSerifLibre_700Bold,
   });
 
   if (!fontsLoaded && !fontError) {

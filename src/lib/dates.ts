@@ -122,3 +122,26 @@ export function describeDueAt(dueAt: number, now: number): string {
 
   return `Due ${formatDueAt(dueAt)}`;
 }
+
+const weekdayFormat = new Intl.DateTimeFormat(undefined, { weekday: 'long' });
+
+/**
+ * When something already happened, as the end of a sentence: "today at 6:12 PM",
+ * "yesterday at 9:00 AM", "on Monday", "on Sep 12".
+ */
+export function describeWhen(at: number, now: number): string {
+  const day = toDayKey(new Date(at));
+  const today = toDayKey(new Date(now));
+  const time = timeFormat.format(new Date(at));
+  if (day === today) return `today at ${time}`;
+  if (day === toDayKey(new Date(endOfDay(today) - 36 * HOUR))) return `yesterday at ${time}`;
+  if (now - at < 6 * DAY) return `on ${weekdayFormat.format(new Date(at))}`;
+  return `on ${formatShortDate(at)}`;
+}
+
+/** Time left before a deadline, rounded to what matters: "3 hours left", "15 days left". */
+export function describeTimeLeft(dueAt: number, now: number): string {
+  const remaining = dueAt - now;
+  if (remaining < DAY) return describeDueAt(dueAt, now);
+  return `${pluralize(Math.floor(remaining / DAY), 'day')} left`;
+}

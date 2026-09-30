@@ -48,7 +48,10 @@ export function proofSummary(draft: CommitmentDraft): string {
     case 'location':
       return `Check in at: ${proof}`;
     case 'timer':
-      return `${draft.timerMinutes} min timer: ${proof}`;
+      // What happens while it runs is optional.
+      return proof.length > 0
+        ? `${draft.timerMinutes} min timer: ${proof}`
+        : `${draft.timerMinutes} min timer`;
   }
 }
 
@@ -60,13 +63,16 @@ function proofRuns(draft: CommitmentDraft): ContractRun[] {
       return [{ text: 'prove it with a photo showing ' }, proof];
     case 'location':
       return [{ text: 'check in with my location at ' }, proof];
-    case 'timer':
-      return [
+    case 'timer': {
+      const timer: ContractRun[] = [
         { text: 'keep Ante open for a ' },
         { text: `${draft.timerMinutes}-minute`, strong: true },
-        { text: ' timer while I ' },
-        proof,
       ];
+      // What happens while it runs is optional.
+      return draft.proof.trim().length > 0
+        ? [...timer, { text: ' timer while I ' }, proof]
+        : [...timer, { text: ' timer' }];
+    }
   }
 }
 

@@ -142,3 +142,34 @@ export function describeGoalStake(
       return `${amount} · disputed`;
   }
 }
+
+/** A habit's stake as a line on its Commitments card: "$25 charged if you miss". */
+export function describeHabitStake(stake: StakeView | null): string {
+  if (stake === null) return 'Just your word';
+
+  if (stake.kind === 'friend') {
+    const name = stake.friendName;
+    switch (stake.status) {
+      case 'armed':
+        return `${name} hears about it if you miss`;
+      case 'told':
+        return `${name} was told`;
+      case 'released':
+        return `${name} is off the hook`;
+      case 'void':
+        return `${name} opted out. Pick a new friend`;
+    }
+  }
+  if (stake.kind === 'lockout') {
+    switch (stake.status) {
+      case 'armed':
+        return `Habits freeze for ${freezeLength(stake.days)} if you miss`;
+      case 'triggered':
+        return `Habits froze for ${freezeLength(stake.days)}`;
+      case 'released':
+        return 'Lock released';
+    }
+  }
+  if (stake.status === 'armed') return `${formatCents(stake.amountCents)} charged if you miss`;
+  return describeGoalStake(stake, 'detail') ?? 'Just your word';
+}
