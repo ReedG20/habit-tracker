@@ -1,5 +1,6 @@
 import { StyleSheet, View, type ViewStyle } from 'react-native';
 
+import { markStyle, type CalendarMark } from '@/components/calendar/calendar-marks';
 import { Spacing } from '@/constants/theme';
 import type { HabitHistory, HistoryDayState, HistoryWeekState } from '@/convex/habitHistory';
 import { useTheme } from '@/hooks/use-theme';
@@ -23,25 +24,22 @@ const DAY_LABELS: Record<HistoryDayState, string> = {
 
 type Theme = ReturnType<typeof useTheme>;
 
-/** A day's dot, colored like the Me screen's calendar. */
-export function dayDotStyle(state: HistoryDayState, theme: Theme): ViewStyle {
+/** A day's state as a calendar mark, so it's drawn like every other calendar. */
+export function dayMark(state: HistoryDayState): CalendarMark {
   switch (state) {
     case 'done':
-      return { backgroundColor: theme.accent };
+      return 'done';
     case 'pending':
-      // ~35% of the accent.
-      return { backgroundColor: `${theme.accent}59` };
+      return 'partial';
     case 'missed':
-      // ~40% of the secondary text: plain, but clearly there.
-      return { backgroundColor: `${theme.textSecondary}66` };
+      return 'missed';
     case 'frozen':
-      return { borderWidth: 2, borderColor: theme.primary };
+      return 'frozen';
     case 'excused':
     case 'open':
-      return { borderWidth: 1, borderColor: theme.textSecondary };
+      return 'open';
     case 'off':
-      // A speck: nothing was owed that day.
-      return { backgroundColor: theme.border, transform: [{ scale: 0.4 }] };
+      return 'off';
   }
 }
 
@@ -52,7 +50,7 @@ export function weekBarStyle(state: HistoryWeekState, theme: Theme): ViewStyle {
     case 'short':
       return { backgroundColor: theme.backgroundSelected };
     case 'open':
-      return { borderWidth: 1, borderColor: theme.text };
+      return { borderWidth: 1, borderColor: theme.textSecondary };
     case 'frozen':
       return { borderWidth: 2, borderColor: theme.primary };
     case 'off':
@@ -73,7 +71,7 @@ export type HabitHistoryStripProps = {
 
 /**
  * A habit's recent run in one line: two weeks of dots for a daily habit, eight
- * weeks of bars for a weekly one. Colored like the Me screen's calendar.
+ * weeks of bars for a weekly one. Marked like the calendars (see `calendar-marks`).
  */
 export function HabitHistoryStrip({ history, target }: HabitHistoryStripProps) {
   if (history.days.length > 0) return <DayStrip days={history.days} />;
@@ -97,7 +95,7 @@ function DayStrip({ days }: { days: HabitHistory['days'] }) {
             key={day}
             accessibilityLabel={`${day}: ${DAY_LABELS[state]}`}
             style={[styles.ring, today && { borderColor: theme.text }]}>
-            <View style={[styles.dot, dayDotStyle(state, theme)]} />
+            <View style={[styles.dot, markStyle(dayMark(state), theme)]} />
           </View>
         );
       })}

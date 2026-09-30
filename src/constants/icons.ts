@@ -57,6 +57,7 @@ import Target02Icon from '@hugeicons/core-free-icons/Target02Icon';
 import Tick02Icon from '@hugeicons/core-free-icons/Tick02Icon';
 import Timer02Icon from '@hugeicons/core-free-icons/Timer02Icon';
 import TimerOffIcon from '@hugeicons/core-free-icons/TimerOffIcon';
+import UndoIcon from '@hugeicons/core-free-icons/UndoIcon';
 import UserCircleIcon from '@hugeicons/core-free-icons/UserCircleIcon';
 import UserIcon from '@hugeicons/core-free-icons/UserIcon';
 import WorkIcon from '@hugeicons/core-free-icons/WorkIcon';
@@ -113,6 +114,7 @@ export {
   Tick02Icon,
   Timer02Icon,
   TimerOffIcon,
+  UndoIcon,
   UserCircleIcon,
   UserIcon,
   WorkIcon,

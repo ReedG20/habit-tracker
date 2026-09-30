@@ -4,12 +4,13 @@ import {
   formatStreak,
   isDaily,
   isDoneForToday,
+  isWeekDone,
   mustLogToday,
   type HabitWithProgress,
   type Streak,
 } from '@/data/habits';
 import { skipConsequence, stakeCost } from '@/data/stakes';
-import { dayOfWeek, nextDay, weekEnd } from '@/convex/lib/days';
+import { dayOfWeek, daysBetween, nextDay, weekEnd } from '@/convex/lib/days';
 import { targetPerWeek } from '@/convex/lib/frequency';
 import { endOfDay, formatShortDate, fromDayKey, toDayKey } from '@/lib/dates';
 import { formatCents } from '@/lib/money';
@@ -39,7 +40,9 @@ export type MomentFigure =
   | { kind: 'money'; amount: number; currency?: string; text: string }
   | { kind: 'streak'; streak: Streak }
   /** A clock or a day count; it ticks with `now` rather than counting up. */
-  | { kind: 'time'; text: string };
+  | { kind: 'time'; text: string }
+  /** A weekly habit's logs against its target: "1 of 4". */
+  | { kind: 'tally'; text: string };
 
 export type MomentKind =
   'retake' | 'goalCrunch' | 'frozen' | 'lastCall' | 'goalToday' | 'streak' | 'stakes' | 'clear';
@@ -89,6 +92,8 @@ export const MARGIN_NOTES = {
   stakes: ['it’s cheaper to just do it.', 'showing up is the cheap option.'],
   frozen: ['rest up. it all counts again soon.', 'the lock is the point.'],
   done: ['that’s the trick. again tomorrow.', 'nice. same time tomorrow.'],
+  week: ['plenty of week left. use it.', 'early logs make sundays easy.'],
+  practiceWeek: ['free week. build the habit anyway.'],
   dayBack: ['free day. it all counts tomorrow.'],
   firstDay: ['first day’s free. use it anyway.'],
 } satisfies Record<string, string[]>;
@@ -472,25 +477,47 @@ export function pickTodayMoment({
   );
   const startingTomorrow = unlogged.filter((habit) => !countsToday(habit, today, accountableFrom));
 
+  const dayBack = accountableFrom !== null && today < accountableFrom && unlogged.length > 0;
+  // No run and no goal to show, but a weekly habit with logs still to fit in:
+  // its tally is the number, the one with the most left to do.
+  const tallied =
+    headline.count > 0 ||
+    nextGoal !== undefined ||
+    pending ||
+    dayBack ||
+    startingTomorrow.length > 0
+      ? undefined
+      : habits
+          .filter((habit) => habit.brokenAt === undefined && !isDaily(habit) && !isWeekDone(habit))
+          .sort((a, b) => targetPerWeek(b) - b.weekCount - (targetPerWeek(a) - a.weekCount))[0];
+  // A weekly habit made midweek only counts from its first whole week.
+  const practiceWeek = tallied !== undefined && !countsToday(tallied, today, accountableFrom);
+
   const figure: MomentFigure | null =
     headline.count > 0
       ? { kind: 'streak', streak: headline }
-      : nextGoal === undefined
-        ? null
-        : (goalMoney(nextGoal) ?? { kind: 'time', text: formatTimeLeft(nextGoal.dueAt - now) });
+      : nextGoal !== undefined
+        ? (goalMoney(nextGoal) ?? { kind: 'time', text: formatTimeLeft(nextGoal.dueAt - now) })
+        : tallied !== undefined
+          ? { kind: 'tally', text: `${tallied.weekCount} of ${targetPerWeek(tallied)}` }
+          : null;
 
   // With nothing owed the kicker names what the figure is; the note says why.
+  // "Today's done" needs something actually done today when the figure is a
+  // week still to fill: otherwise it's just a day nothing was due.
+  const doneToday = figure?.kind !== 'tally' || habits.some((habit) => habit.completedToday);
   const kicker = pending
     ? 'Proof’s in review'
-    : unlogged.length === 0 && habits.length > 0
+    : unlogged.length === 0 && habits.length > 0 && doneToday
       ? 'Today’s done'
       : figure?.kind === 'streak'
         ? 'Your streak'
-        : figure !== null
-          ? 'Next up'
-          : 'Nothing on the line today';
+        : figure?.kind === 'tally'
+          ? 'This week'
+          : figure !== null
+            ? 'Next up'
+            : 'Nothing on the line today';
 
-  const dayBack = accountableFrom !== null && today < accountableFrom && unlogged.length > 0;
   const note =
     kicker === 'Today’s done'
       ? pickNote('done', today)
@@ -500,10 +527,12 @@ export function pickTodayMoment({
           ? pickNote('dayBack', today)
           : startingTomorrow.length > 0
             ? pickNote('firstDay', today)
-            : null;
+            : figure?.kind === 'tally'
+              ? pickNote(practiceWeek ? 'practiceWeek' : 'week', today)
+              : null;
 
   // The caption says what the figure is; whatever it leaves out rides in the capsule.
-  const goalInFigure = figure !== null && figure.kind !== 'streak' ? nextGoal : undefined;
+  const goalInFigure = figure?.kind === 'money' || figure?.kind === 'time' ? nextGoal : undefined;
   let sentence: string;
   let emphasis: string[] = [];
   if (figure?.kind === 'streak') {
@@ -522,6 +551,17 @@ export function pickTodayMoment({
   } else if (goalInFigure !== undefined) {
     sentence = `until ${goalInFigure.title} is due.`;
     emphasis = [goalInFigure.title];
+  } else if (tallied !== undefined) {
+    const left = targetPerWeek(tallied) - tallied.weekCount;
+    const days = daysBetween(today, weekEnd(today)).length;
+    const window = `${days} ${days === 1 ? 'day' : 'days'}`;
+    if (practiceWeek) {
+      sentence = `${tallied.title} this week. It counts from Monday, so this one’s practice.`;
+      emphasis = [tallied.title, 'Monday'];
+    } else {
+      sentence = `${tallied.title} this week, with ${window} left to fit in ${left} more.`;
+      emphasis = [tallied.title, window];
+    }
   } else if (pending) {
     sentence = 'You’ll hear back as soon as it’s checked.';
   } else if (dayBack) {
@@ -544,7 +584,9 @@ export function pickTodayMoment({
       .filter((goal) => goal !== goalInFigure)
       .slice(0, 2)
       .map((goal) => describeGoal(goal, now, today)),
-    ...slack.filter((line) => `${line}.` !== sentence),
+    ...slack.filter(
+      (line) => `${line}.` !== sentence && !(tallied && line.startsWith(`${tallied.title}:`)),
+    ),
   ];
 
   return {

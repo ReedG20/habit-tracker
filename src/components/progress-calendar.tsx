@@ -2,23 +2,17 @@ import { useQuery } from 'convex/react';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { CalendarDay, CalendarWeekdays } from '@/components/calendar/calendar-day';
+import { CalendarHeader } from '@/components/calendar/calendar-header';
+import type { CalendarMark } from '@/components/calendar/calendar-marks';
 import { Icon } from '@/components/icon';
-import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ArrowLeft01Icon, ArrowRight01Icon } from '@/constants/icons';
 import { CardRadius, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import type { CalendarDayState } from '@/convex/calendar';
 import { dayOfWeek, daysBefore, daysBetween } from '@/convex/lib/days';
-import { useTheme } from '@/hooks/use-theme';
 import { fromDayKey, todayKey } from '@/lib/dates';
-
-const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-const DOT = 12;
-const RING_GAP = 1.5;
-const RING_WIDTH = 1.5;
-/** A dot with room for today's ring around it. */
-const RING = DOT + 2 * (RING_GAP + RING_WIDTH);
 
 const STATE_LABELS: Record<CalendarDayState, string> = {
   full: 'all done',
@@ -26,6 +20,14 @@ const STATE_LABELS: Record<CalendarDayState, string> = {
   missed: 'missed',
   frozen: 'frozen',
   none: 'nothing due',
+};
+
+const MARKS: Record<CalendarDayState, CalendarMark> = {
+  full: 'done',
+  partial: 'partial',
+  missed: 'missed',
+  frozen: 'frozen',
+  none: 'off',
 };
 
 /** `YYYY-MM`, `delta` months from `month`. */
@@ -59,7 +61,6 @@ const dayLabelFormat = new Intl.DateTimeFormat(undefined, { month: 'long', day: 
  * step through months; swiping is left to the pager this sits in.
  */
 export function ProgressCalendar() {
-  const theme = useTheme();
   const today = todayKey();
   const thisMonth = today.slice(0, 7);
   const [month, setMonth] = useState(thisMonth);
@@ -81,39 +82,18 @@ export function ProgressCalendar() {
     month.slice(0, 4) === thisMonth.slice(0, 4) ? monthFormat : monthYearFormat
   ).format(monthDate);
 
-  function dotStyle(day: string) {
+  function mark(day: string): CalendarMark | undefined {
     // Not happened yet, or before there was anything to track.
-    if (day > today || (data !== undefined && day < data.firstDay)) {
-      return { backgroundColor: theme.backgroundSelected, opacity: 0.5 };
-    }
-    switch (states.get(day)) {
-      case 'full':
-        return { backgroundColor: theme.accent };
-      case 'partial':
-        // ~35% of the accent.
-        return { backgroundColor: `${theme.accent}59` };
-      case 'missed':
-        return { backgroundColor: theme.backgroundSelected };
-      case 'frozen':
-        return { borderWidth: 2, borderColor: theme.primary };
-      case 'none':
-        return { borderWidth: 1, borderColor: theme.border };
-      default:
-        return undefined;
-    }
+    if (day > today || (data !== undefined && day < data.firstDay)) return 'future';
+    const state = states.get(day);
+    return state === undefined ? undefined : MARKS[state];
   }
 
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
-      <View style={styles.header}>
-        <View style={styles.heading}>
-          <ThemedText type="smallBold" numberOfLines={1}>
-            {title}
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-            {judged.length === 0 ? ' ' : `${fullDays} of ${judged.length} days`}
-          </ThemedText>
-        </View>
+      <CalendarHeader
+        title={title}
+        summary={judged.length === 0 ? undefined : `${fullDays} of ${judged.length} days`}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Previous month"
@@ -140,39 +120,25 @@ export function ProgressCalendar() {
           ]}>
           <Icon icon={ArrowRight01Icon} size={20} strokeWidth={2} themeColor="text" />
         </Pressable>
-      </View>
+      </CalendarHeader>
 
-      <View style={styles.week}>
-        {WEEKDAYS.map((weekday, index) => (
-          <ThemedText key={index} themeColor="textSecondary" style={styles.weekday}>
-            {weekday}
-          </ThemedText>
-        ))}
-      </View>
+      <CalendarWeekdays />
 
       <View style={styles.grid}>
         {monthWeeks(month).map((week, row) => (
-          <View key={row} style={[styles.week, styles.gridRow]}>
+          <View key={row} style={styles.week}>
             {week.map((day, column) => {
-              const state = day === null ? undefined : states.get(day);
+              if (day === null) return <CalendarDay key={column} />;
+              const state = states.get(day);
               return (
-                <View
+                <CalendarDay
                   key={column}
-                  style={styles.cell}
-                  accessible={day !== null}
-                  accessibilityLabel={
-                    day === null
-                      ? undefined
-                      : `${dayLabelFormat.format(fromDayKey(day))}${
-                          day === today ? ', today' : ''
-                        }${state === undefined ? '' : `, ${STATE_LABELS[state]}`}`
-                  }>
-                  {day !== null && (
-                    <View style={[styles.ring, day === today && { borderColor: theme.text }]}>
-                      <View style={[styles.dot, dotStyle(day)]} />
-                    </View>
-                  )}
-                </View>
+                  mark={mark(day)}
+                  today={day === today}
+                  accessibilityLabel={`${dayLabelFormat.format(fromDayKey(day))}${
+                    day === today ? ', today' : ''
+                  }${state === undefined ? '' : `, ${STATE_LABELS[state]}`}`}
+                />
               );
             })}
           </View>
@@ -189,17 +155,6 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     gap: Spacing.two,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-  },
-  heading: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: Spacing.two,
-  },
   chevron: {
     width: 24,
     height: 24,
@@ -212,40 +167,13 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.6,
   },
-  week: {
-    flexDirection: 'row',
-  },
-  weekday: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: 600,
-  },
   // Rows keep their size and share out the slack, so a six-week month still
   // fits the card (flexible rows let the last one spill past it).
   grid: {
     flex: 1,
     justifyContent: 'space-between',
   },
-  gridRow: {
-    height: RING,
-  },
-  cell: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  // Always there, so today's ring doesn't shift its dot.
-  ring: {
-    padding: RING_GAP,
-    borderRadius: RING / 2,
-    borderWidth: RING_WIDTH,
-    borderColor: 'transparent',
-  },
-  dot: {
-    width: DOT,
-    height: DOT,
-    borderRadius: DOT / 2,
+  week: {
+    flexDirection: 'row',
   },
 });

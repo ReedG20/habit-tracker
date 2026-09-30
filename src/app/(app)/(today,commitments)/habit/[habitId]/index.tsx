@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ActivityList, type ActivityItem } from '@/components/commitment-detail/activity-list';
 import { DetailSection } from '@/components/commitment-detail/detail-section';
+import { DevResetProof } from '@/components/commitment-detail/dev-reset-proof';
 import { HabitCalendar } from '@/components/commitment-detail/habit-calendar';
 import { HabitNowPanel } from '@/components/commitment-detail/habit-now-panel';
 import { StatTiles, type Stat } from '@/components/commitment-detail/stat-tiles';
@@ -50,6 +51,7 @@ export default function HabitDetailScreen() {
   const paused = !subscription.isPro && !subscription.isLoading;
   const remove = useMutation(api.habits.remove);
   const keepGoing = useMutation(api.habits.keepGoing);
+  const resetDay = useMutation(api.devProofs.resetHabitDay);
   const forceDelete = useForceDelete();
   // What ending it would do today, so the button can say so before it's tapped.
   const terms = useQuery(api.habits.endingTerms, habit === null ? 'skip' : { habitId, today });
@@ -159,6 +161,15 @@ export default function HabitDetailScreen() {
           free={history?.days.at(-1)?.state === 'off' || history?.weeks.at(-1)?.state === 'off'}
         />
       )}
+
+      <DevResetProof
+        visible={
+          progress !== undefined && (progress.completedToday || progress.verification !== null)
+        }
+        label="Reset today’s proof"
+        message="Deletes today’s log and every check on it, so you can prove it again."
+        onReset={() => resetDay({ habitId, day: today })}
+      />
 
       {progress === undefined ? null : (
         <DetailSection title="the deal">

@@ -15,6 +15,7 @@ import type * as commitmentChecks from "../commitmentChecks.js";
 import type * as commitmentIcons from "../commitmentIcons.js";
 import type * as commitmentIdeas from "../commitmentIdeas.js";
 import type * as crons from "../crons.js";
+import type * as devProofs from "../devProofs.js";
 import type * as emails from "../emails.js";
 import type * as freezes from "../freezes.js";
 import type * as friends from "../friends.js";
@@ -80,6 +81,7 @@ declare const fullApi: ApiFromModules<{
   commitmentIcons: typeof commitmentIcons;
   commitmentIdeas: typeof commitmentIdeas;
   crons: typeof crons;
+  devProofs: typeof devProofs;
   emails: typeof emails;
   freezes: typeof freezes;
   friends: typeof friends;
