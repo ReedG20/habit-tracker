@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ActivityList, type ActivityItem } from '@/components/commitment-detail/activity-list';
 import { DetailSection } from '@/components/commitment-detail/detail-section';
+import { DevResetProof } from '@/components/commitment-detail/dev-reset-proof';
 import { GoalNowPanel } from '@/components/commitment-detail/goal-now-panel';
 import { TermsCard } from '@/components/commitment-detail/terms-card';
 import { DetailHeader } from '@/components/detail-header';
@@ -53,6 +54,7 @@ export default function GoalDetailScreen() {
   const goal = useQuery(api.goals.get, { goalId });
   const submissions = useQuery(api.goalSubmissions.list, goal ? { goalId } : 'skip');
   const remove = useMutation(api.goals.remove);
+  const resetProof = useMutation(api.devProofs.resetGoalProof);
   const forceDelete = useForceDelete();
 
   if (goal === undefined) {
@@ -119,6 +121,13 @@ export default function GoalDetailScreen() {
       />
 
       <GoalNowPanel goal={goal} now={now} />
+
+      <DevResetProof
+        visible={goal.completedAt !== undefined || (submissions?.length ?? 0) > 0}
+        label="Reset proof"
+        message="Deletes every submission, reopens the goal and re-arms its stake, so you can prove it again."
+        onReset={() => resetProof({ goalId })}
+      />
 
       <DetailSection title="the deal">
         <TermsCard terms={goalTerms(goal, now)} />
