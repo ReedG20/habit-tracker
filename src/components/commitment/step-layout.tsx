@@ -1,9 +1,11 @@
-import { useState, type ReactNode, type Ref } from 'react';
+import type { ReactNode, Ref } from 'react';
 import { StyleSheet, View, type ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { KeyboardDoneBar } from '@/components/keyboard/keyboard-done-bar';
 import { KeyboardScrollView } from '@/components/keyboard/keyboard-scroll-view';
+import { ScrollEdgeFooter, ScrollEdgeHeader } from '@/components/scroll-footer/scroll-edge-footer';
+import { useScrollEdge } from '@/components/scroll-footer/use-scroll-edge';
 import { Spacing } from '@/constants/theme';
 
 export type StepLayoutProps = {
@@ -24,6 +26,9 @@ export type StepLayoutProps = {
  * header and the pinned actions. Steps are laid out to fit the screen, so the
  * body only scrolls when it can't, which in practice means the keyboard is up.
  *
+ * The footer floats over the bottom of the body, so a body that does scroll
+ * passes under it (softly, see `ScrollEdgeFooter`) instead of being cut off,
+ * and softens away under the title at the top the same way.
  * The keyboard covers the footer while it's up (the Done bar rides on it
  * instead), which leaves the most room for the field being typed in.
  */
@@ -36,29 +41,35 @@ export function StepLayout({
   gap,
 }: StepLayoutProps) {
   const insets = useSafeAreaInsets();
-  const [footerHeight, setFooterHeight] = useState(0);
+  const edge = useScrollEdge();
 
   return (
-    <View style={styles.fill}>
+    <View style={styles.fill} collapsable={false}>
       {header === undefined ? null : <View style={styles.header}>{header}</View>}
-      <KeyboardScrollView
-        ref={scrollRef}
-        style={styles.fill}
-        contentContainerStyle={[
-          styles.body,
-          header !== undefined && styles.bodyUnderHeader,
-          gap !== undefined && { gap },
-        ]}
-        bottomInset={footerHeight}
-        scrollEnabled={!locked}
-        alwaysBounceVertical={false}>
-        {children}
-      </KeyboardScrollView>
-      <View
-        onLayout={(event) => setFooterHeight(event.nativeEvent.layout.height)}
+      {/* Its own box, so the top edge sits where the scroll view starts. */}
+      <View style={styles.fill} collapsable={false}>
+        <KeyboardScrollView
+          ref={scrollRef}
+          style={styles.fill}
+          contentContainerStyle={[
+            styles.body,
+            header !== undefined && styles.bodyUnderHeader,
+            gap !== undefined && { gap },
+            { paddingBottom: Spacing.three + edge.footerHeight },
+          ]}
+          {...edge.scrollProps}
+          bottomInset={edge.footerHeight}
+          scrollEnabled={!locked}
+          alwaysBounceVertical={false}>
+          {children}
+        </KeyboardScrollView>
+        <ScrollEdgeHeader {...edge.headerProps} />
+      </View>
+      <ScrollEdgeFooter
+        {...edge.footerProps}
         style={[styles.footer, { paddingBottom: Math.max(insets.bottom, Spacing.three) }]}>
         {footer}
-      </View>
+      </ScrollEdgeFooter>
       <KeyboardDoneBar />
     </View>
   );
@@ -81,7 +92,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     gap: Spacing.four,
     paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.three,
   },
   footer: {
     gap: Spacing.three,

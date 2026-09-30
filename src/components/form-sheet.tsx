@@ -1,9 +1,11 @@
-import { useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { FormSheetActions } from './form-sheet-actions';
 import { KeyboardDoneBar } from './keyboard/keyboard-done-bar';
 import { KeyboardScrollView } from './keyboard/keyboard-scroll-view';
+import { ScrollEdgeFooter } from './scroll-footer/scroll-edge-footer';
+import { useScrollEdge } from './scroll-footer/use-scroll-edge';
 import { ThemedText } from './themed-text';
 
 import { Fonts, Spacing } from '@/constants/theme';
@@ -23,27 +25,29 @@ export function FormSheet({
   submitDisabled = false,
   children,
 }: FormSheetProps) {
-  const [actionsHeight, setActionsHeight] = useState(0);
+  const edge = useScrollEdge();
 
   // The fields scroll so the keyboard never hides the one being typed in; the
-  // actions stay pinned under them, behind the keyboard until it's dismissed.
+  // actions float over their bottom edge, behind the keyboard until it's dismissed.
   return (
-    <View style={styles.sheet}>
+    <View style={styles.sheet} collapsable={false}>
       <KeyboardScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
-        bottomInset={actionsHeight}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: Spacing.four + edge.footerHeight },
+        ]}
+        {...edge.scrollProps}
+        bottomInset={edge.footerHeight}
         alwaysBounceVertical={false}>
         <ThemedText style={styles.title} themeColor="text">
           {title}
         </ThemedText>
         <View style={styles.fields}>{children}</View>
       </KeyboardScrollView>
-      <View
-        style={styles.actions}
-        onLayout={(event) => setActionsHeight(event.nativeEvent.layout.height)}>
+      <ScrollEdgeFooter {...edge.footerProps} style={styles.actions}>
         <FormSheetActions submitLabel={submitLabel} onSubmit={onSubmit} disabled={submitDisabled} />
-      </View>
+      </ScrollEdgeFooter>
       <KeyboardDoneBar />
     </View>
   );
@@ -59,10 +63,10 @@ const styles = StyleSheet.create({
   content: {
     paddingTop: Spacing.four,
     paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.four,
     gap: Spacing.four,
   },
   actions: {
+    paddingTop: Spacing.two,
     paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.four,
   },
