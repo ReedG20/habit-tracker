@@ -3,8 +3,8 @@ import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
 import { EmptyState } from '@/components/empty-state';
-import { GoalCard } from '@/components/goal-card';
-import { HabitCard } from '@/components/habit-card';
+import { GoalDetailCard } from '@/components/goal-detail-card';
+import { HabitDetailCard } from '@/components/habit-detail-card';
 import { HeaderAddButton } from '@/components/header-add-button';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
@@ -25,7 +25,11 @@ export default function CommitmentsScreen() {
   // Refreshed once a minute so "due in 3 hours" and "missed" roll over on their own.
   const now = useNow();
   const goals = useQuery(api.goals.list);
-  const habits = useQuery(api.habits.list, { today: todayKey() });
+  const today = todayKey();
+  const habits = useQuery(api.habits.list, { today });
+  // The cards fill in their history once it arrives.
+  const history = useQuery(api.habitHistory.recent, { today });
+  const historyByHabit = new Map(history?.map((entry) => [entry.habitId, entry]));
   const subscription = useSubscription();
   const paused = !subscription.isPro && !subscription.isLoading;
 
@@ -48,9 +52,7 @@ export default function CommitmentsScreen() {
         <ThemedText style={styles.title} themeColor="text">
           Commitments
         </ThemedText>
-        <ThemedText themeColor="textSecondary">
-          Goals with a deadline and the habits you keep up.
-        </ThemedText>
+        <ThemedText themeColor="textSecondary">Deadlines to hit and habits to keep.</ThemedText>
         <HeaderAddButton label="New" onPress={() => router.push('/new')} />
       </View>
 
@@ -69,9 +71,17 @@ export default function CommitmentsScreen() {
             </ThemedText>
             <View style={styles.list}>
               {section.id === 'goals'
-                ? section.items.map((goal) => <GoalCard key={goal._id} goal={goal} now={now} />)
+                ? section.items.map((goal) => (
+                    <GoalDetailCard key={goal._id} goal={goal} now={now} />
+                  ))
                 : section.items.map((habit) => (
-                    <HabitCard key={habit._id} habit={habit} paused={paused} />
+                    <HabitDetailCard
+                      key={habit._id}
+                      habit={habit}
+                      history={historyByHabit.get(habit._id)}
+                      paused={paused}
+                      now={now}
+                    />
                   ))}
             </View>
           </View>

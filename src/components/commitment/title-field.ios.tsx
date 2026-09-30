@@ -19,6 +19,7 @@ import { StyleSheet, View } from 'react-native';
 import { TITLE_FONT_SIZE, type TitleFieldProps } from './title-field.types';
 
 import { useFieldFocus } from '@/components/keyboard/keyboard-scroll-view';
+import { titleFontFamily } from '@/constants/custom-fonts';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -90,7 +91,7 @@ export function TitleField({
             lineLimit({ min: 1, max: 3 }),
             textInputAutocapitalization('sentences'),
             submitLabel('done'),
-            font({ size: TITLE_FONT_SIZE, weight: 'bold' }),
+            font({ family: titleFontFamily, size: TITLE_FONT_SIZE }),
             foregroundStyle(theme.text),
             frame({ maxWidth: FILL, alignment: 'leading' }),
           ]}

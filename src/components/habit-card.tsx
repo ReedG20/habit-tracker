@@ -1,14 +1,13 @@
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { ActionButton } from './action-button';
 import { Countdown } from './countdown';
+import { HabitActionButton } from './habit-action-button';
 import { Icon } from './icon';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
 import { FlameIcon, HabitIcon } from '@/constants/icons';
-import { PROOF_METHODS, proofMethodOf, proveLabel } from '@/constants/proof-methods';
 import { ActionCardRadius, ControlHeight, Spacing } from '@/constants/theme';
 import { targetPerWeek } from '@/convex/lib/frequency';
 import { describeEnding, isDaily, isWeekDone, type HabitWithProgress } from '@/data/habits';
@@ -26,15 +25,12 @@ export type HabitCardProps = {
   frozenUntil?: number;
 };
 
-const weekday = new Intl.DateTimeFormat(undefined, { weekday: 'short' });
-
 export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: HabitCardProps) {
   const theme = useTheme();
 
   const daily = isDaily(habit);
   const weekDone = isWeekDone(habit);
   const logged = habit.completedToday || weekDone;
-  const verifying = !logged && habit.verification?.status === 'pending';
   const ending = describeEnding(habit, todayKey());
   const broken = habit.brokenAt !== undefined;
   // A friend who opted out left the habit on the user's word until they pick someone.
@@ -101,52 +97,12 @@ export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: Ha
         </View>
       </Pressable>
 
-      {broken ? (
-        <ActionButton
-          label="Restart"
-          accessibilityLabel={`Restart ${habit.title}`}
-          variant="primary"
-          onPress={() => router.navigate(`/restart/${habit._id}`)}
-          style={styles.logAction}
-        />
-      ) : frozenUntil !== undefined && !logged ? (
-        <ActionButton
-          label={`Frozen till ${weekday.format(new Date(frozenUntil + 60 * 60 * 1000))}`}
-          accessibilityLabel={`${habit.title} is frozen`}
-          disabled
-          onPress={() => {}}
-          style={styles.logAction}
-        />
-      ) : weekDone ? (
-        <ActionButton label="Done this week" disabled onPress={() => {}} style={styles.logAction} />
-      ) : logged ? (
-        <ActionButton label="Logged" disabled onPress={() => {}} style={styles.logAction} />
-      ) : paused ? (
-        <ActionButton
-          label="Paused"
-          accessibilityLabel={`${habit.title} is paused. Resubscribe to Ante Pro`}
-          onPress={() => router.navigate('/pro')}
-          style={styles.logAction}
-        />
-      ) : verifying ? (
-        <ActionButton
-          label="Verifying…"
-          accessibilityLabel={`Verifying ${habit.title}`}
-          disabled
-          onPress={() => {}}
-          style={styles.logAction}
-        />
-      ) : (
-        <ActionButton
-          label={PROOF_METHODS[proofMethodOf(habit)].verb}
-          icon={PROOF_METHODS[proofMethodOf(habit)].icon}
-          accessibilityLabel={proveLabel(habit)}
-          variant="primary"
-          // `navigate` rather than `push`: a double tap must not open it twice.
-          onPress={() => router.navigate(`/habit/${habit._id}/prove`)}
-          style={styles.logAction}
-        />
-      )}
+      <HabitActionButton
+        habit={habit}
+        paused={paused}
+        frozenUntil={frozenUntil}
+        style={styles.logAction}
+      />
     </ThemedView>
   );
 }

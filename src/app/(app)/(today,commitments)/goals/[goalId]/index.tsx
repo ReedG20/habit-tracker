@@ -1,48 +1,54 @@
 import { useMutation, useQuery } from 'convex/react';
-import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { ActionButton } from '@/components/action-button';
+import { ActivityList, type ActivityItem } from '@/components/commitment-detail/activity-list';
+import { DetailSection } from '@/components/commitment-detail/detail-section';
+import { GoalNowPanel } from '@/components/commitment-detail/goal-now-panel';
+import { TermsCard } from '@/components/commitment-detail/terms-card';
 import { DetailHeader } from '@/components/detail-header';
 import { EmptyState } from '@/components/empty-state';
-import { ReplayMask } from '@/components/replay-mask';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { Camera01Icon } from '@/constants/icons';
-import {
-  BorderRadius,
-  CardRadius,
-  Fonts,
-  ScreenHeadingTypography,
-  Spacing,
-} from '@/constants/theme';
+import { ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import type { SubmissionWithPhotos } from '@/convex/goalSubmissions';
 import { isStakeLive } from '@/convex/lib/stakeRules';
+import { goalTerms } from '@/data/commitment-terms';
 import { isMissed } from '@/data/goals';
-import { describeGoalStake } from '@/data/stakes';
 import { useNow } from '@/hooks/use-now';
-import { useTheme } from '@/hooks/use-theme';
 import { track } from '@/lib/analytics';
 import { confirmDestructive, notify } from '@/lib/confirm';
-import { formatCompletedAt, formatDueAt } from '@/lib/dates';
 import { useForceDelete } from '@/lib/dev-tools';
 
 const STATUS_LABEL: Record<SubmissionWithPhotos['status'], string> = {
-  pending: 'Verifying…',
+  pending: 'Checking your proof…',
   approved: 'Accepted',
-  rejected: 'Not accepted',
-  failed: 'Check failed',
+  rejected: 'Didn’t count',
+  failed: 'Couldn’t check it',
 };
+
+function submissionItem(submission: SubmissionWithPhotos): ActivityItem {
+  return {
+    id: submission._id,
+    status: submission.status,
+    title: STATUS_LABEL[submission.status],
+    at: submission.createdAt,
+    lines: [submission.text && `Your note: ${submission.text}`, submission.reason].filter(
+      (line): line is string => Boolean(line),
+    ),
+    photos: submission.photoUrls.flatMap((url, index) =>
+      url === null ? [] : [{ key: submission.photoIds[index], url }],
+    ),
+  };
+}
 
 export default function GoalDetailScreen() {
   const { goalId: rawGoalId } = useLocalSearchParams<{ goalId: string }>();
   const goalId = rawGoalId as Id<'goals'>;
 
-  const theme = useTheme();
   const now = useNow();
   const goal = useQuery(api.goals.get, { goalId });
   const submissions = useQuery(api.goalSubmissions.list, goal ? { goalId } : 'skip');
@@ -75,13 +81,11 @@ export default function GoalDetailScreen() {
   const verifying = goal.submission?.status === 'pending';
   const canSubmit = !done && !missed && !verifying;
   const stakeLive = goal.stakeView !== null && isStakeLive(goal.stakeView);
-  const lost = goal.stakeView?.lostAt !== undefined;
 
   return (
     <ScreenScrollView>
       <DetailHeader
         title={goal.title}
-        description={goal.description}
         deleteLabel="Delete goal"
         onEdit={() => router.push(`/goals/${goalId}/edit`)}
         onDelete={() => {
@@ -114,58 +118,13 @@ export default function GoalDetailScreen() {
         }}
       />
 
-      <ThemedView type="backgroundElement" style={styles.meta}>
-        <View style={styles.metaRow}>
-          <ThemedText type="small" themeColor="textSecondary">
-            Status
-          </ThemedText>
-          <ThemedText type="smallBold" themeColor={missed ? 'accent' : 'text'}>
-            {done ? 'Done' : missed ? 'Missed' : verifying ? 'Verifying' : 'In progress'}
-          </ThemedText>
-        </View>
-        <View style={[styles.metaRow, { borderTopWidth: 1, borderTopColor: theme.border }]}>
-          <ThemedText type="small" themeColor="textSecondary">
-            Deadline
-          </ThemedText>
-          <ThemedText type="smallBold">{formatDueAt(goal.dueAt)}</ThemedText>
-        </View>
-        <View style={[styles.metaRow, { borderTopWidth: 1, borderTopColor: theme.border }]}>
-          <ThemedText type="small" themeColor="textSecondary">
-            Stake
-          </ThemedText>
-          <ThemedText
-            type="smallBold"
-            themeColor={lost ? 'accent' : 'text'}
-            style={styles.metaValue}
-            numberOfLines={2}>
-            {describeGoalStake(goal.stakeView, 'detail')}
-          </ThemedText>
-        </View>
-        {goal.completedAt !== undefined ? (
-          <View style={[styles.metaRow, { borderTopWidth: 1, borderTopColor: theme.border }]}>
-            <ThemedText type="small" themeColor="textSecondary">
-              Completed
-            </ThemedText>
-            <ThemedText type="smallBold">{formatCompletedAt(goal.completedAt).date}</ThemedText>
-          </View>
-        ) : null}
-      </ThemedView>
+      <GoalNowPanel goal={goal} now={now} />
 
-      {canSubmit ? (
-        <ActionButton
-          label="Submit proof"
-          icon={Camera01Icon}
-          variant="primary"
-          fill
-          onPress={() => router.navigate(`/goals/${goalId}/submit`)}
-        />
-      ) : null}
+      <DetailSection title="the deal">
+        <TermsCard terms={goalTerms(goal, now)} />
+      </DetailSection>
 
-      <View style={styles.section}>
-        <ThemedText style={styles.sectionTitle} themeColor="text">
-          submissions
-        </ThemedText>
-
+      <DetailSection title="submissions">
         {submissions === undefined ? null : submissions.length === 0 ? (
           <EmptyState
             icon={Camera01Icon}
@@ -176,62 +135,9 @@ export default function GoalDetailScreen() {
             }
           />
         ) : (
-          <ThemedView type="backgroundElement" style={styles.group}>
-            {submissions.map((submission, index) => (
-              <View
-                key={submission._id}
-                style={[
-                  styles.submission,
-                  index > 0 && { borderTopWidth: 1, borderTopColor: theme.border },
-                ]}>
-                <View style={styles.submissionHeader}>
-                  <ThemedText
-                    type="smallBold"
-                    themeColor={
-                      submission.status === 'approved'
-                        ? 'text'
-                        : submission.status === 'pending'
-                          ? 'textSecondary'
-                          : 'accent'
-                    }>
-                    {STATUS_LABEL[submission.status]}
-                  </ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {formatCompletedAt(submission.createdAt).time}
-                    {' · '}
-                    {formatCompletedAt(submission.createdAt).date}
-                  </ThemedText>
-                </View>
-
-                <ReplayMask style={styles.thumbnails}>
-                  {submission.photoUrls.map((url, photoIndex) =>
-                    url === null ? null : (
-                      <Image
-                        key={submission.photoIds[photoIndex]}
-                        source={{ uri: url }}
-                        style={[styles.thumbnail, { backgroundColor: theme.background }]}
-                        contentFit="cover"
-                        accessibilityLabel={`Photo ${photoIndex + 1} of ${submission.photoUrls.length}`}
-                      />
-                    ),
-                  )}
-                </ReplayMask>
-
-                {submission.text ? (
-                  <ThemedText type="small" themeColor="text">
-                    {submission.text}
-                  </ThemedText>
-                ) : null}
-                {submission.reason ? (
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {submission.reason}
-                  </ThemedText>
-                ) : null}
-              </View>
-            ))}
-          </ThemedView>
+          <ActivityList items={submissions.map(submissionItem)} />
         )}
-      </View>
+      </DetailSection>
     </ScreenScrollView>
   );
 }
@@ -242,52 +148,4 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   missingTitle: ScreenHeadingTypography,
-  meta: {
-    borderRadius: CardRadius,
-    overflow: 'hidden',
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.three,
-    padding: Spacing.three,
-  },
-  metaValue: {
-    flexShrink: 1,
-    textAlign: 'right',
-  },
-  section: {
-    gap: Spacing.two,
-  },
-  sectionTitle: {
-    fontFamily: Fonts.sectionHeading,
-    fontSize: 22,
-    lineHeight: 28,
-    paddingHorizontal: Spacing.one,
-  },
-  group: {
-    borderRadius: CardRadius,
-    overflow: 'hidden',
-  },
-  submission: {
-    padding: Spacing.three,
-    gap: Spacing.two,
-  },
-  submissionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.two,
-  },
-  thumbnails: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.two,
-  },
-  thumbnail: {
-    width: 64,
-    height: 64,
-    borderRadius: BorderRadius,
-  },
 });

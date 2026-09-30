@@ -1,42 +1,50 @@
-import { useMutation, usePaginatedQuery, useQuery } from 'convex/react';
+import { useMutation, useQuery } from 'convex/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { ActivityList, type ActivityItem } from '@/components/commitment-detail/activity-list';
+import { DetailSection } from '@/components/commitment-detail/detail-section';
+import { HabitCalendar } from '@/components/commitment-detail/habit-calendar';
+import { HabitNowPanel } from '@/components/commitment-detail/habit-now-panel';
+import { StatTiles, type Stat } from '@/components/commitment-detail/stat-tiles';
+import { TermsCard } from '@/components/commitment-detail/terms-card';
 import { DetailHeader } from '@/components/detail-header';
 import { EmptyState } from '@/components/empty-state';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { showToast } from '@/components/toast';
-import { ThemedView } from '@/components/themed-view';
-import { CheckmarkCircle02Icon } from '@/constants/icons';
-import { CardRadius, Fonts, ScreenHeadingTypography, Spacing } from '@/constants/theme';
+import { CheckmarkCircle02Icon, FlameIcon } from '@/constants/icons';
+import type { ProofMethod } from '@/constants/proof-methods';
+import { ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
-import { describeEnding, isDaily } from '@/data/habits';
-import { useTheme } from '@/hooks/use-theme';
+import type { HabitActivity, HabitDetailHistory } from '@/convex/habitHistory';
+import { targetPerWeek } from '@/convex/lib/frequency';
+import { habitTerms } from '@/data/commitment-terms';
+import { describeEnding, isDaily, type HabitWithProgress } from '@/data/habits';
+import { useNow } from '@/hooks/use-now';
+import { useSubscription } from '@/hooks/use-subscription';
 import { track } from '@/lib/analytics';
 import { confirmDestructive } from '@/lib/confirm';
-import { formatCompletedAt, todayKey } from '@/lib/dates';
+import { todayKey } from '@/lib/dates';
 import { useForceDelete } from '@/lib/dev-tools';
-
-const PAGE_SIZE = 30;
 
 export default function HabitDetailScreen() {
   const { habitId: rawHabitId } = useLocalSearchParams<{ habitId: string }>();
   const habitId = rawHabitId as Id<'habits'>;
 
-  const theme = useTheme();
+  const now = useNow();
   const today = todayKey();
   const habit = useQuery(api.habits.get, { habitId });
-  const stats = useQuery(api.habits.stats, habit === null ? 'skip' : { habitId, today });
+  // The same list the tabs show, so today's state is already here.
+  const habits = useQuery(api.habits.list, { today });
+  const progress = habits?.find((entry) => entry._id === habitId);
+  const history = useQuery(api.habitHistory.detail, habit === null ? 'skip' : { habitId, today });
+  const freeze = useQuery(api.freezes.current);
+  const subscription = useSubscription();
+  const paused = !subscription.isPro && !subscription.isLoading;
   const remove = useMutation(api.habits.remove);
   const forceDelete = useForceDelete();
-
-  const completions = usePaginatedQuery(
-    api.habits.listCompletions,
-    habit === null ? 'skip' : { habitId },
-    { initialNumItems: PAGE_SIZE },
-  );
 
   // `undefined` is still loading; `null` means it was deleted or never existed.
   if (habit === undefined) {
@@ -60,11 +68,12 @@ export default function HabitDetailScreen() {
     );
   }
 
+  const stats = progress === undefined ? [] : habitStats(progress, history);
+
   return (
     <ScreenScrollView>
       <DetailHeader
         title={habit.title}
-        description={habit.description}
         deleteLabel="Delete habit"
         onEdit={() => router.push(`/habit/${habitId}/edit`)}
         onDelete={() =>
@@ -105,71 +114,114 @@ export default function HabitDetailScreen() {
         </ThemedText>
       ) : null}
 
-      <View style={styles.statRow}>
-        <ThemedView type="backgroundElement" style={styles.statTile}>
-          <ThemedText style={styles.statValue} themeColor="text">
-            {stats?.streak ?? '—'}
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            {isDaily(habit) ? 'Day streak' : 'Week streak'}
-          </ThemedText>
-        </ThemedView>
-        <ThemedView type="backgroundElement" style={styles.statTile}>
-          <ThemedText style={styles.statValue} themeColor="text">
-            {stats?.total ?? '—'}
-          </ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            Total completions
-          </ThemedText>
-        </ThemedView>
-      </View>
+      {progress === undefined ? null : (
+        <HabitNowPanel
+          habit={progress}
+          today={today}
+          now={now}
+          paused={paused}
+          frozenUntil={freeze?.endsAt}
+          // A habit's first day (or week) never counts against it.
+          free={history?.days.at(-1)?.state === 'off' || history?.weeks.at(-1)?.state === 'off'}
+        />
+      )}
 
-      <View style={styles.section}>
-        <ThemedText style={styles.sectionTitle} themeColor="text">
-          history
-        </ThemedText>
+      {progress === undefined ? null : (
+        <DetailSection title="the deal">
+          <TermsCard terms={habitTerms(progress, today)} />
+        </DetailSection>
+      )}
 
-        {completions.status !== 'LoadingFirstPage' && completions.results.length === 0 ? (
+      <DetailSection title="progress">
+        {stats.length > 0 ? <StatTiles stats={stats} /> : null}
+        {history ? (
+          <HabitCalendar history={history} today={today} target={targetPerWeek(habit)} />
+        ) : null}
+      </DetailSection>
+
+      <DetailSection
+        title="activity"
+        meta={
+          history === undefined || history === null || history.total === 0
+            ? undefined
+            : `${history.total} ${history.total === 1 ? 'log' : 'logs'} all time`
+        }>
+        {history === undefined || history === null ? null : history.activity.length === 0 ? (
           <EmptyState
             icon={CheckmarkCircle02Icon}
-            message="No completions yet. Log this habit to start its history."
+            message="Nothing yet. Every try shows up here, kept or not, with the reason."
           />
+        ) : (
+          <ActivityList items={history.activity.map(activityItem)} />
+        )}
+        {history?.moreActivity ? (
+          <ThemedText type="small" themeColor="textSecondary" style={styles.more}>
+            Showing the latest {history.activity.length}.
+          </ThemedText>
         ) : null}
-
-        <ThemedView type="backgroundElement" style={styles.historyGroup}>
-          {completions.results.map((completion, index) => {
-            const { date, time } = formatCompletedAt(completion.completedAt);
-
-            return (
-              <View
-                key={completion._id}
-                style={[
-                  styles.historyRow,
-                  index > 0 && { borderTopWidth: 1, borderTopColor: theme.border },
-                ]}>
-                <ThemedText type="small">{date}</ThemedText>
-                <ThemedText type="small" themeColor="textSecondary">
-                  {time}
-                </ThemedText>
-              </View>
-            );
-          })}
-        </ThemedView>
-
-        {completions.status === 'CanLoadMore' || completions.status === 'LoadingMore' ? (
-          <Pressable
-            accessibilityRole="button"
-            disabled={completions.status === 'LoadingMore'}
-            onPress={() => completions.loadMore(PAGE_SIZE)}
-            style={({ pressed }) => [styles.loadMore, pressed && styles.pressed]}>
-            <ThemedText type="smallBold" themeColor="textSecondary">
-              {completions.status === 'LoadingMore' ? 'Loading…' : 'Load more'}
-            </ThemedText>
-          </Pressable>
-        ) : null}
-      </View>
+      </DetailSection>
     </ScreenScrollView>
   );
+}
+
+/** Streak, best streak, and how much of the calendar was kept. */
+function habitStats(
+  habit: HabitWithProgress,
+  history: HabitDetailHistory | null | undefined,
+): Stat[] {
+  const daily = isDaily(habit);
+  const unit = daily ? 'day' : 'week';
+  const best = Math.max(history?.best ?? 0, habit.streak);
+
+  let kept = '—';
+  if (history) {
+    const judged = daily
+      ? history.days.filter((day) => day.state === 'done' || day.state === 'missed')
+      : history.weeks.filter((week) => week.state === 'met' || week.state === 'short');
+    const hits = judged.filter((entry) => entry.state === 'done' || entry.state === 'met').length;
+    if (judged.length > 0) kept = `${Math.round((hits / judged.length) * 100)}%`;
+  }
+
+  return [
+    {
+      key: 'streak',
+      value: String(habit.streak),
+      label: `${unit} streak`,
+      icon: habit.streak > 0 ? FlameIcon : undefined,
+    },
+    { key: 'best', value: history ? String(best) : '—', label: 'best' },
+    { key: 'kept', value: kept, label: daily ? 'kept, 5 wks' : 'hit, 12 wks' },
+  ];
+}
+
+const ATTEMPT_TITLES: Record<HabitActivity['status'], Record<ProofMethod, string>> = {
+  approved: { photo: 'Photo accepted', location: 'Checked in', timer: 'Timer finished' },
+  rejected: {
+    photo: 'Photo didn’t count',
+    location: 'Check-in didn’t count',
+    timer: 'Timer stopped early',
+  },
+  failed: {
+    photo: 'Couldn’t check it, day excused',
+    location: 'Couldn’t check it, day excused',
+    timer: 'Couldn’t check it, day excused',
+  },
+  pending: { photo: 'Checking the photo…', location: 'Checking…', timer: 'Checking…' },
+};
+
+function activityItem(attempt: HabitActivity): ActivityItem {
+  return {
+    id: attempt.id,
+    status: attempt.status,
+    // A log with no check behind it predates proof methods.
+    title:
+      attempt.method === undefined && attempt.status === 'approved' && attempt.photoUrl === null
+        ? 'Logged'
+        : ATTEMPT_TITLES[attempt.status][attempt.method ?? 'photo'],
+    at: attempt.at,
+    lines: attempt.reason === undefined ? undefined : [attempt.reason],
+    photos: attempt.photoUrl === null ? undefined : [{ key: attempt.id, url: attempt.photoUrl }],
+  };
 }
 
 const styles = StyleSheet.create({
@@ -178,42 +230,7 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   missingTitle: ScreenHeadingTypography,
-  statRow: {
-    flexDirection: 'row',
-    gap: Spacing.three,
-  },
-  statTile: {
-    flex: 1,
-    borderRadius: CardRadius,
-    padding: Spacing.three,
-    gap: Spacing.half,
-  },
-  statValue: ScreenHeadingTypography,
-  section: {
-    gap: Spacing.two,
-  },
-  sectionTitle: {
-    fontFamily: Fonts.sectionHeading,
-    fontSize: 22,
-    lineHeight: 28,
-    paddingHorizontal: Spacing.one,
-  },
-  historyGroup: {
-    borderRadius: CardRadius,
-    overflow: 'hidden',
-  },
-  historyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: Spacing.three,
-  },
-  loadMore: {
-    alignSelf: 'center',
-    paddingVertical: Spacing.three,
-    paddingHorizontal: Spacing.four,
-  },
-  pressed: {
-    opacity: 0.7,
+  more: {
+    textAlign: 'center',
   },
 });
