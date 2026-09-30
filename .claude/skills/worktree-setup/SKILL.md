@@ -73,7 +73,7 @@ Note the port from the result; call it `<port>`.
 ## 3. Simulator: own device
 
 First tidy up after other sessions. This deletes sims whose worktree is gone
-or whose branch is merged with nothing uncommitted, and shuts down other idle
+or whose work is merged with nothing uncommitted, and shuts down other idle
 ones. It never touches your own sim or one in use (Metro or a build running,
 or booted in the last 30 min). It also deletes Xcode DerivedData whose checkout
 is gone, simulators whose runtime is gone, and cached builds beyond the newest 3:
@@ -159,13 +159,20 @@ Notes:
 
 ## 6. Housekeeping
 
-- When Reed says the feature is done or merged, delete your simulator:
+You don't get a turn after merge: auto-archive archives the session as soon as
+the PR merges, and the app detaches the worktree's HEAD. So cleanup doesn't
+depend on you:
+
+- `scripts/sims-clean.sh` runs at every setup (step 3) and hourly from the
+  main checkout (launchd agent `scripts/com.useanteapp.sims-clean.plist`,
+  installed by Reed; log in `~/Library/Logs/ante-sims-clean.log`). It deletes
+  the sim and DerivedData of any worktree whose work is all on `origin/main`
+  with nothing uncommitted.
+- If Reed says the feature is done while the session is still open, delete
+  your simulator yourself:
   `xcrun simctl shutdown "$udid"; xcrun simctl delete "$udid"`.
-- Other sessions' leftover sims and build files are handled by
-  `scripts/sims-clean.sh` at every setup (step 3). Reed can also run it any
-  time from any checkout (`--dry-run` to preview).
-- The desktop app removes a worktree only once every session that used it is
-  archived. Auto-archive is on, so that happens after the PR merges.
+- The desktop app removes the worktree folder itself once every session that
+  used it is archived.
 - The Convex deployment expires on its own after 5 days. Don't delete other sessions' resources.
 
 ## Never, from a worktree
