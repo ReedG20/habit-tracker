@@ -26,27 +26,37 @@ const dayInitial = new Intl.DateTimeFormat(undefined, { weekday: 'narrow' });
 export type LockoutStakeConfigProps = {
   draft: CommitmentDraft;
   onChange: (patch: Partial<CommitmentDraft>) => void;
+  /** When raising a lockout: the shortest that's longer than the one there. */
+  minDays?: LockoutDays;
 };
 
 /** How long a miss freezes every habit, with a week drawn out to show it. */
-export function LockoutStakeConfig({ draft, onChange }: LockoutStakeConfigProps) {
+export function LockoutStakeConfig({ draft, onChange, minDays = 1 }: LockoutStakeConfigProps) {
   const theme = useTheme();
   const states = strip(draft.lockoutDays);
   const today = new Date();
+  const lengths = LOCKOUT_DAYS.filter((days) => days >= minDays);
 
   return (
     <View style={styles.config}>
-      <SegmentedPicker
-        options={LOCKOUT_DAYS.map((days) => ({
-          value: String(days),
-          label: days === 7 ? '1 week' : lockoutLabel(days),
-        }))}
-        value={String(draft.lockoutDays)}
-        onChange={(value) => {
-          const days = Number(value);
-          if (isLockoutDays(days)) onChange({ lockoutDays: days });
-        }}
-      />
+      {lengths.length > 1 ? (
+        <SegmentedPicker
+          options={lengths.map((days) => ({
+            value: String(days),
+            label: days === 7 ? '1 week' : lockoutLabel(days),
+          }))}
+          value={String(draft.lockoutDays)}
+          onChange={(value) => {
+            const days = Number(value);
+            if (isLockoutDays(days)) onChange({ lockoutDays: days });
+          }}
+        />
+      ) : (
+        // One length left to raise to: nothing to pick between.
+        <ThemedText type="smallSemibold" style={styles.only}>
+          {draft.lockoutDays === 7 ? 'A full week' : lockoutLabel(draft.lockoutDays)}
+        </ThemedText>
+      )}
 
       <View
         style={styles.week}
@@ -94,6 +104,9 @@ export function LockoutStakeConfig({ draft, onChange }: LockoutStakeConfigProps)
 const styles = StyleSheet.create({
   config: {
     gap: Spacing.three,
+  },
+  only: {
+    textAlign: 'center',
   },
   week: {
     flexDirection: 'row',

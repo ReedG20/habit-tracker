@@ -20,7 +20,7 @@ export type DailyPaywallInput = {
   hasUnseenKept: boolean;
 };
 
-const BLOCKING_PATHS = ['/lost', '/kept', '/new', '/restart', '/pro'];
+const BLOCKING_PATHS = ['/lost', '/kept', '/new', '/restart', '/raise', '/pro'];
 
 export function shouldAutoPresentPaywall({
   today,
