@@ -8,6 +8,7 @@ import { Icon } from './icon';
 import { ThemedText } from './themed-text';
 
 import {
+  Calendar03Icon,
   CheckmarkCircle02Icon,
   CoinsDollarIcon,
   FlameIcon,
@@ -49,7 +50,12 @@ function kickerIcon(moment: TodayMoment): IconSvgElement {
     streak: FlameIcon,
     frozen: LockIcon,
     stakes: moment.figure?.kind === 'money' ? CoinsDollarIcon : Timer02Icon,
-    clear: moment.tone === 'done' ? CheckmarkCircle02Icon : GoalListIcon,
+    clear:
+      moment.tone === 'done'
+        ? CheckmarkCircle02Icon
+        : moment.figure?.kind === 'tally'
+          ? Calendar03Icon
+          : GoalListIcon,
   };
   return byKind[moment.kind];
 }
@@ -59,6 +65,7 @@ function figureText(figure: MomentFigure): string {
   switch (figure.kind) {
     case 'money':
     case 'time':
+    case 'tally':
       return figure.text;
     case 'streak':
       return formatStreak(figure.streak);
@@ -178,7 +185,7 @@ export function TodayHero({ moment }: TodayHeroProps) {
         </View>
 
         {/* The figure and its caption are one unit: nothing sits between them. */}
-        {figure === null ? null : figure.kind === 'time' ? (
+        {figure === null ? null : figure.kind === 'time' || figure.kind === 'tally' ? (
           <FigureText text={figure.text} color={figureColor} />
         ) : (
           <CountingFigure figure={figure} replayKey={replayKey} color={figureColor} />
