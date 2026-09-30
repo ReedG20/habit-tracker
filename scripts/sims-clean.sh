@@ -15,7 +15,17 @@
 #              just boots it again.
 #
 # Only devices named `Ante · *` are considered, so the main checkout's sim and
-# stock simulators are never touched.
+# stock simulators are never touched by the steps above.
+#
+# Then it clears other build leftovers that nothing else removes:
+#
+#   - Xcode DerivedData (~4 GB each) for an Ante workspace whose checkout no
+#     longer exists. Xcode keeps it forever after the worktree is removed.
+#   - simulators whose runtime is gone (`simctl delete unavailable`). They
+#     can't boot and can hold several GB.
+#   - cached dev builds in ~/Library/Caches/ante-dev/builds beyond the newest
+#     3. Each is ~270 MB, one per native fingerprint. A cache hit touches its
+#     folder, so this keeps the most recently used.
 set -euo pipefail
 
 dry_run=false
@@ -87,3 +97,27 @@ xcrun simctl list -j devices \
         echo "keep      $name (already shut down)"
       fi
     done
+
+# DerivedData for an Ante workspace whose checkout is gone. Checks the
+# checkout, not ios/, which `prebuild --clean` briefly removes.
+for d in "$HOME"/Library/Developer/Xcode/DerivedData/Ante-*; do
+  [ -d "$d" ] || continue
+  ws=$(/usr/libexec/PlistBuddy -c 'Print :WorkspacePath' "$d/info.plist" 2>/dev/null || true)
+  checkout=${ws%/ios/*}
+  [ -n "$ws" ] && [ ! -d "$checkout" ] || continue
+  echo "delete    DerivedData $(basename "$d") ($checkout gone)"
+  run rm -rf "$d"
+done
+
+if [ -n "$(xcrun simctl list devices unavailable | grep -F '(')" ]; then
+  echo "delete    simulators with a missing runtime"
+  run xcrun simctl delete unavailable
+fi
+
+builds="$HOME/Library/Caches/ante-dev/builds"
+if [ -d "$builds" ]; then
+  ls -dt "$builds"/*/ 2>/dev/null | tail -n +4 | while read -r b; do
+    echo "delete    cached build $(basename "$b") (not among the 3 most recent)"
+    run rm -rf "$b"
+  done
+fi
