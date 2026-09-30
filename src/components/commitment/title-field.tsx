@@ -6,6 +6,7 @@ import { StyleSheet, TextInput, View } from 'react-native';
 import { TITLE_FONT_SIZE, type TitleFieldProps } from './title-field.types';
 
 import { useFieldFocus } from '@/components/keyboard/keyboard-scroll-view';
+import { titleFontFamily } from '@/constants/custom-fonts';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -72,7 +73,7 @@ const styles = StyleSheet.create({
   input: {
     fontSize: TITLE_FONT_SIZE,
     lineHeight: TITLE_FONT_SIZE * 1.2,
-    fontWeight: 700,
+    fontFamily: titleFontFamily,
     padding: 0,
   },
 });

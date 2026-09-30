@@ -163,7 +163,8 @@ export const check = action({
     const method: ProofMethod = args.kind === 'habit' ? (args.proofMethod ?? 'photo') : 'photo';
 
     if (title.length === 0) return revise('Give it a name first.');
-    if (proof.length === 0) return revise(EMPTY_PROOF[method]);
+    // A timer checks itself, so what happens while it runs is optional.
+    if (proof.length === 0) return method === 'timer' ? PASS : revise(EMPTY_PROOF[method]);
     if (title.length > MAX_TITLE_LENGTH) {
       return revise(`Keep the name under ${MAX_TITLE_LENGTH} characters.`);
     }

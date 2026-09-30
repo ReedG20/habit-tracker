@@ -106,7 +106,9 @@ export function ProofPage({
     const proof = readProofNow();
     onChange({ proof });
 
-    if (proof.trim().length === 0) {
+    // A timer checks itself, so it needs no words; there is then nothing to vet.
+    const skipProof = proof.trim().length === 0;
+    if (skipProof && !(draft.kind === 'habit' && PROOF_METHODS[method].proofOptional)) {
       Alert.alert(proofField(draft).empty, 'That is what the proof gets judged against.');
       return;
     }
@@ -130,7 +132,7 @@ export function ProofPage({
             signature,
         ));
 
-    if (!vetted) {
+    if (!vetted && !skipProof) {
       const revision = await wording.run({
         kind: draft.kind,
         title,

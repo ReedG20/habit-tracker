@@ -172,22 +172,18 @@ function Footer({
             <Rule strong>
               Keep Ante open for {minutes === 1 ? '1 minute' : `${minutes} minutes`}.
             </Rule>
-            <Rule>Leaving the app or locking your phone stops the timer. The screen stays on.</Rule>
-            <Rule>That won’t cost your streak. You can just start again.</Rule>
+            <Rule>Leaving the app stops the timer. No harm done, just start again.</Rule>
           </View>
           {tooLate ? (
             <RuleText>There isn’t enough of today left for this one. It’s back tomorrow.</RuleText>
           ) : (
-            <>
-              <RuleText>Tip: turn on a Focus so nothing pulls you away.</RuleText>
-              <ActionButton
-                label={phase.kind === 'starting' ? 'Starting…' : `Start ${formatClock(durationMs)}`}
-                variant="primary"
-                fill
-                disabled={phase.kind === 'starting'}
-                onPress={onStart}
-              />
-            </>
+            <ActionButton
+              label={phase.kind === 'starting' ? 'Starting…' : `Start ${formatClock(durationMs)}`}
+              variant="primary"
+              fill
+              disabled={phase.kind === 'starting'}
+              onPress={onStart}
+            />
           )}
         </Animated.View>
       );
