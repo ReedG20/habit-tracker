@@ -3,6 +3,7 @@ import * as Updates from 'expo-updates';
 import PostHog from 'posthog-react-native';
 
 import type { AnalyticsEvents } from './analytics-events';
+import { storeErrorDetails } from './store-errors';
 
 export type { AnalyticsEvents } from './analytics-events';
 
@@ -77,11 +78,20 @@ export function resetAnalytics(): void {
  * Reports a failure the app caught and showed the user, which autocapture
  * never sees. `where` names the flow, so issues group by what broke. A
  * `ConvexError` is the server refusing on purpose ("pick someone other than
- * yourself"), not a bug, so it stays out of error tracking.
+ * yourself"), not a bug, so it stays out of error tracking. A store error
+ * also records its code and StoreKit's own reason, which its message hides.
  */
 export function captureError(error: unknown, where: string): void {
   if (error instanceof ConvexError) return;
-  posthog.captureException(error, { where });
+  const { code, readableErrorCode, underlyingErrorMessage } = storeErrorDetails(error);
+  posthog.captureException(error, {
+    where,
+    ...(code !== undefined && { code }),
+    ...(readableErrorCode !== undefined && { readable_error_code: readableErrorCode }),
+    ...(underlyingErrorMessage !== undefined && {
+      underlying_error_message: underlyingErrorMessage,
+    }),
+  });
 }
 
 /** Records a screen view; `name` is the route pattern, not the concrete URL. */
