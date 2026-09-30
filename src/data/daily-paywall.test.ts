@@ -10,6 +10,7 @@ const base = {
   supported: true,
   pathname: '/',
   hasUnseenLoss: false,
+  hasUnseenKept: false,
 };
 
 describe('shouldAutoPresentPaywall', () => {
@@ -28,9 +29,10 @@ describe('shouldAutoPresentPaywall', () => {
     expect(shouldAutoPresentPaywall({ ...base, supported: false })).toBe(false);
   });
 
-  test('a loss goes first, and screens that must be answered are left alone', () => {
+  test('a loss or a keep goes first, and screens that must be answered are left alone', () => {
     expect(shouldAutoPresentPaywall({ ...base, hasUnseenLoss: true })).toBe(false);
-    for (const pathname of ['/lost/abc', '/new', '/restart/abc', '/pro']) {
+    expect(shouldAutoPresentPaywall({ ...base, hasUnseenKept: true })).toBe(false);
+    for (const pathname of ['/lost/abc', '/kept/abc', '/new', '/restart/abc', '/pro']) {
       expect(shouldAutoPresentPaywall({ ...base, pathname })).toBe(false);
     }
     expect(shouldAutoPresentPaywall({ ...base, pathname: '/commitments' })).toBe(true);

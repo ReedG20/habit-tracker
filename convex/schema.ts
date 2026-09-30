@@ -1,6 +1,7 @@
 import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
+import { accomplishmentValidator } from './lib/accomplishmentSchema';
 import { proofMethodValidator } from './lib/proofMethods';
 import { lockoutDaysValidator, moneyStatusValidator, stakeDocValidator } from './lib/stakeSchema';
 
@@ -440,4 +441,11 @@ export default defineSchema({
     day: v.optional(v.string()),
     sentToday: v.number(),
   }).index('by_user', ['userId']),
+
+  /** Commitments seen through (`lib/accomplishmentSchema.ts`), for the Kept screen. */
+  accomplishments: defineTable(accomplishmentValidator).index('by_user_and_seen_and_achieved', [
+    'userId',
+    'seenAt',
+    'achievedAt',
+  ]),
 });

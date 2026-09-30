@@ -17,6 +17,7 @@ import {
   ArrowRight01Icon,
   CoinsDollarIcon,
   Delete02Icon,
+  Flag02Icon,
   LockKeyholeIcon,
   Logout01Icon,
   Notification01Icon,
@@ -36,6 +37,7 @@ import { useSubscription } from '@/hooks/use-subscription';
 import { useTheme } from '@/hooks/use-theme';
 import { todayKey } from '@/lib/dates';
 import { setForceDelete, showDevTools, useForceDelete } from '@/lib/dev-tools';
+import { openKept } from '@/lib/kept-screen';
 import { openLoss } from '@/lib/loss-screen';
 import { formatCents } from '@/lib/money';
 import { resetOnboarding } from '@/lib/onboarding';
@@ -83,6 +85,7 @@ export default function MeScreen() {
   const devOverrides = useQuery(api.lockouts.devOverrides, showDevTools ? {} : 'skip');
   const forceDelete = useForceDelete();
   const devLose = useMutation(api.stakes.devLose);
+  const devKept = useMutation(api.accomplishments.devPreview);
   const devFreeze = useMutation(api.freezes.devFreeze);
   const devLift = useMutation(api.freezes.devLift);
   const freeze = useQuery(api.freezes.current, showDevTools ? {} : 'skip');
@@ -307,6 +310,36 @@ export default function MeScreen() {
                   ]}>
                   <Icon icon={CoinsDollarIcon} size={22} themeColor="textSecondary" />
                   <ThemedText style={styles.settingLabel}>Preview a loss</ThemedText>
+                </Pressable>
+                {/* A made-up accomplishment: nothing real changes. */}
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    const preview = (args: Parameters<typeof devKept>[0]) => {
+                      devKept(args)
+                        .then(openKept)
+                        .catch((error: unknown) => console.error('Failed to preview', error));
+                    };
+                    Alert.alert('Preview kept', undefined, [
+                      {
+                        text: 'A daily habit, 34 days',
+                        onPress: () => preview({ subject: 'habit' }),
+                      },
+                      {
+                        text: 'A weekly habit, 6 weeks',
+                        onPress: () => preview({ subject: 'habit', weekly: true }),
+                      },
+                      { text: 'A goal', onPress: () => preview({ subject: 'goal' }) },
+                      { text: 'Cancel', style: 'cancel' },
+                    ]);
+                  }}
+                  style={({ pressed }) => [
+                    styles.settingRow,
+                    { borderTopWidth: 1, borderTopColor: theme.border },
+                    pressed && styles.pressed,
+                  ]}>
+                  <Icon icon={Flag02Icon} size={22} themeColor="textSecondary" />
+                  <ThemedText style={styles.settingLabel}>Preview kept</ThemedText>
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"

@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as accomplishments from "../accomplishments.js";
 import type * as accountNotices from "../accountNotices.js";
 import type * as calendar from "../calendar.js";
 import type * as commitmentChecks from "../commitmentChecks.js";
@@ -22,6 +23,7 @@ import type * as habitChecks from "../habitChecks.js";
 import type * as habitHistory from "../habitHistory.js";
 import type * as habits from "../habits.js";
 import type * as http from "../http.js";
+import type * as lib_accomplishmentSchema from "../lib/accomplishmentSchema.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_commitmentText from "../lib/commitmentText.js";
 import type * as lib_customFunctions from "../lib/customFunctions.js";
@@ -67,6 +69,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  accomplishments: typeof accomplishments;
   accountNotices: typeof accountNotices;
   calendar: typeof calendar;
   commitmentChecks: typeof commitmentChecks;
@@ -81,6 +84,7 @@ declare const fullApi: ApiFromModules<{
   habitHistory: typeof habitHistory;
   habits: typeof habits;
   http: typeof http;
+  "lib/accomplishmentSchema": typeof lib_accomplishmentSchema;
   "lib/auth": typeof lib_auth;
   "lib/commitmentText": typeof lib_commitmentText;
   "lib/customFunctions": typeof lib_customFunctions;

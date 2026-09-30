@@ -136,6 +136,11 @@ function RootNavigator() {
           options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
         />
         <Stack.Screen name="restart/[habitId]" options={{ presentation: 'fullScreenModal' }} />
+        {/* Its counterpart for a commitment seen through: a moment, answered with a tap. */}
+        <Stack.Screen
+          name="kept/[accomplishmentId]"
+          options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
+        />
       </Stack.Protected>
 
       <Stack.Protected guard={!isAuthenticated && !onboarding}>

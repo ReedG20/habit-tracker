@@ -3,6 +3,7 @@ import { ConvexError, v, type Infer } from 'convex/values';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
+import { recordKeptGoal } from './accomplishments';
 import { friendInputValidator, resolveFriend } from './friends';
 import { getCurrentUserOrNull } from './lib/auth';
 import { requireCommitmentText } from './lib/commitmentText';
@@ -154,7 +155,9 @@ export async function completeGoal(ctx: MutationCtx, goal: Doc<'goals'>): Promis
   const stake = await materializeGoalStake(ctx, goal);
   if (stake !== null) await releaseStake(ctx, stake);
 
-  await ctx.db.patch('goals', goal._id, { completedAt: Date.now() });
+  const now = Date.now();
+  await ctx.db.patch('goals', goal._id, { completedAt: now });
+  await recordKeptGoal(ctx, goal, stake?._id, now);
 }
 
 function requireLead(dueAt: number): void {

@@ -1,0 +1,445 @@
+import { useMutation, useQuery } from 'convex/react';
+import { router, useLocalSearchParams, type Href } from 'expo-router';
+import { useEffect, useRef } from 'react';
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type TextStyle,
+} from 'react-native';
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeInDown,
+  useAnimatedProps,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
+import { scheduleOnRN } from 'react-native-worklets';
+
+import { Icon } from '@/components/icon';
+import { Flag02Icon, Tick02Icon } from '@/constants/icons';
+import { ControlHeight, Fonts, PillRadius, Spacing } from '@/constants/theme';
+import type { Kept } from '@/convex/accomplishments';
+import type { Id } from '@/convex/_generated/dataModel';
+import { api } from '@/convex/_generated/api';
+import { keptStory, type KeptStory } from '@/data/kept-story';
+import { track } from '@/lib/analytics';
+import { successHaptic } from '@/lib/haptics';
+import { watchKept } from '@/lib/kept-screen';
+
+/**
+ * The page a commitment seen through opens (`useKeptPresenter`): a staked
+ * habit kept right to the end of its notice, or a goal proven. The loss
+ * screen's mirror image: where that one strikes the amount out in the dark,
+ * this one rings the run in the app's own violet, and says what never had to
+ * happen because of it.
+ */
+
+const KEPT = {
+  background: '#4121FF',
+  panel: 'rgba(255, 255, 255, 0.12)',
+  text: '#FFFFFF',
+  soft: 'rgba(255, 255, 255, 0.78)',
+};
+
+/** Beats, in milliseconds from the screen appearing. */
+const BEAT = {
+  kicker: 150,
+  headline: 400,
+  ring: 900,
+  unit: 1300,
+  line: 1800,
+  stake: 2200,
+  run: 2600,
+  actions: 3100,
+};
+
+export default function KeptScreen() {
+  const { accomplishmentId } = useLocalSearchParams<{ accomplishmentId: string }>();
+  const kept = useQuery(api.accomplishments.get, {
+    accomplishmentId: accomplishmentId as Id<'accomplishments'>,
+  });
+  const markSeen = useMutation(api.accomplishments.markSeen);
+  const insets = useSafeAreaInsets();
+  useEffect(() => watchKept(accomplishmentId), [accomplishmentId]);
+
+  const seen = useRef(false);
+  const leave = (action: 'done' | 'start_another', next?: Href) => {
+    track('kept action', { action });
+    if (!seen.current && kept != null) {
+      seen.current = true;
+      markSeen({ accomplishmentId: kept._id }).catch((error: unknown) => {
+        console.warn('Could not mark the accomplishment seen', error);
+      });
+    }
+    if (next === undefined) {
+      if (router.canGoBack()) router.back();
+      else router.replace('/');
+    } else {
+      router.replace(next);
+    }
+  };
+
+  const viewed = useRef(false);
+  useEffect(() => {
+    if (kept == null || viewed.current) return;
+    viewed.current = true;
+    track('kept viewed', { kind: kept.kind, stake_kind: kept.stake?.kind ?? 'none' });
+  }, [kept]);
+
+  return (
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
+      {kept === null ? (
+        <View style={styles.missing}>
+          <Text style={styles.line}>Nothing to see here.</Text>
+          <LightButton label="Close" onPress={() => leave('done')} />
+        </View>
+      ) : kept === undefined ? null : (
+        <KeptBody kept={kept} story={keptStory(kept)} bottomInset={insets.bottom} onLeave={leave} />
+      )}
+    </View>
+  );
+}
+
+function KeptBody({
+  kept,
+  story,
+  bottomInset,
+  onLeave,
+}: {
+  kept: Kept;
+  story: KeptStory;
+  bottomInset: number;
+  onLeave: (action: 'done' | 'start_another', next?: Href) => void;
+}) {
+  const reduceMotion = useReducedMotion();
+  const delay = (ms: number) => (reduceMotion ? 0 : ms);
+
+  return (
+    <ScrollView
+      contentContainerStyle={[styles.body, { paddingBottom: bottomInset + Spacing.four }]}
+      alwaysBounceVertical={false}>
+      <Animated.Text entering={FadeIn.delay(delay(BEAT.kicker))} style={styles.kicker}>
+        {story.kicker.toUpperCase()}
+      </Animated.Text>
+
+      <RingedHeadline story={story} reduceMotion={reduceMotion} />
+
+      <Animated.View entering={FadeIn.delay(delay(BEAT.line)).duration(500)}>
+        <Emphasized text={story.line} emphasis={story.emphasis} />
+      </Animated.View>
+
+      <Animated.View entering={FadeIn.delay(delay(BEAT.stake)).duration(500)}>
+        <Emphasized text={story.stakeLine} emphasis={story.emphasis} style={styles.stakeLine} />
+      </Animated.View>
+
+      {story.dots !== null ? (
+        <Animated.View
+          entering={FadeInDown.delay(delay(BEAT.run)).duration(500)}
+          style={styles.panel}>
+          <RunDots count={story.dots.count} unit={story.dots.unit} />
+        </Animated.View>
+      ) : null}
+
+      <Animated.View entering={FadeIn.delay(delay(BEAT.actions))} style={styles.actions}>
+        <LightButton label="Done" onPress={() => onLeave('done')} />
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => onLeave('start_another', `/new?kind=${kept.kind}` as Href)}
+          hitSlop={Spacing.two}
+          style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}>
+          <Text style={styles.secondaryText}>
+            {kept.kind === 'goal' ? 'Set another goal' : 'Start another habit'}
+          </Text>
+        </Pressable>
+        <Text style={styles.note}>{story.note}</Text>
+      </Animated.View>
+    </ScrollView>
+  );
+}
+
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+
+/**
+ * A loose, hand-drawn loop in a 200 × 100 box, stretched around whatever it
+ * rings. It starts top right and overshoots its own start, the way a pen does.
+ */
+const RING_PATH =
+  'M 152 10 C 108 -2, 38 4, 14 32 C -4 56, 18 90, 76 95 C 136 100, 194 86, 195 50 C 196 20, 158 4, 110 10';
+/** At least the path's length, so one dash covers the whole loop. */
+const RING_DASH = 640;
+
+/** The big line, with a ring drawing itself around it: the loss screen's strike, reversed. */
+function RingedHeadline({ story, reduceMotion }: { story: KeptStory; reduceMotion: boolean }) {
+  const draw = useSharedValue(reduceMotion ? 1 : 0);
+
+  useEffect(() => {
+    if (reduceMotion) {
+      successHaptic();
+      return;
+    }
+    draw.value = withDelay(
+      BEAT.ring,
+      withTiming(1, { duration: 700, easing: Easing.inOut(Easing.cubic) }, (finished) => {
+        if (finished) scheduleOnRN(successHaptic);
+      }),
+    );
+  }, [reduceMotion, draw]);
+
+  const ringProps = useAnimatedProps(() => ({ strokeDashoffset: RING_DASH * (1 - draw.value) }));
+
+  const label =
+    story.headline.kind === 'count'
+      ? `${story.headline.count} ${story.headline.unit}`
+      : story.headline.text;
+
+  return (
+    <View style={styles.headlineBlock} accessible accessibilityLabel={label}>
+      <Animated.View
+        entering={FadeInDown.delay(reduceMotion ? 0 : BEAT.headline).duration(600)}
+        style={styles.ringed}>
+        <Text
+          style={story.headline.kind === 'count' ? styles.count : styles.words}
+          numberOfLines={1}>
+          {story.headline.kind === 'count' ? story.headline.count : story.headline.text}
+        </Text>
+        <Svg
+          style={styles.ring}
+          viewBox="0 0 200 100"
+          preserveAspectRatio="none"
+          pointerEvents="none">
+          <AnimatedPath
+            d={RING_PATH}
+            stroke={KEPT.text}
+            strokeWidth={4}
+            strokeLinecap="round"
+            fill="none"
+            strokeDasharray={RING_DASH}
+            vectorEffect="non-scaling-stroke"
+            animatedProps={ringProps}
+          />
+        </Svg>
+      </Animated.View>
+      {story.headline.kind === 'count' ? (
+        <Animated.Text
+          entering={FadeIn.delay(reduceMotion ? 0 : BEAT.unit).duration(500)}
+          style={styles.unit}>
+          {story.headline.unit}.
+        </Animated.Text>
+      ) : null}
+    </View>
+  );
+}
+
+/** The run, a tick a day (or week), finished with a flag instead of the loss screen's miss. */
+function RunDots({ count, unit }: { count: number; unit: 'day' | 'week' }) {
+  const MAX = 42;
+  const shown = Math.min(count, MAX);
+  return (
+    <View
+      style={styles.dots}
+      accessible
+      accessibilityLabel={`${count} ${unit}${count === 1 ? '' : 's'} in a row, to the finish`}>
+      {count > MAX ? <Text style={styles.more}>+{count - MAX}</Text> : null}
+      {Array.from({ length: shown }, (_, index) => (
+        <View key={index} style={[styles.dot, { backgroundColor: KEPT.panel }]}>
+          <Icon icon={Tick02Icon} size={10} strokeWidth={3} color={KEPT.text} />
+        </View>
+      ))}
+      <View style={[styles.dot, { backgroundColor: KEPT.text }]}>
+        <Icon icon={Flag02Icon} size={11} strokeWidth={2.5} color={KEPT.background} />
+      </View>
+    </View>
+  );
+}
+
+/** White on violet: the app's primary button would vanish into this background. */
+function LightButton({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [styles.lightButton, pressed && styles.pressed]}>
+      <Text style={styles.lightButtonText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** `text` with each term in `emphasis` set in bold, where it first appears. */
+function Emphasized({
+  text,
+  emphasis,
+  style,
+}: {
+  text: string;
+  emphasis: string[];
+  style?: StyleProp<TextStyle>;
+}) {
+  const runs: { text: string; bold: boolean }[] = [];
+  let rest = text;
+  for (;;) {
+    let next: { at: number; term: string } | null = null;
+    for (const term of emphasis) {
+      const at = rest.indexOf(term);
+      if (at >= 0 && (next === null || at < next.at)) next = { at, term };
+    }
+    if (next === null) break;
+    if (next.at > 0) runs.push({ text: rest.slice(0, next.at), bold: false });
+    runs.push({ text: next.term, bold: true });
+    rest = rest.slice(next.at + next.term.length);
+  }
+  if (rest.length > 0) runs.push({ text: rest, bold: false });
+
+  return (
+    <Text style={[styles.line, style]}>
+      {runs.map((run, index) => (
+        <Text key={index} style={run.bold ? styles.bold : undefined}>
+          {run.text}
+        </Text>
+      ))}
+    </Text>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: KEPT.background,
+  },
+  missing: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: Spacing.four,
+    gap: Spacing.four,
+  },
+  body: {
+    flexGrow: 1,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.five,
+    gap: Spacing.four,
+  },
+  kicker: {
+    color: KEPT.soft,
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 2,
+  },
+  headlineBlock: {
+    gap: Spacing.one,
+  },
+  // Sized to the headline, so the ring hugs it.
+  ringed: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: Spacing.four,
+    paddingVertical: Spacing.two,
+    // Out into the gutter by less than the padding, so the ring clears the screen edge.
+    marginLeft: -Spacing.three,
+  },
+  ring: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+  },
+  // Comico sits high in its line box: a tall box keeps the digits from clipping.
+  count: {
+    fontFamily: Fonts.wisdom,
+    fontSize: 120,
+    lineHeight: 150,
+    color: KEPT.text,
+  },
+  words: {
+    fontFamily: Fonts.wisdom,
+    fontSize: 88,
+    lineHeight: 116,
+    color: KEPT.text,
+  },
+  unit: {
+    fontFamily: Fonts.wisdom,
+    fontSize: 44,
+    lineHeight: 56,
+    color: KEPT.text,
+  },
+  line: {
+    color: KEPT.soft,
+    fontSize: 20,
+    lineHeight: 29,
+  },
+  stakeLine: {
+    color: KEPT.text,
+  },
+  bold: {
+    color: KEPT.text,
+    fontWeight: '700',
+  },
+  panel: {
+    backgroundColor: KEPT.panel,
+    borderRadius: 24,
+    padding: Spacing.four,
+  },
+  dots: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    alignItems: 'center',
+  },
+  dot: {
+    width: 18,
+    height: 18,
+    borderRadius: PillRadius,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  more: {
+    color: KEPT.soft,
+    fontSize: 13,
+    fontWeight: '600',
+    marginRight: Spacing.one,
+  },
+  actions: {
+    marginTop: 'auto',
+    gap: Spacing.three,
+    paddingTop: Spacing.four,
+  },
+  lightButton: {
+    height: ControlHeight,
+    borderRadius: PillRadius,
+    backgroundColor: KEPT.text,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lightButtonText: {
+    color: KEPT.background,
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  secondary: {
+    alignSelf: 'center',
+    paddingVertical: Spacing.one,
+  },
+  secondaryText: {
+    color: KEPT.soft,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  note: {
+    fontFamily: Fonts.note,
+    fontSize: 19,
+    lineHeight: 28,
+    color: KEPT.soft,
+    textAlign: 'center',
+    marginTop: Spacing.two,
+  },
+  pressed: {
+    opacity: 0.7,
+  },
+});

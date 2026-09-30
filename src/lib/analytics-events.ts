@@ -49,6 +49,9 @@ export type AnalyticsEvents = {
   /** A staked habit given its notice (`habits.remove` scheduled it), or that notice taken back. */
   'habit ending started': { notice_days: number; stake_kind: StakeKind };
   'habit ending cancelled': { days_left: number };
+  /** The Kept screen for a commitment seen through, and how it was left. */
+  'kept viewed': { kind: CommitmentKind; stake_kind: StakeKind };
+  'kept action': { action: 'done' | 'start_another' };
 
   /** Sent for review; the verdict comes later from the server. */
   'habit checked in':
