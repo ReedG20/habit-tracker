@@ -78,7 +78,7 @@ function EndHabitForm({
   const steps = [
     noticeRequirement(habit, lastDay, today),
     ...(miss === null ? [] : [`Miss before then and ${miss}, same as always.`]),
-    `Make it to the end and ${noticeKeeps(habit.stakeView)}. Then it’s cleared away with its history.`,
+    `Make it to the end and ${noticeKeeps(habit.stakeView)}. It counts as kept, then it’s cleared away with its history.`,
   ];
 
   return (

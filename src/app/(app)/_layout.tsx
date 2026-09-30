@@ -5,6 +5,7 @@ import AppTabs from '@/components/app-tabs';
 import { ToastHost } from '@/components/toast';
 import { api } from '@/convex/_generated/api';
 import { useGoalSubmissionToasts } from '@/hooks/use-goal-submission-toasts';
+import { useKeptPresenter } from '@/hooks/use-kept-presenter';
 import { useLossPresenter } from '@/hooks/use-loss-presenter';
 import { useVerificationToasts } from '@/hooks/use-verification-toasts';
 import { todayKey } from '@/lib/dates';
@@ -21,6 +22,8 @@ export default function AppLayout() {
   useGoalSubmissionToasts(goals);
   // A stake that came due opens its own page, whichever tab is up.
   useLossPresenter();
+  // So does a commitment seen through, once any loss has been answered.
+  useKeptPresenter();
 
   return (
     <View style={styles.root}>

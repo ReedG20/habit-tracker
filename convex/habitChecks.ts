@@ -1,5 +1,6 @@
 import type { Doc, Id } from './_generated/dataModel';
 import type { MutationCtx } from './_generated/server';
+import { recordKeptHabit } from './accomplishments';
 import { frozenDaysBetween, startOrExtendFreeze } from './freezes';
 import { deleteHabit } from './habits';
 import {
@@ -148,9 +149,13 @@ export async function checkUser(ctx: MutationCtx, user: Doc<'users'>, now: numbe
 
   // An ending habit stays until its last day has been checked. One that broke
   // during its notice goes now: its stake is spent, so nothing is left to see through.
+  // One that made it to the end clean is kept: the Kept screen marks it.
   for (const habit of habits) {
     if (habit.endsAfter === undefined) continue;
-    if (habit.endsAfter <= yesterday || broke.has(habit._id)) {
+    if (broke.has(habit._id)) {
+      await deleteHabit(ctx, habit._id);
+    } else if (habit.endsAfter <= yesterday) {
+      await recordKeptHabit(ctx, habit, timeZone, frozenDays, now);
       await deleteHabit(ctx, habit._id);
     }
   }
