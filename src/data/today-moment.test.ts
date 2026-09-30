@@ -284,12 +284,54 @@ describe('pickTodayMoment', () => {
   });
 
   describe('weekly habits', () => {
-    test('with slack owe nothing today', () => {
+    test('with slack owe nothing today, and lead with the week’s tally', () => {
       const stretch = habit({ title: 'Stretch', timesPerWeek: 3, weekCount: 1 });
-      expect(pick({ habits: [stretch] })).toMatchObject({
+      const moment = pick({ habits: [stretch] });
+      expect(moment).toMatchObject({
         kind: 'clear',
-        sentence: 'Stretch: 2 more this week.',
+        tone: 'normal',
+        kicker: 'This week',
+        figure: { kind: 'tally', text: '1 of 3' },
+        sentence: 'Stretch this week, with 6 days left to fit in 2 more.',
+        emphasis: ['Stretch', '6 days'],
       });
+      // The capsule doesn't repeat what the figure already says.
+      expect(moment?.also.some((line) => line.startsWith('Stretch:'))).toBe(false);
+    });
+
+    test('logged today, the tally still leads and today reads as done', () => {
+      const stretch = habit({ timesPerWeek: 3, weekCount: 2, completedToday: true });
+      expect(pick({ habits: [stretch] })).toMatchObject({
+        tone: 'done',
+        kicker: 'Today’s done',
+        figure: { kind: 'tally', text: '2 of 3' },
+      });
+    });
+
+    test('the tally goes to the habit with the most left to do', () => {
+      const habits = [
+        habit({ title: 'Swim', timesPerWeek: 2, weekCount: 1 }),
+        habit({ title: 'Gym', timesPerWeek: 4, weekCount: 1 }),
+      ];
+      expect(pick({ habits })?.figure).toEqual({ kind: 'tally', text: '1 of 4' });
+    });
+
+    test('made midweek, the first part-week is practice', () => {
+      const gym = habit({ title: 'Gym', timesPerWeek: 4, startDay: TUESDAY });
+      expect(pick({ habits: [gym] })).toMatchObject({
+        kicker: 'This week',
+        figure: { kind: 'tally', text: '0 of 4' },
+        sentence: 'Gym this week. It counts from Monday, so this one’s practice.',
+        note: 'free week. build the habit anyway.',
+      });
+    });
+
+    test('a run or a goal still outranks the tally', () => {
+      const stretch = habit({ timesPerWeek: 3, weekCount: 1, streak: 4 });
+      expect(pick({ habits: [stretch] })?.figure?.kind).toBe('streak');
+      const run = goal({ title: 'Run a 5K', stakeCents: 2500 });
+      const fresh = habit({ timesPerWeek: 3, weekCount: 1 });
+      expect(pick({ habits: [fresh], goals: [run] })?.figure?.kind).toBe('money');
     });
 
     test('out of slack are on the line in weeks', () => {

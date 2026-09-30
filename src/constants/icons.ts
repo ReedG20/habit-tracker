@@ -11,6 +11,7 @@ import Alert02Icon from '@hugeicons/core-free-icons/Alert02Icon';
 import AppleIcon from '@hugeicons/core-free-icons/AppleIcon';
 import ArrowLeft01Icon from '@hugeicons/core-free-icons/ArrowLeft01Icon';
 import ArrowRight01Icon from '@hugeicons/core-free-icons/ArrowRight01Icon';
+import ArrowUpDoubleIcon from '@hugeicons/core-free-icons/ArrowUpDoubleIcon';
 import Book02Icon from '@hugeicons/core-free-icons/Book02Icon';
 import BrainIcon from '@hugeicons/core-free-icons/BrainIcon';
 import Calendar03Icon from '@hugeicons/core-free-icons/Calendar03Icon';
@@ -57,6 +58,7 @@ import Target02Icon from '@hugeicons/core-free-icons/Target02Icon';
 import Tick02Icon from '@hugeicons/core-free-icons/Tick02Icon';
 import Timer02Icon from '@hugeicons/core-free-icons/Timer02Icon';
 import TimerOffIcon from '@hugeicons/core-free-icons/TimerOffIcon';
+import UndoIcon from '@hugeicons/core-free-icons/UndoIcon';
 import UserCircleIcon from '@hugeicons/core-free-icons/UserCircleIcon';
 import UserIcon from '@hugeicons/core-free-icons/UserIcon';
 import WorkIcon from '@hugeicons/core-free-icons/WorkIcon';
@@ -67,6 +69,7 @@ export {
   AppleIcon,
   ArrowLeft01Icon,
   ArrowRight01Icon,
+  ArrowUpDoubleIcon,
   Book02Icon,
   BrainIcon,
   Calendar03Icon,
@@ -113,6 +116,7 @@ export {
   Tick02Icon,
   Timer02Icon,
   TimerOffIcon,
+  UndoIcon,
   UserCircleIcon,
   UserIcon,
   WorkIcon,

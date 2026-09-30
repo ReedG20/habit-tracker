@@ -1,6 +1,10 @@
-import { StyleSheet, View, type ViewStyle } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { dayDotStyle, weekBarStyle, weekFillColor } from '@/components/habit-history-strip';
+import { CalendarDay, CalendarWeekdays } from '@/components/calendar/calendar-day';
+import { CalendarHeader } from '@/components/calendar/calendar-header';
+import { CalendarLegend } from '@/components/calendar/calendar-legend';
+import { markStyle, type CalendarMark } from '@/components/calendar/calendar-marks';
+import { dayMark, weekBarStyle, weekFillColor } from '@/components/habit-history-strip';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { CardRadius, Spacing } from '@/constants/theme';
@@ -9,11 +13,6 @@ import { nextDay, weekEnd } from '@/convex/lib/days';
 import { useTheme } from '@/hooks/use-theme';
 import { fromDayKey } from '@/lib/dates';
 
-const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-const DOT = 16;
-const RING_GAP = 2;
-const RING_WIDTH = 1.5;
-const RING = DOT + 2 * (RING_GAP + RING_WIDTH);
 const BAR_HEIGHT = 56;
 
 const shortDate = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' });
@@ -28,7 +27,8 @@ export type HabitCalendarProps = {
 /**
  * How the habit has gone lately: five weeks of days under their weekday
  * letters for a daily habit, or twelve weeks of bars for a weekly one, each
- * filled toward its target. A legend underneath says what the marks mean.
+ * filled toward its target. Drawn like the Me screen's calendar, with a legend
+ * underneath saying what the marks mean.
  */
 export function HabitCalendar({ history, today, target }: HabitCalendarProps) {
   return (
@@ -42,67 +42,65 @@ export function HabitCalendar({ history, today, target }: HabitCalendarProps) {
   );
 }
 
-function DayGrid({ days, today }: { days: HabitDetailHistory['days']; today: string }) {
+type Day = HabitDetailHistory['days'][number];
+
+function DayGrid({ days, today }: { days: Day[]; today: string }) {
   const theme = useTheme();
   // Pad to Sunday, so this week's row is whole; days to come stay blank.
-  const upcoming = [];
+  const cells: { day: string; mark: CalendarMark; state?: Day['state'] }[] = days.map(
+    ({ day, state }) => ({ day, mark: dayMark(state), state }),
+  );
   for (let day = nextDay(today); day <= weekEnd(today); day = nextDay(day)) {
-    upcoming.push({ day, state: null });
+    cells.push({ day, mark: 'future' });
   }
-  const cells: { day: string; state: HabitDetailHistory['days'][number]['state'] | null }[] = [
-    ...days,
-    ...upcoming,
-  ];
   const weeks = [];
   for (let start = 0; start < cells.length; start += 7) weeks.push(cells.slice(start, start + 7));
 
+  // Counted like the Me screen's: today only once it's done.
+  const judged = days.filter(
+    ({ day, state }) =>
+      (state === 'done' || state === 'missed') && (day !== today || state === 'done'),
+  );
+  const kept = judged.filter(({ state }) => state === 'done').length;
+
   return (
-    <View style={styles.grid}>
-      <View style={styles.weekRow}>
-        {WEEKDAYS.map((letter, index) => (
-          <ThemedText key={index} type="small" themeColor="textSecondary" style={styles.weekday}>
-            {letter}
-          </ThemedText>
+    <View style={styles.body}>
+      <CalendarHeader
+        title={`Last ${weeks.length} weeks`}
+        summary={judged.length === 0 ? undefined : `${kept} of ${judged.length} days`}
+      />
+      <CalendarWeekdays />
+      <View style={styles.grid}>
+        {weeks.map((week) => (
+          <View key={week[0].day} style={styles.week}>
+            {week.map(({ day, mark, state }) => (
+              <CalendarDay
+                key={day}
+                mark={mark}
+                today={day === today}
+                accessibilityLabel={
+                  state === undefined
+                    ? undefined
+                    : `${shortDate.format(fromDayKey(day))}${day === today ? ', today' : ''}: ${DAY_WORDS[state]}`
+                }
+              />
+            ))}
+          </View>
         ))}
       </View>
-      {weeks.map((week) => (
-        <View key={week[0].day} style={styles.weekRow}>
-          {week.map(({ day, state }) => (
-            <View key={day} style={styles.cell}>
-              <View
-                accessible={state !== null}
-                accessibilityLabel={
-                  state === null
-                    ? undefined
-                    : `${shortDate.format(fromDayKey(day))}: ${DAY_WORDS[state]}`
-                }
-                style={[styles.ring, day === today && { borderColor: theme.text }]}>
-                <View
-                  style={[
-                    styles.dot,
-                    state === null
-                      ? { borderWidth: 1, borderColor: theme.border, opacity: 0.5 }
-                      : dayDotStyle(state, theme),
-                  ]}
-                />
-              </View>
-            </View>
-          ))}
-        </View>
-      ))}
-      <Legend
+      <CalendarLegend
         items={[
-          { label: 'Done', style: dayDotStyle('done', theme) },
-          { label: 'Missed', style: dayDotStyle('missed', theme) },
-          { label: 'Frozen', style: dayDotStyle('frozen', theme) },
-          { label: 'Not counted', style: dayDotStyle('off', theme) },
+          { label: 'Done', style: markStyle('done', theme) },
+          { label: 'Missed', style: markStyle('missed', theme) },
+          { label: 'Frozen', style: markStyle('frozen', theme) },
+          { label: 'Not counted', style: markStyle('off', theme) },
         ]}
       />
     </View>
   );
 }
 
-const DAY_WORDS: Record<HabitDetailHistory['days'][number]['state'], string> = {
+const DAY_WORDS: Record<Day['state'], string> = {
   done: 'done',
   missed: 'missed',
   excused: 'excused, our error',
@@ -115,9 +113,16 @@ const DAY_WORDS: Record<HabitDetailHistory['days'][number]['state'], string> = {
 function WeekBars({ weeks, target }: { weeks: HabitDetailHistory['weeks']; target: number }) {
   const theme = useTheme();
   const first = weeks[0]?.weekStart;
+  // This week only counts once it's met, as a day does.
+  const judged = weeks.filter(({ state }) => state === 'met' || state === 'short');
+  const met = judged.filter(({ state }) => state === 'met').length;
 
   return (
-    <View style={styles.grid}>
+    <View style={styles.body}>
+      <CalendarHeader
+        title={`Last ${weeks.length} weeks`}
+        summary={judged.length === 0 ? undefined : `${met} of ${judged.length} hit`}
+      />
       <View style={styles.bars}>
         {weeks.map(({ weekStart, count, state }) => (
           <View
@@ -152,28 +157,13 @@ function WeekBars({ weeks, target }: { weeks: HabitDetailHistory['weeks']; targe
           This week
         </ThemedText>
       </View>
-      <Legend
+      <CalendarLegend
         items={[
-          { label: `Hit ${target}`, style: { backgroundColor: theme.accent } },
-          { label: 'Short', style: { backgroundColor: weekFillColor('short', theme) } },
-          { label: 'Frozen', style: weekBarStyle('frozen', theme) },
+          { label: `Hit ${target}`, style: markStyle('done', theme) },
+          { label: 'Short', style: markStyle('partial', theme) },
+          { label: 'Frozen', style: markStyle('frozen', theme) },
         ]}
       />
-    </View>
-  );
-}
-
-function Legend({ items }: { items: { label: string; style: ViewStyle }[] }) {
-  return (
-    <View style={styles.legend} accessibilityElementsHidden importantForAccessibility="no">
-      {items.map((item) => (
-        <View key={item.label} style={styles.legendItem}>
-          <View style={[styles.legendDot, item.style]} />
-          <ThemedText type="small" themeColor="textSecondary">
-            {item.label}
-          </ThemedText>
-        </View>
-      ))}
     </View>
   );
 }
@@ -183,33 +173,14 @@ const styles = StyleSheet.create({
     borderRadius: CardRadius,
     padding: Spacing.three,
   },
+  body: {
+    gap: Spacing.two,
+  },
   grid: {
     gap: Spacing.two,
   },
-  weekRow: {
+  week: {
     flexDirection: 'row',
-  },
-  weekday: {
-    flex: 1,
-    textAlign: 'center',
-  },
-  cell: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  // Always there, so today's ring doesn't shift its dot.
-  ring: {
-    width: RING,
-    height: RING,
-    padding: RING_GAP,
-    borderRadius: RING / 2,
-    borderWidth: RING_WIDTH,
-    borderColor: 'transparent',
-  },
-  dot: {
-    width: DOT,
-    height: DOT,
-    borderRadius: DOT / 2,
   },
   bars: {
     flexDirection: 'row',
@@ -236,22 +207,5 @@ const styles = StyleSheet.create({
   barLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-  },
-  legend: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    columnGap: Spacing.three,
-    rowGap: Spacing.one,
-    paddingTop: Spacing.one,
-  },
-  legendItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
-  },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
   },
 });

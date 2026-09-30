@@ -4,8 +4,10 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ActivityList, type ActivityItem } from '@/components/commitment-detail/activity-list';
 import { DetailSection } from '@/components/commitment-detail/detail-section';
+import { DevResetProof } from '@/components/commitment-detail/dev-reset-proof';
 import { GoalNowPanel } from '@/components/commitment-detail/goal-now-panel';
 import { TermsCard } from '@/components/commitment-detail/terms-card';
+import { RaiseButton } from '@/components/raise/raise-button';
 import { DetailHeader } from '@/components/detail-header';
 import { EmptyState } from '@/components/empty-state';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
@@ -45,6 +47,9 @@ function submissionItem(submission: SubmissionWithPhotos): ActivityItem {
   };
 }
 
+/** The server won't change the stakes closer to the deadline than this. */
+const RAISE_LEAD_MS = 60 * 1000;
+
 export default function GoalDetailScreen() {
   const { goalId: rawGoalId } = useLocalSearchParams<{ goalId: string }>();
   const goalId = rawGoalId as Id<'goals'>;
@@ -53,6 +58,7 @@ export default function GoalDetailScreen() {
   const goal = useQuery(api.goals.get, { goalId });
   const submissions = useQuery(api.goalSubmissions.list, goal ? { goalId } : 'skip');
   const remove = useMutation(api.goals.remove);
+  const resetProof = useMutation(api.devProofs.resetGoalProof);
   const forceDelete = useForceDelete();
 
   if (goal === undefined) {
@@ -120,8 +126,20 @@ export default function GoalDetailScreen() {
 
       <GoalNowPanel goal={goal} now={now} />
 
+      <DevResetProof
+        visible={goal.completedAt !== undefined || (submissions?.length ?? 0) > 0}
+        label="Reset proof"
+        message="Deletes every submission, reopens the goal and re-arms its stake, so you can prove it again."
+        onReset={() => resetProof({ goalId })}
+      />
+
       <DetailSection title="the deal">
         <TermsCard terms={goalTerms(goal, now)} />
+        <RaiseButton
+          target={{ goalId }}
+          stake={goal.stakeView}
+          open={!done && goal.dueAt > now + RAISE_LEAD_MS}
+        />
       </DetailSection>
 
       <DetailSection title="submissions">

@@ -24,6 +24,7 @@ import {
   revenueCatSupported,
   type ProOffering,
 } from '@/lib/revenuecat';
+import { storeErrorDetails } from '@/lib/store-errors';
 
 // Store errors on the paywall are for us, not customers: a debug build or
 // Reed's internal preview build shows them; the App Store build never does.
@@ -117,7 +118,7 @@ export function ProPaywall({
         console.error('Failed to load the Pro offering', caught);
         captureError(caught, 'load pro offering');
         if (!cancelled) {
-          setLoadError(describeLoadError(caught));
+          setLoadError(describeStoreError(caught, 'Unknown error'));
           setOffering(null);
         }
       });
@@ -163,7 +164,7 @@ export function ProPaywall({
     } catch (caught: unknown) {
       console.error('Purchase failed', caught);
       captureError(caught, 'purchase pro');
-      setError(describeError(caught, "Couldn't complete the purchase."));
+      setError(describeStoreError(caught, "Couldn't complete the purchase."));
     } finally {
       setBusy(false);
     }
@@ -183,7 +184,7 @@ export function ProPaywall({
     } catch (caught: unknown) {
       console.error('Restore failed', caught);
       captureError(caught, 'restore pro');
-      setError(describeError(caught, "Couldn't restore purchases."));
+      setError(describeStoreError(caught, "Couldn't restore purchases."));
     } finally {
       setBusy(false);
     }
@@ -356,16 +357,18 @@ function perMonth(annual: PurchasesPackage): string | undefined {
   return pricePerMonthString ? `≈ ${pricePerMonthString} / month` : undefined;
 }
 
-/** A RevenueCat error's message plus the store's own reason, which says far more. */
-function describeLoadError(error: unknown): string {
-  const message = describeError(error, 'Unknown error');
-  if (typeof error === 'object' && error !== null && 'underlyingErrorMessage' in error) {
-    const { underlyingErrorMessage } = error as { underlyingErrorMessage: unknown };
-    if (typeof underlyingErrorMessage === 'string' && underlyingErrorMessage.length > 0) {
-      return `${message} (${underlyingErrorMessage})`;
-    }
-  }
-  return message;
+/**
+ * A RevenueCat error's message plus its readable code and the store's own
+ * reason, which say far more. Only diagnostics builds show this; the App Store
+ * build shows the message alone.
+ */
+function describeStoreError(error: unknown, fallback: string): string {
+  const message = describeError(error, fallback);
+  if (!showDiagnostics) return message;
+  const { readableErrorCode, underlyingErrorMessage } = storeErrorDetails(error);
+  const code = readableErrorCode !== undefined ? ` [${readableErrorCode}]` : '';
+  const reason = underlyingErrorMessage !== undefined ? ` (${underlyingErrorMessage})` : '';
+  return `${message}${code}${reason}`;
 }
 
 function describeError(error: unknown, fallback: string): string {

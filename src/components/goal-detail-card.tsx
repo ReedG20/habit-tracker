@@ -8,12 +8,12 @@ import { Icon } from './icon';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
+import { commitmentIcon } from '@/constants/commitment-icons';
 import {
   Calendar03Icon,
   Camera01Icon,
   Clock01Icon,
   CoinsDollarIcon,
-  GoalListIcon,
   Tick02Icon,
   UserIcon,
 } from '@/constants/icons';
@@ -54,7 +54,11 @@ export function GoalDetailCard({ goal, now }: GoalDetailCardProps) {
           onPress={open}
           style={({ pressed }) => [styles.main, pressed && styles.pressed]}>
           <View style={[styles.goalIcon, { backgroundColor: theme.background }]}>
-            <Icon icon={GoalListIcon} size={26} themeColor={over ? 'textSecondary' : 'text'} />
+            <Icon
+              icon={commitmentIcon(goal.icon, 'goal')}
+              size={26}
+              themeColor={over ? 'textSecondary' : 'text'}
+            />
           </View>
           <View style={styles.body}>
             {countdown ? <Countdown deadlineAt={goal.dueAt} /> : null}

@@ -133,6 +133,12 @@ export function paywallHeaderCopy({
       subtitle: 'Restarting a habit needs Ante Pro. Once you’re in, you’ll pick up right here.',
     };
   }
+  if (source === 'raise') {
+    return {
+      title: 'Resubscribe to up the ante.',
+      subtitle: 'Raising the stakes needs Ante Pro. Once you’re in, you’ll pick up right here.',
+    };
+  }
   if (!lapsed) {
     return {
       title: 'Put something on the line.',

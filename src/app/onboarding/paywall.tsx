@@ -15,6 +15,7 @@ import { Fonts, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import {
   friendInput,
+  iconInput,
   plainStake,
   proofInput,
   type CommitmentDraft,
@@ -85,12 +86,14 @@ export default function OnboardingPaywallScreen() {
               description: pending.proof.trim() || undefined,
               timesPerWeek: pending.timesPerWeek,
               ...proofInput(pending),
+              ...iconInput(pending),
               stake: plainStake(pending),
             })
           : createGoal({
               title: pending.title.trim(),
               description: pending.proof.trim(),
               dueAt: freshDueAt(pending.dueAt),
+              ...iconInput(pending),
               stake:
                 pending.stakeKind === 'friend'
                   ? { kind: 'friend', friend: friendInput(pending.friend) }

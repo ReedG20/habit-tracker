@@ -26,12 +26,14 @@ import { ThemedText } from '@/components/themed-text';
 import { LockIcon, Mail01Icon, Money03Icon, Tick02Icon } from '@/constants/icons';
 import { Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
+import { replacedLine } from '@/data/raise';
 import { DAILY } from '@/convex/lib/frequency';
-import { MIN_STAKE_CENTS, type StakeKind } from '@/convex/lib/stakeRules';
+import type { RaiseOptions } from '@/convex/lib/stakeLadder';
+import { MIN_STAKE_CENTS, type StakeKind, type StakeView } from '@/convex/lib/stakeRules';
 import { useStakePayment } from '@/hooks/use-stake-payment';
 import { captureError, track } from '@/lib/analytics';
 import { formatDueAt } from '@/lib/dates';
-import { formatCents } from '@/lib/money';
+import { cardLabel, formatCents } from '@/lib/money';
 import { userErrorMessage } from '@/lib/user-errors';
 
 /**
@@ -46,6 +48,21 @@ export function phaseBeforeSigning(draft: Pick<CommitmentDraft, 'stakeKind'>): S
   return draft.stakeKind === 'none' ? 'pick' : 'tune';
 }
 
+/**
+ * Raising a running commitment's stakes: only what's above the stake there now
+ * is offered (`convex/lib/stakeLadder.ts`), and money already on it is raised
+ * in place, on the same card.
+ */
+export type StakesRaise = { options: RaiseOptions; current: StakeView | null };
+
+type MoneyView = Extract<StakeView, { kind: 'money' }>;
+
+/** The money being raised in place, if that's what's there. */
+function moneyRaisedInPlace(raise: StakesRaise | undefined): MoneyView | null {
+  const current = raise?.current;
+  return current?.kind === 'money' && current.status === 'armed' ? current : null;
+}
+
 export type StakesStepProps = {
   draft: CommitmentDraft;
   onChange: (patch: Partial<CommitmentDraft>) => void;
@@ -58,6 +75,7 @@ export type StakesStepProps = {
    * comes with the next commitment.
    */
   allowMoney?: boolean;
+  raise?: StakesRaise;
 };
 
 /**
@@ -75,38 +93,58 @@ export function StakesStep({
   phase,
   onPhaseChange,
   allowMoney = true,
+  raise,
 }: StakesStepProps) {
   const stakePayment = useStakePayment();
   const signedIn = allowMoney;
   const headroom = useQuery(api.stakes.headroom, signedIn ? {} : 'skip') ?? null;
   const [busy, setBusy] = useState(false);
 
+  const inPlace = moneyRaisedInPlace(raise);
+  const moneyMin = raise?.options.moneyMinCents ?? MIN_STAKE_CENTS;
+  // Money raised in place is already counted against the cap.
+  const roomCents =
+    headroom === null ? null : headroom.remainingCents + (inPlace?.amountCents ?? 0);
   const moneyBlocked = moneyBlockedReason({
     supported: stakePayment.supported,
     allowMoney,
     headroom,
+    raise: raise === undefined || roomCents === null ? null : { minCents: moneyMin, roomCents },
   });
   const kinds: StakeKind[] =
-    draft.kind === 'habit' ? ['money', 'friend', 'lockout', 'none'] : ['money', 'friend', 'none'];
+    raise !== undefined
+      ? (['money', 'friend', 'lockout'] as const).filter((kind) =>
+          raise.options.kinds.includes(kind),
+        )
+      : draft.kind === 'habit'
+        ? ['money', 'friend', 'lockout', 'none']
+        : ['money', 'friend', 'none'];
+  const fallbackKind =
+    raise !== undefined ? kinds.find((kind) => kind !== 'money') : defaultStakeKind(false);
 
   // Money picked where it can't be had: fall back to the next best thing.
   useEffect(() => {
-    if (draft.stakeKind === 'money' && moneyBlocked !== null) {
-      onChange({ stakeKind: defaultStakeKind(false) });
+    if (draft.stakeKind === 'money' && moneyBlocked !== null && fallbackKind !== undefined) {
+      onChange({ stakeKind: fallbackKind });
     }
-  }, [draft.stakeKind, moneyBlocked, onChange]);
+  }, [draft.stakeKind, moneyBlocked, fallbackKind, onChange]);
 
   // Keep the amount under what the cap leaves.
   useEffect(() => {
-    if (headroom !== null && draft.amountCents > headroom.remainingCents) {
-      const amountCents = Math.max(MIN_STAKE_CENTS, headroom.remainingCents);
+    if (roomCents !== null && draft.amountCents > roomCents) {
+      const amountCents = Math.max(moneyMin, roomCents);
       if (amountCents !== draft.amountCents) onChange({ amountCents });
     }
-  }, [headroom, draft.amountCents, onChange]);
+  }, [roomCents, moneyMin, draft.amountCents, onChange]);
 
   const next = async () => {
     if (busy) return;
-    if (draft.stakeKind !== 'money' || cardForStake(draft) !== null || reuseForStake(draft)) {
+    if (
+      draft.stakeKind !== 'money' ||
+      inPlace !== null ||
+      cardForStake(draft) !== null ||
+      reuseForStake(draft)
+    ) {
       onNext();
       return;
     }
@@ -131,8 +169,13 @@ export function StakesStep({
   };
 
   const needsCard =
-    draft.stakeKind === 'money' && cardForStake(draft) === null && reuseForStake(draft) === null;
+    draft.stakeKind === 'money' &&
+    inPlace === null &&
+    cardForStake(draft) === null &&
+    reuseForStake(draft) === null;
   const ready = draft.stakeKind !== 'friend' || isFriendComplete(draft.friend);
+  // Only reachable when raising with money as the only way up: nothing to fall back to.
+  const stuckOnMoney = draft.stakeKind === 'money' && moneyBlocked !== null;
 
   if (phase === 'pick') {
     return (
@@ -142,17 +185,19 @@ export function StakesStep({
             label={pickLabel(draft.stakeKind)}
             variant="primary"
             fill
+            disabled={stuckOnMoney}
             onPress={() => (draft.stakeKind === 'none' ? onNext() : onPhaseChange('tune'))}
           />
         }>
         <Animated.View entering={FadeIn.duration(200)} style={styles.kinds}>
           {kinds.map((kind) => {
             const copy = kindCopy(kind, draft, moneyBlocked);
+            const blocked = kind === 'money' && moneyBlocked !== null;
             return (
               <ChoiceCard
                 key={kind}
                 title={copy.title}
-                detail={copy.detail}
+                detail={(blocked ? undefined : raiseDetail(kind, raise)) ?? copy.detail}
                 icon={copy.icon}
                 badge={copy.badge}
                 badgeTone={kind === 'none' ? 'muted' : 'primary'}
@@ -183,7 +228,7 @@ export function StakesStep({
           }
           variant="primary"
           fill
-          disabled={busy || !ready}
+          disabled={busy || !ready || stuckOnMoney}
           onPress={() => void next()}
         />
       }>
@@ -207,17 +252,41 @@ export function StakesStep({
           </Pressable>
         </View>
 
-        {draft.stakeKind === 'money' ? (
-          <MoneyStakeConfig draft={draft} onChange={onChange} disabled={busy} headroom={headroom} />
+        {stuckOnMoney ? (
+          <ThemedText type="small" themeColor="textSecondary">
+            {moneyBlocked}
+          </ThemedText>
+        ) : null}
+        {draft.stakeKind === 'money' && !stuckOnMoney ? (
+          <MoneyStakeConfig
+            draft={draft}
+            onChange={onChange}
+            disabled={busy}
+            headroom={headroom}
+            minCents={raise === undefined ? undefined : moneyMin}
+            raisingFrom={
+              inPlace === null
+                ? undefined
+                : {
+                    amountCents: inPlace.amountCents,
+                    cardLabel: cardLabel(inPlace),
+                    minCents: moneyMin,
+                  }
+            }
+          />
         ) : null}
         {draft.stakeKind === 'friend' ? (
           <FriendStakeConfig draft={draft} onChange={onChange} signedIn={signedIn} />
         ) : null}
         {draft.stakeKind === 'lockout' ? (
-          <LockoutStakeConfig draft={draft} onChange={onChange} />
+          <LockoutStakeConfig
+            draft={draft}
+            onChange={onChange}
+            minDays={raise?.options.lockoutMinDays ?? undefined}
+          />
         ) : null}
 
-        <WhatHappens steps={whatHappens(draft)} />
+        <WhatHappens steps={whatHappens(draft, raise)} />
 
         {noteFor(draft) === null ? null : <Note>{noteFor(draft)}</Note>}
       </Animated.View>
@@ -243,13 +312,19 @@ function moneyBlockedReason({
   supported,
   allowMoney,
   headroom,
+  raise,
 }: {
   supported: boolean;
   allowMoney: boolean;
   headroom: { remainingCents: number; capCents: number } | null;
+  /** When raising: the least that counts, and the room the cap leaves for it. */
+  raise: { minCents: number; roomCents: number } | null;
 }): string | null {
   if (!supported) return 'Money stakes live in the app. On the web, pick another.';
   if (!allowMoney) return 'Money comes once your account is set up.';
+  if (headroom !== null && raise !== null && raise.roomCents < raise.minCents) {
+    return `Only ${formatCents(raise.roomCents)} fits under the ${formatCents(headroom.capCents)} cap right now. Finish something else to free some up.`;
+  }
   if (headroom !== null && headroom.remainingCents < MIN_STAKE_CENTS) {
     return `You have ${formatCents(headroom.capCents)} on the line, the most Ante allows at once. Finish one to free some up.`;
   }
@@ -295,16 +370,43 @@ function kindCopy(
   }
 }
 
+/** When raising, what the card says about the stake that's there now; undefined for the usual copy. */
+function raiseDetail(kind: StakeKind, raise: StakesRaise | undefined): string | undefined {
+  const current = raise?.current;
+  if (current == null) return undefined;
+  if (kind === 'money' && current.kind === 'money') {
+    return `${formatCents(current.amountCents)} on it now. Put more on it.`;
+  }
+  if (kind === 'lockout' && current.kind === 'lockout') {
+    return `${lockoutLabel(current.days)} now. Make it longer.`;
+  }
+  if (kind === 'friend' && current.kind === 'friend' && current.status === 'void') {
+    return `${current.friendName} opted out. Pick someone new.`;
+  }
+  return undefined;
+}
+
 /** The numbered consequences under the options. */
-export function whatHappens(draft: CommitmentDraft): string[] {
+export function whatHappens(draft: CommitmentDraft, raise?: StakesRaise): string[] {
+  const steps = consequences(draft, raise);
+  const replaced = raise === undefined ? null : replacedLine(raise.current, draft.stakeKind);
+  return replaced === null ? steps : [replaced, ...steps];
+}
+
+function consequences(draft: CommitmentDraft, raise: StakesRaise | undefined): string[] {
   const daily = draft.timesPerWeek >= DAILY;
   const days = draft.timesPerWeek === 1 ? 'one day' : `${draft.timesPerWeek} days`;
+  // A raise lands on a habit that's already running, so no free first day.
   const cadence =
     draft.kind === 'goal'
       ? `Before ${formatDueAt(draft.dueAt)}, submit a photo. AI checks it against what you wrote.`
       : daily
-        ? `Every day, ${proofAction(draft)} before midnight. The day you start is free.`
-        : `Any ${days} a week, ${proofAction(draft)}. Weeks run Monday to Sunday, from the first full one.`;
+        ? `Every day, ${proofAction(draft)} before midnight.${raise === undefined ? ' The day you start is free.' : ''}`
+        : `Any ${days} a week, ${proofAction(draft)}. Weeks run Monday to Sunday${raise === undefined ? ', from the first full one' : ''}.`;
+  const saved =
+    moneyRaisedInPlace(raise) !== null
+      ? 'Same card as before. Nothing is charged today.'
+      : 'Your card is saved now. Nothing is charged today.';
   const miss =
     draft.kind === 'goal'
       ? 'Miss it, or the proof doesn’t hold up,'
@@ -324,13 +426,13 @@ export function whatHappens(draft: CommitmentDraft): string[] {
     case 'money':
       return draft.kind === 'habit'
         ? [
-            'Your card is saved now. Nothing is charged today.',
+            saved,
             cadence,
             `${miss} and you’re charged ${formatCents(draft.amountCents)}, once, automatically. ${restart}`,
             exit,
           ]
         : [
-            'Your card is saved now. Nothing is charged today, and with money on it the goal can’t be deleted.',
+            `${saved.slice(0, -1)}, and with money on it the goal can’t be deleted.`,
             cadence,
             `${miss} and you’re charged ${formatCents(draft.amountCents)} automatically. Make it and nothing happens.`,
           ];

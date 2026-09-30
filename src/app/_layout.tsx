@@ -136,6 +136,7 @@ function RootNavigator() {
           options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
         />
         <Stack.Screen name="restart/[habitId]" options={{ presentation: 'fullScreenModal' }} />
+        <Stack.Screen name="raise" options={{ presentation: 'fullScreenModal' }} />
         {/* Its counterpart for a commitment seen through: a moment, answered with a tap. */}
         <Stack.Screen
           name="kept/[accomplishmentId]"
@@ -146,6 +147,12 @@ function RootNavigator() {
       <Stack.Protected guard={!isAuthenticated && !onboarding}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
+
+      {/* Unguarded: onboarding's first commitment picks an icon before there's an account. */}
+      <Stack.Screen
+        name="icon-picker"
+        options={{ ...sheetScreenOptions, sheetAllowedDetents: [0.6, 1] }}
+      />
     </Stack>
   );
 }

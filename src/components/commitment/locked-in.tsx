@@ -7,8 +7,16 @@ import { StepLayout } from './step-layout';
 
 import { ActionButton } from '@/components/action-button';
 import { Countdown } from '@/components/countdown';
+import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
-import { CardRadius, ScreenHeadingTypography, Spacing } from '@/constants/theme';
+import { commitmentIcon } from '@/constants/commitment-icons';
+import {
+  ActionCardRadius,
+  CardRadius,
+  ControlHeight,
+  ScreenHeadingTypography,
+  Spacing,
+} from '@/constants/theme';
 import { DAILY, frequencyLabel } from '@/convex/lib/frequency';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDueAt } from '@/lib/dates';
@@ -17,10 +25,14 @@ import { formatCents } from '@/lib/money';
 export type LockedInProps = {
   draft: CommitmentDraft;
   onDone: () => void;
+  /** "It's on." unless given: a raise says so. */
+  title?: string;
+  /** The handwritten aside under the card, when the usual one doesn't fit. */
+  note?: string;
 };
 
 /** The confirmation after locking in: what was just agreed to, in one card. */
-export function LockedIn({ draft, onDone }: LockedInProps) {
+export function LockedIn({ draft, onDone, title = 'It’s on.', note }: LockedInProps) {
   const theme = useTheme();
   const daily = draft.timesPerWeek >= DAILY;
   const stakes = stakesLine(draft, daily);
@@ -28,11 +40,18 @@ export function LockedIn({ draft, onDone }: LockedInProps) {
   return (
     <StepLayout footer={<ActionButton label="Done" variant="primary" fill onPress={onDone} />}>
       <ThemedText style={styles.title} themeColor="text">
-        It’s on.
+        {title}
       </ThemedText>
 
       <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
-        <Row label={draft.kind === 'habit' ? 'Habit' : 'Goal'} value={draft.title.trim()} />
+        <View style={styles.titleRow}>
+          <View style={[styles.iconTile, { backgroundColor: theme.background }]}>
+            <Icon icon={commitmentIcon(draft.icon, draft.kind)} size={26} />
+          </View>
+          <View style={styles.titleText}>
+            <Row label={draft.kind === 'habit' ? 'Habit' : 'Goal'} value={draft.title.trim()} />
+          </View>
+        </View>
         <Row label="Proof" value={proofSummary(draft)} />
         {draft.kind === 'goal' ? (
           <View style={styles.row}>
@@ -56,11 +75,12 @@ export function LockedIn({ draft, onDone }: LockedInProps) {
       </View>
 
       <Note>
-        {draft.kind === 'goal'
-          ? 'clock’s running.'
-          : daily
-            ? 'day one starts now.'
-            : 'week one starts now.'}
+        {note ??
+          (draft.kind === 'goal'
+            ? 'clock’s running.'
+            : daily
+              ? 'day one starts now.'
+              : 'week one starts now.')}
       </Note>
     </StepLayout>
   );
@@ -107,5 +127,21 @@ const styles = StyleSheet.create({
   },
   row: {
     gap: Spacing.half,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+  },
+  // The tile the cards show it with.
+  iconTile: {
+    width: ControlHeight,
+    height: ControlHeight,
+    borderRadius: ActionCardRadius - Spacing.three,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleText: {
+    flex: 1,
   },
 });

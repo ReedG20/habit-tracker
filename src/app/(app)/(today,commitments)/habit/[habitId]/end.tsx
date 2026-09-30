@@ -5,6 +5,8 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { ActionButton } from '@/components/action-button';
 import { Note } from '@/components/commitment/note';
+import { ScrollEdgeFooter } from '@/components/scroll-footer/scroll-edge-footer';
+import { useScrollEdge } from '@/components/scroll-footer/use-scroll-edge';
 import { WhatHappens } from '@/components/commitment/what-happens';
 import { ThemedText } from '@/components/themed-text';
 import { showToast } from '@/components/toast';
@@ -54,6 +56,7 @@ function EndHabitForm({
 }) {
   const remove = useMutation(api.habits.remove);
   const [ending, setEnding] = useState(false);
+  const edge = useScrollEdge();
   const last = formatLastDay(lastDay);
   const miss = noticeMissCost(habit.stakeView);
 
@@ -82,8 +85,15 @@ function EndHabitForm({
   ];
 
   return (
-    <View style={styles.sheet}>
-      <ScrollView contentContainerStyle={styles.content} alwaysBounceVertical={false}>
+    <View style={styles.sheet} collapsable={false}>
+      <ScrollView
+        style={styles.sheet}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: Spacing.four + edge.footerHeight },
+        ]}
+        {...edge.scrollProps}
+        alwaysBounceVertical={false}>
         <View style={styles.header}>
           <ThemedText type="smallSemibold" themeColor="textSecondary" numberOfLines={1}>
             Ending “{habit.title}”
@@ -103,7 +113,7 @@ function EndHabitForm({
         <Note style={styles.note}>Change your mind? Keep it any time before then.</Note>
       </ScrollView>
 
-      <View style={styles.actions}>
+      <ScrollEdgeFooter {...edge.footerProps} style={styles.actions}>
         <ActionButton label="Keep going" onPress={() => router.back()} />
         <ActionButton
           label={ending ? 'Ending…' : `End after ${formatShortDate(fromDayKey(lastDay).getTime())}`}
@@ -114,7 +124,7 @@ function EndHabitForm({
           onPress={end}
           style={styles.main}
         />
-      </View>
+      </ScrollEdgeFooter>
     </View>
   );
 }
@@ -144,7 +154,6 @@ const styles = StyleSheet.create({
   content: {
     paddingTop: Spacing.four,
     paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.four,
     gap: Spacing.four,
   },
   header: {
@@ -162,6 +171,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
+    paddingTop: Spacing.two,
     paddingHorizontal: Spacing.three,
     paddingBottom: Spacing.four,
   },
