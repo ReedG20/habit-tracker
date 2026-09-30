@@ -245,11 +245,10 @@ function moneyBlockedReason({
 }: {
   supported: boolean;
   allowMoney: boolean;
-  headroom: { remainingCents: number; capCents: number; blockedByDecline: boolean } | null;
+  headroom: { remainingCents: number; capCents: number } | null;
 }): string | null {
   if (!supported) return 'Money stakes live in the app. On the web, pick another.';
   if (!allowMoney) return 'Money comes once your account is set up.';
-  if (headroom?.blockedByDecline) return 'Settle the stake your card declined first.';
   if (headroom !== null && headroom.remainingCents < MIN_STAKE_CENTS) {
     return `You have ${formatCents(headroom.capCents)} on the line, the most Ante allows at once. Finish one to free some up.`;
   }

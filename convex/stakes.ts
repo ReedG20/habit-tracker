@@ -24,7 +24,6 @@ import {
 } from './lib/stakeRules';
 import {
   cancelJob,
-  hasOpenDecline,
   loseStake,
   materializeGoalStake,
   requireMoneyHeadroom,
@@ -465,8 +464,6 @@ export const headroomValidator = v.object({
   capCents: v.number(),
   usedCents: v.number(),
   remainingCents: v.number(),
-  /** A declined card hasn't been settled up, so no new money can go down. */
-  blockedByDecline: v.boolean(),
 });
 
 /** How much more money can go on the line right now. */
@@ -480,7 +477,6 @@ export const headroom = query({
       capCents: MONEY_CAP_CENTS,
       usedCents,
       remainingCents: Math.max(0, MONEY_CAP_CENTS - usedCents),
-      blockedByDecline: user === null ? false : await hasOpenDecline(ctx, user._id),
     };
   },
 });

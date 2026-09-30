@@ -231,7 +231,7 @@ describe('stripe.handleEvent', () => {
     expect(settled).not.toHaveProperty('failureKind');
   });
 
-  test('a decline from the webhook blocks new money until settled', async () => {
+  test('a decline from the webhook is still owed but doesn’t block new money', async () => {
     const t = setup();
     const alice = await signIn(t, 'alice');
     const stakeId = await insertHabitStake(t, alice.userId);
@@ -255,7 +255,7 @@ describe('stripe.handleEvent', () => {
       amountCents: 500,
       now: Date.now(),
     });
-    expect(problem).toMatch(/declined/);
+    expect(problem).toBeNull();
   });
 
   test('an unknown goal is recorded and ignored', async () => {

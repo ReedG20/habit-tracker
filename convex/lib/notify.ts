@@ -257,7 +257,7 @@ export async function notifyCharged(ctx: MutationCtx, stake: Doc<'stakes'>): Pro
   ]);
 }
 
-/** The card said no: they still owe it, and can't stake money again until it's settled. */
+/** The card said no: they still owe it, and can settle up from the loss screen. */
 export async function notifyDeclined(ctx: MutationCtx, stake: Doc<'stakes'>): Promise<void> {
   if (stake.kind !== 'money') return;
   const message: EventMessage = {

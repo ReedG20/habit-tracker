@@ -405,7 +405,7 @@ export function eventCopy(message: EventMessage): PushCopy {
     case 'declined':
       return {
         title: `${message.title}: your card declined`,
-        body: `The ${formatMoney(message.amountCents)} didn’t go through. Settle it in Ante to put money down again.`,
+        body: `The ${formatMoney(message.amountCents)} didn’t go through. You still owe it, so settle up in Ante.`,
       };
     case 'friendTold':
       return {
