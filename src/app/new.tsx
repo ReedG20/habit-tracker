@@ -95,7 +95,7 @@ export default function NewCommitmentScreen() {
       timesPerWeek: DAILY,
       ...FRESH_PROOF,
       dueAt: defaultDueAt(),
-      ...freshStake(kind, true),
+      ...freshStake(true),
     };
   });
 

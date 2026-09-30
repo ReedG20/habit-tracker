@@ -44,8 +44,6 @@ export const STAKE_AMOUNT_ERROR = `A stake has to be between $${MIN_STAKE_CENTS 
 
 export const MONEY_CAP_ERROR = `That would put more than $${MONEY_CAP_CENTS / 100} on the line at once`;
 
-export const DECLINED_ERROR = 'Settle the stake your card declined before putting more money down';
-
 /** Every stake view carries these; `lostAt` is set once the commitment was missed. */
 const viewCommon = {
   _id: v.id('stakes'),

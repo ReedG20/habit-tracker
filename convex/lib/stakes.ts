@@ -5,7 +5,6 @@ import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
 import {
   countsTowardCap,
-  DECLINED_ERROR,
   MONEY_CAP_CENTS,
   MONEY_CAP_ERROR,
   stakeView,
@@ -14,9 +13,8 @@ import {
 import type { runValidator } from './stakeSchema';
 
 /**
- * Database helpers for stakes: the cap on money at risk, the guard against
- * staking again while a declined card is unsettled, and moving goal money out
- * of the old embedded `goals.stake` into its own row.
+ * Database helpers for stakes: the cap on money at risk, and moving goal money
+ * out of the old embedded `goals.stake` into its own row.
  */
 
 export type Run = Infer<typeof runValidator>;
@@ -59,27 +57,15 @@ export async function usedMoneyCents(
   return total;
 }
 
-/** A card declined a stake and it hasn't been settled up since. */
-export async function hasOpenDecline(
-  ctx: QueryCtx | MutationCtx,
-  userId: Id<'users'>,
-): Promise<boolean> {
-  const failed = await ctx.db
-    .query('stakes')
-    .withIndex('by_user_and_status', (q) => q.eq('userId', userId).eq('status', 'charge_failed'))
-    .take(MAX_OPEN_STAKES);
-  return failed.some((stake) => stake.kind === 'money' && stake.failureKind === 'declined');
-}
-
-/** Refuses a new money stake that would go over the cap, or while a decline is unsettled. */
+/**
+ * Refuses a new money stake that would go over the cap. An unsettled decline
+ * doesn't block it: it's still owed, but paying up is left to the user.
+ */
 export async function requireMoneyHeadroom(
   ctx: QueryCtx | MutationCtx,
   userId: Id<'users'>,
   amountCents: number,
 ): Promise<void> {
-  if (await hasOpenDecline(ctx, userId)) {
-    throw new ConvexError(DECLINED_ERROR);
-  }
   if ((await usedMoneyCents(ctx, userId)) + amountCents > MONEY_CAP_CENTS) {
     throw new ConvexError(MONEY_CAP_ERROR);
   }

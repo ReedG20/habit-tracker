@@ -78,7 +78,7 @@ export function lossStory(loss: Loss): LossStory {
       headline: { kind: 'money', cents: stake.amountCents },
       gone: !declined,
       line: declined
-        ? `${what} Your card declined, so the ${amount} didn’t go through. You still owe it, and money stays off the table until it’s settled.`
+        ? `${what} Your card declined, so the ${amount} didn’t go through. You still owe it.`
         : `${what} ${amount} was charged to ${card}.`,
       emphasis: [title, amount],
       // Nothing was paid on a decline, so the money can't be said to have bought anything.
