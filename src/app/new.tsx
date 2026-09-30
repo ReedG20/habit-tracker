@@ -13,6 +13,7 @@ import {
   MIN_LEAD_MS,
   plainStake,
   FRESH_PROOF,
+  iconInput,
   proofInput,
   reuseForStake,
   type CommitmentDraft,
@@ -189,6 +190,7 @@ export default function NewCommitmentScreen() {
             description,
             timesPerWeek: draft.timesPerWeek,
             ...proofInput(draft),
+            ...iconInput(draft),
             stake: plainStake(draft),
           });
         } else {
@@ -196,6 +198,7 @@ export default function NewCommitmentScreen() {
             title,
             description,
             dueAt: draft.dueAt,
+            ...iconInput(draft),
             stake:
               draft.stakeKind === 'friend'
                 ? { kind: 'friend', friend: friendInput(draft.friend) }
@@ -221,6 +224,7 @@ export default function NewCommitmentScreen() {
           description,
           timesPerWeek: draft.timesPerWeek,
           ...proofInput(draft),
+          ...iconInput(draft),
           amountCents: card.amountCents,
           setupIntentId: card.setupIntentId,
         });
@@ -229,6 +233,7 @@ export default function NewCommitmentScreen() {
           title,
           description,
           dueAt: draft.dueAt,
+          ...iconInput(draft),
           amountCents: draft.amountCents,
           ...(card !== null
             ? { setupIntentId: card.setupIntentId }

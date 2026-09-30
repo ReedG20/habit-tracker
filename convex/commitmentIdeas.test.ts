@@ -48,7 +48,14 @@ describe('checkName', () => {
 
   test('passes with the ideas and best method from the model', async () => {
     generateText.mockResolvedValue({
-      output: { verdict: 'pass', feedback: '', suggestedTitle: null, ideas, bestMethod: 'photo' },
+      output: {
+        verdict: 'pass',
+        feedback: '',
+        suggestedTitle: null,
+        ideas,
+        bestMethod: 'photo',
+        icon: 'run',
+      },
     });
     const t = setup();
     const result = await t.action(api.commitmentIdeas.checkName, {
@@ -62,6 +69,7 @@ describe('checkName', () => {
       suggestedTitle: null,
       bestMethod: 'photo',
       ideas,
+      icon: 'run',
     });
     expect(generateText.mock.calls[0]?.[0].messages[0].content).toBe(
       'Type: habit, 3 times a week\nName (untrusted): Run',
@@ -78,6 +86,7 @@ describe('checkName', () => {
       suggestedTitle: null,
       bestMethod: null,
       ideas: { photo: [], location: [], timer: [] },
+      icon: null,
     });
   });
 });
@@ -90,6 +99,7 @@ describe('normalizeReview', () => {
       suggestedTitle: null,
       ideas: { photo: ['The live site'], location: ['any cafe'], timer: ['focus'] },
       bestMethod: 'location',
+      icon: 'rocket',
     });
     expect(result.ideas).toEqual({ photo: ['The live site'], location: [], timer: [] });
     expect(result.bestMethod).toBeNull();
@@ -102,8 +112,22 @@ describe('normalizeReview', () => {
       suggestedTitle: null,
       ideas,
       bestMethod: 'timer',
+      icon: 'run',
     });
     expect(result.bestMethod).toBeNull();
+  });
+
+  test('keeps a known icon and drops an unknown one', () => {
+    const base = {
+      verdict: 'pass' as const,
+      feedback: '',
+      suggestedTitle: null,
+      ideas,
+      bestMethod: 'photo' as const,
+    };
+    expect(normalizeReview('habit', 'Run', { ...base, icon: 'run' }).icon).toBe('run');
+    expect(normalizeReview('habit', 'Run', { ...base, icon: ' "Run" ' }).icon).toBe('run');
+    expect(normalizeReview('habit', 'Run', { ...base, icon: 'unicorn' }).icon).toBeNull();
   });
 
   test('keeps ideas only alongside a rewrite', () => {
@@ -112,6 +136,7 @@ describe('normalizeReview', () => {
       feedback: 'Say what you will do.',
       ideas,
       bestMethod: 'photo' as const,
+      icon: 'journal',
     };
     const rewritten = normalizeReview('habit', 'be positive', {
       ...base,
@@ -121,11 +146,12 @@ describe('normalizeReview', () => {
       ok: false,
       suggestedTitle: 'Write three good things',
       bestMethod: 'photo',
+      icon: 'journal',
     });
     expect(rewritten.ideas.photo).toHaveLength(3);
 
     const bare = normalizeReview('habit', 'asdf', { ...base, suggestedTitle: 'ASDF' });
-    expect(bare).toMatchObject({ ok: false, suggestedTitle: null, bestMethod: null });
+    expect(bare).toMatchObject({ ok: false, suggestedTitle: null, bestMethod: null, icon: null });
     expect(bare.ideas.photo).toEqual([]);
   });
 });

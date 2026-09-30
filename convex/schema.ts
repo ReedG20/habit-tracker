@@ -141,6 +141,10 @@ export default defineSchema({
     proofMethod: v.optional(proofMethodValidator),
     /** A timer habit's length in minutes. */
     timerMinutes: v.optional(v.number()),
+    /** A key from `lib/commitmentIcons.ts`; absent on ones made before icons. */
+    icon: v.optional(v.string()),
+    /** Set once the user picks the icon themselves, so a rename leaves it alone. */
+    iconChosen: v.optional(v.boolean()),
   }).index('by_user', ['userId']),
 
   habitCompletions: defineTable({
@@ -221,6 +225,10 @@ export default defineSchema({
     /** Deprecated: goal money moved to the `stakes` table (`lib/stakes.ts` migrates it). */
     stake: v.optional(stakeValidator),
     stakeId: v.optional(v.id('stakes')),
+    /** A key from `lib/commitmentIcons.ts`; absent on ones made before icons. */
+    icon: v.optional(v.string()),
+    /** Set once the user picks the icon themselves, so a rename leaves it alone. */
+    iconChosen: v.optional(v.boolean()),
   })
     .index('by_user', ['userId'])
     // Replay protection: a SetupIntent may back at most one goal.

@@ -4,8 +4,10 @@ import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { recordKeptGoal } from './accomplishments';
+import { newIconFields, repickIconOnRename, requireNewIcon } from './commitmentIcons';
 import { friendInputValidator, resolveFriend } from './friends';
 import { getCurrentUserOrNull } from './lib/auth';
+import { requireCommitmentIcon } from './lib/commitmentIcons';
 import { requireCommitmentText } from './lib/commitmentText';
 import { authedAction, authedMutation, authedQuery } from './lib/customFunctions';
 import { requirePro } from './lib/entitlements';
@@ -235,6 +237,7 @@ export const create = authedMutation({
     description: v.optional(v.string()),
     dueAt: v.number(),
     stake: v.optional(v.object({ kind: v.literal('friend'), friend: friendInputValidator })),
+    ...newIconFields,
   },
   returns: v.id('goals'),
   handler: async (ctx, args): Promise<Id<'goals'>> => {
@@ -242,6 +245,7 @@ export const create = authedMutation({
     await requirePro(ctx, ctx.user._id);
     requireLead(args.dueAt);
     requireCommitmentText(args.title, args.description);
+    const icon = requireNewIcon(args);
     const friend =
       args.stake === undefined ? null : await resolveFriend(ctx, ctx.user, args.stake.friend);
 
@@ -250,6 +254,7 @@ export const create = authedMutation({
       title: args.title,
       description: args.description,
       dueAt: args.dueAt,
+      ...icon,
       order: await nextOrder(ctx, ctx.user._id),
     });
     if (friend !== null) {
@@ -283,6 +288,7 @@ export const createStaked = authedAction({
     setupIntentId: v.optional(v.string()),
     /** …or the one an earlier stake of theirs was on ("set it again"). */
     reuseFromStakeId: v.optional(v.id('stakes')),
+    ...newIconFields,
   },
   returns: v.id('goals'),
   handler: async (ctx, args): Promise<Id<'goals'>> => {
@@ -303,6 +309,8 @@ export const createStaked = authedAction({
       title: args.title,
       description: args.description,
       dueAt: args.dueAt,
+      icon: args.icon,
+      iconChosen: args.iconChosen,
       ...card,
     });
 
@@ -322,19 +330,21 @@ export const insertStaked = internalMutation({
     stripeSetupIntentId: moneyFields.stripeSetupIntentId,
     cardBrand: moneyFields.cardBrand,
     cardLast4: moneyFields.cardLast4,
+    ...newIconFields,
   },
   returns: v.id('goals'),
   handler: async (ctx, args): Promise<Id<'goals'>> => {
     await requireUnlocked(ctx, args.userId);
     await requirePro(ctx, args.userId);
     requireLead(args.dueAt);
-    const { userId, title, description, dueAt, ...card } = args;
+    const { userId, title, description, dueAt, icon, iconChosen, ...card } = args;
 
     const goalId = await ctx.db.insert('goals', {
       userId,
       title,
       description,
       dueAt,
+      ...requireNewIcon({ icon, iconChosen }),
       order: await nextOrder(ctx, userId),
     });
     const goal = await ctx.db.get('goals', goalId);
@@ -358,12 +368,15 @@ export const update = authedMutation({
     // `null` clears the field; omitting it leaves the stored value alone.
     description: v.optional(v.union(v.string(), v.null())),
     dueAt: v.optional(v.number()),
+    /** Picked by hand, so it sticks through later renames. */
+    icon: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, args): Promise<null> => {
     const goal = await requireOwnedGoal(ctx, args.goalId);
     await requireUnlocked(ctx, ctx.user._id);
     requireCommitmentText(args.title ?? goal.title, args.description);
+    requireCommitmentIcon(args.icon);
 
     const fields: Partial<Doc<'goals'>> = {};
     if (args.title !== undefined) fields.title = args.title;
@@ -380,10 +393,15 @@ export const update = authedMutation({
       requireLead(args.dueAt);
       fields.dueAt = args.dueAt;
     }
+    if (args.icon !== undefined) {
+      fields.icon = args.icon;
+      fields.iconChosen = true;
+    }
 
     if (Object.keys(fields).length > 0) {
       await ctx.db.patch('goals', args.goalId, fields);
     }
+    await repickIconOnRename(ctx, { kind: 'goal', id: goal._id }, goal, args);
     // A new deadline re-arms its reminders; the old one's simply stop matching.
     if (fields.dueAt !== undefined) {
       await touchReminders(ctx, ctx.user._id);

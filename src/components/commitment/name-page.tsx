@@ -3,6 +3,7 @@ import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { MIN_LEAD_MS, type CommitmentDraft, type CommitmentKind } from './draft';
 import { FrequencyPicker } from './frequency-picker';
+import { IconTile } from './icon-tile';
 import { StepLayout } from './step-layout';
 import { TitleField } from './title-field';
 import type { NameCheckResult, useNameCheck } from './use-name-check';
@@ -52,8 +53,19 @@ export function NamePage({ draft, onChange, nameCheck, onNext, suggestions }: Na
   } | null>(null);
   const scrollRef = useRef<ScrollView>(null);
   const titleRef = useRef<TextFieldHandle>(null);
+  // The name as typed so far, for the icon; the field itself is uncontrolled.
+  const [typed, setTyped] = useState(draft.title);
 
   const readTitleNow = () => readTitle.current?.() ?? draft.title;
+
+  // The name check's icon for the name, kept while the next one is out so
+  // the tile doesn't blink back to the default between pauses in typing.
+  const checked = nameCheck.lookup(typed);
+  const [lastChecked, setLastChecked] = useState(checked);
+  if (checked !== undefined && checked !== lastChecked) setLastChecked(checked);
+  const suggestedIcon = (checked ?? lastChecked)?.icon ?? null;
+  const named = typed.trim().length > 0;
+  const shownIcon = draft.iconChosen === true ? (draft.icon ?? null) : named ? suggestedIcon : null;
 
   // Bring the feedback card into view: it sits under the fields.
   useEffect(() => {
@@ -104,6 +116,7 @@ export function NamePage({ draft, onChange, nameCheck, onNext, suggestions }: Na
     nameCheck.adopt(title, revision.result);
     setRevision(null);
     onChange({ title });
+    setTyped(title);
     setFieldKey((key) => key + 1);
   };
 
@@ -133,21 +146,39 @@ export function NamePage({ draft, onChange, nameCheck, onNext, suggestions }: Na
           }}
         />
       }>
-      <TitleField
-        ref={titleRef}
-        key={`title-${fieldKey}`}
-        accessibilityLabel={draft.kind === 'habit' ? 'Habit name' : 'Goal name'}
-        defaultValue={draft.title}
-        placeholder={titlePlaceholders[draft.kind]}
-        autoFocus={draft.title.length === 0 && fieldKey === 0}
-        readValueRef={readTitle}
-        onChangeText={(text) => {
-          if (revision !== null) setRevision(null);
-          nameCheck.schedule(text);
-        }}
-        // Return: the name is done, so the keyboard makes way for the rest of the page.
-        onSubmit={() => titleRef.current?.blur()}
-      />
+      <View style={styles.titleRow}>
+        <IconTile
+          kind={draft.kind}
+          icon={shownIcon}
+          suggested={named ? suggestedIcon : null}
+          pending={draft.iconChosen !== true && named && checked === undefined && nameCheck.busy}
+          onPick={(icon) =>
+            onChange(
+              icon === null
+                ? { icon: suggestedIcon ?? undefined, iconChosen: false }
+                : { icon, iconChosen: true },
+            )
+          }
+        />
+        <View style={styles.titleField}>
+          <TitleField
+            ref={titleRef}
+            key={`title-${fieldKey}`}
+            accessibilityLabel={draft.kind === 'habit' ? 'Habit name' : 'Goal name'}
+            defaultValue={draft.title}
+            placeholder={titlePlaceholders[draft.kind]}
+            autoFocus={draft.title.length === 0 && fieldKey === 0}
+            readValueRef={readTitle}
+            onChangeText={(text) => {
+              if (revision !== null) setRevision(null);
+              setTyped(text);
+              nameCheck.schedule(text);
+            }}
+            // Return: the name is done, so the keyboard makes way for the rest of the page.
+            onSubmit={() => titleRef.current?.blur()}
+          />
+        </View>
+      </View>
 
       {suggestions !== undefined && suggestions[draft.kind].length > 0 ? (
         <View style={styles.suggestions}>
@@ -163,6 +194,7 @@ export function NamePage({ draft, onChange, nameCheck, onNext, suggestions }: Na
                 onPress={() => {
                   setRevision(null);
                   onChange({ title: suggestion.title, proof: suggestion.proof });
+                  setTyped(suggestion.title);
                   setFieldKey((key) => key + 1);
                   void nameCheck.ensure(suggestion.title);
                 }}
@@ -198,6 +230,14 @@ export function NamePage({ draft, onChange, nameCheck, onNext, suggestions }: Na
 }
 
 const styles = StyleSheet.create({
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+  },
+  titleField: {
+    flex: 1,
+  },
   suggestions: {
     gap: Spacing.two,
   },
