@@ -76,7 +76,7 @@ describe('freshDueAt', () => {
     expect(freshDueAt(due, now)).toBe(due);
   });
 
-  test('rolls a stale deadline forward to tomorrow evening', () => {
+  test('rolls a stale deadline forward to the default evening', () => {
     expect(freshDueAt(now - 1000, now)).toBe(defaultDueAt(now));
     expect(new Date(defaultDueAt(now)).getHours()).toBe(21);
   });

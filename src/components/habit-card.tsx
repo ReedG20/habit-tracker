@@ -9,7 +9,7 @@ import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
 import { FlameIcon, HabitIcon } from '@/constants/icons';
-import { ActionCardRadius, ControlHeight, Spacing } from '@/constants/theme';
+import { ActionCardRadius, ControlHeight, PillRadius, Spacing } from '@/constants/theme';
 import { targetPerWeek } from '@/convex/lib/frequency';
 import { endingStatus } from '@/data/ending';
 import { isDaily, isWeekDone, type HabitWithProgress } from '@/data/habits';
@@ -92,13 +92,20 @@ export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: Ha
                 {daily ? 'Daily' : `${habit.weekCount} of ${targetPerWeek(habit)} this week`}
               </ThemedText>
             )}
+            {/* The goal card's pill, so a stake reads the same on either card. */}
             {chip === null ? null : (
-              <ThemedText
-                type="smallSemibold"
-                themeColor={paused ? 'textSecondary' : 'accent'}
-                accessibilityLabel={`On the line: ${chip}`}>
-                {chip}
-              </ThemedText>
+              <View
+                style={[
+                  styles.stakePill,
+                  { backgroundColor: paused ? theme.background : theme.accentElement },
+                ]}>
+                <ThemedText
+                  type="smallSemibold"
+                  themeColor={paused ? 'textSecondary' : 'accent'}
+                  accessibilityLabel={`On the line: ${chip}`}>
+                  {chip}
+                </ThemedText>
+              </View>
             )}
             {friendGone ? (
               <ThemedText type="small" themeColor="accent">
@@ -154,10 +161,17 @@ const styles = StyleSheet.create({
     gap: Spacing.half,
     minWidth: 0,
   },
+  // Wraps like the goal card's: the pill drops to its own line beside a wide button.
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: Spacing.two,
+  },
+  stakePill: {
+    paddingVertical: Spacing.half,
+    paddingHorizontal: Spacing.two,
+    borderRadius: PillRadius,
   },
   streak: {
     flexDirection: 'row',

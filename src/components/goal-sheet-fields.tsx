@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState, type MutableRefObject } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import { DeadlineField } from '@/components/deadline-field';
+import { DeadlinePresets } from '@/components/deadline-presets';
 import { TextField, type TextFieldHandle } from '@/components/text-field';
+import { Spacing } from '@/constants/theme';
 
 export type GoalDraft = {
   title: string;
@@ -27,6 +30,10 @@ export function GoalSheetFields({ initial, draftRef, showDeadline }: GoalSheetFi
   const proofRef = useRef<TextFieldHandle>(null);
   const dueAtRef = useRef(initial.dueAt);
   const [dueAt, setDueAt] = useState(initial.dueAt);
+  const changeDueAt = (next: number) => {
+    setDueAt(next);
+    dueAtRef.current = next;
+  };
 
   useEffect(() => {
     draftRef.current = () => ({
@@ -56,14 +63,17 @@ export function GoalSheetFields({ initial, draftRef, showDeadline }: GoalSheetFi
         multiline
       />
       {showDeadline ? (
-        <DeadlineField
-          value={dueAt}
-          onChange={(next) => {
-            setDueAt(next);
-            dueAtRef.current = next;
-          }}
-        />
+        <View style={styles.deadline}>
+          <DeadlineField value={dueAt} onChange={changeDueAt} />
+          <DeadlinePresets value={dueAt} onChange={changeDueAt} />
+        </View>
       ) : null}
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  deadline: {
+    gap: Spacing.two,
+  },
+});

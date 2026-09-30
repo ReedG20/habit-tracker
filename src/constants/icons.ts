@@ -18,6 +18,7 @@ import Camera01Icon from '@hugeicons/core-free-icons/Camera01Icon';
 import CameraOff01Icon from '@hugeicons/core-free-icons/CameraOff01Icon';
 import CameraRotated01Icon from '@hugeicons/core-free-icons/CameraRotated01Icon';
 import Cancel01Icon from '@hugeicons/core-free-icons/Cancel01Icon';
+import CheckIcon from '@hugeicons/core-free-icons/CheckIcon';
 import CheckListIcon from '@hugeicons/core-free-icons/CheckListIcon';
 import CheckmarkCircle02Icon from '@hugeicons/core-free-icons/CheckmarkCircle02Icon';
 import Clock01Icon from '@hugeicons/core-free-icons/Clock01Icon';
@@ -74,6 +75,7 @@ export {
   CameraRotated01Icon,
   Cancel01Icon,
   CheckListIcon,
+  CheckIcon,
   CheckmarkCircle02Icon,
   Clock01Icon,
   CoinsDollarIcon,

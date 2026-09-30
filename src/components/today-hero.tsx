@@ -8,7 +8,7 @@ import { Icon } from './icon';
 import { ThemedText } from './themed-text';
 
 import {
-  CheckmarkCircle02Icon,
+  CheckIcon,
   CoinsDollarIcon,
   FlameIcon,
   GoalListIcon,
@@ -37,7 +37,7 @@ export type TodayHeroProps = {
 export const INK_DARK = '#9F8CFF';
 
 /** The corner the note gets; two short handwritten lines. */
-const NOTE_WIDTH = 150;
+const NOTE_WIDTH = 164;
 
 /** One glyph per kind of argument: the clock, the run, the lock, the money. */
 function kickerIcon(moment: TodayMoment): IconSvgElement {
@@ -49,7 +49,7 @@ function kickerIcon(moment: TodayMoment): IconSvgElement {
     streak: FlameIcon,
     frozen: LockIcon,
     stakes: moment.figure?.kind === 'money' ? CoinsDollarIcon : Timer02Icon,
-    clear: moment.tone === 'done' ? CheckmarkCircle02Icon : GoalListIcon,
+    clear: moment.tone === 'done' ? CheckIcon : GoalListIcon,
   };
   return byKind[moment.kind];
 }
@@ -258,7 +258,9 @@ const styles = StyleSheet.create({
   },
   note: {
     position: 'absolute',
-    top: -(Spacing.three + Spacing.two),
+    top: -(Spacing.five + Spacing.one),
+    fontSize: 21,
+    lineHeight: 30,
     right: Spacing.two,
     width: NOTE_WIDTH,
     textAlign: 'right',

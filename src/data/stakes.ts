@@ -85,14 +85,17 @@ export function skipConsequence(habits: Pick<HabitWithProgress, 'stakeView'>[]):
   return { cents: 0, phrase: 'the streak starts over', short: 'Streak resets', kind: 'none' };
 }
 
-/** A short chip for a card: "$25", "Sam", "3-day lock". `null` when it's just their word. */
+/**
+ * The pill on a habit card, worded like a goal card's: "$25 on it",
+ * "Sam’s watching", "3-day lock". `null` when it's just their word.
+ */
 export function stakeChip(stake: StakeView | null): string | null {
   const cost = stakeCost(stake);
   switch (cost.kind) {
     case 'money':
-      return formatCents(cost.cents);
+      return `${formatCents(cost.cents)} on it`;
     case 'friend':
-      return cost.name;
+      return `${cost.name}’s watching`;
     case 'lockout':
       return cost.days >= 7 ? '1-week lock' : `${cost.days}-day lock`;
     case 'none':

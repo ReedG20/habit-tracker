@@ -11,6 +11,7 @@ import { WordingFeedback } from './wording-feedback';
 
 import { ActionButton } from '@/components/action-button';
 import { DeadlineField } from '@/components/deadline-field';
+import { DeadlinePresets } from '@/components/deadline-presets';
 import { ChoiceChip } from '@/components/onboarding/choice-chip';
 import { SegmentedPicker } from '@/components/segmented-picker';
 import type { TextFieldHandle } from '@/components/text-field';
@@ -180,6 +181,7 @@ export function NamePage({ draft, onChange, nameCheck, onNext, suggestions }: Na
       ) : (
         <View style={styles.deadline}>
           <DeadlineField value={draft.dueAt} onChange={(dueAt) => onChange({ dueAt })} />
+          <DeadlinePresets value={draft.dueAt} onChange={(dueAt) => onChange({ dueAt })} />
           <ThemedText type="small" themeColor="textSecondary">
             Proof has to be accepted before then. Send it early if you like, and retry as often as
             you need until time’s up.
