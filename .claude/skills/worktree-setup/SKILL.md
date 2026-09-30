@@ -75,7 +75,8 @@ Note the port from the result; call it `<port>`.
 First tidy up after other sessions. This deletes sims whose worktree is gone
 or whose branch is merged with nothing uncommitted, and shuts down other idle
 ones. It never touches your own sim or one in use (Metro or a build running,
-or booted in the last 30 min):
+or booted in the last 30 min). It also deletes Xcode DerivedData whose checkout
+is gone, simulators whose runtime is gone, and cached builds beyond the newest 3:
 
 ```bash
 scripts/sims-clean.sh <name>
@@ -107,8 +108,10 @@ so a feature that only changes JS reuses someone else's build:
 ```bash
 fp=$(bunx fingerprint fingerprint:generate --platform ios 2>/dev/null | jq -r .hash)
 app=~/Library/Caches/ante-dev/builds/$fp/Ante.app
-ls -d "$app" 2>/dev/null || echo "no cached build for $fp"
+ls -d "$app" 2>/dev/null && touch "$(dirname "$app")" || echo "no cached build for $fp"
 ```
+
+The `touch` marks the build as recently used, so `sims-clean.sh` keeps it.
 
 **Cache miss** (new native deps, `app.config.ts`, `plugins/`, `patches/`), so
 build once in this worktree and add the result to the cache (takes about 10 minutes):
@@ -158,9 +161,11 @@ Notes:
 
 - When Reed says the feature is done or merged, delete your simulator:
   `xcrun simctl shutdown "$udid"; xcrun simctl delete "$udid"`.
-- Other sessions' leftover sims are handled by `scripts/sims-clean.sh` at every
-  setup (step 3). Reed can also run it any time from any checkout
-  (`--dry-run` to preview).
+- Other sessions' leftover sims and build files are handled by
+  `scripts/sims-clean.sh` at every setup (step 3). Reed can also run it any
+  time from any checkout (`--dry-run` to preview).
+- The desktop app removes a worktree only once every session that used it is
+  archived. Auto-archive is on, so that happens after the PR merges.
 - The Convex deployment expires on its own after 5 days. Don't delete other sessions' resources.
 
 ## Never, from a worktree
