@@ -23,6 +23,7 @@ export function useKeptPresenter() {
     const busy =
       pathname.startsWith('/lost') ||
       pathname.startsWith('/kept') ||
+      pathname === '/pro' ||
       pathname === '/new' ||
       pathname.endsWith('/prove') ||
       pathname.endsWith('/submit');

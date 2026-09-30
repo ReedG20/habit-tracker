@@ -1,44 +1,39 @@
-import { useNavigation } from 'expo-router';
-import { ScrollView, StyleSheet } from 'react-native';
+import { useLocalSearchParams, useNavigation } from 'expo-router';
 
-import { ProPaywall } from '@/components/pro-paywall';
+import { ProPaywallScreen } from '@/components/pro-paywall-screen';
 import { showToast } from '@/components/toast';
-import { Spacing } from '@/constants/theme';
+import { PAYWALL_SOURCES, type PaywallSource } from '@/lib/analytics-events';
 
-/** The paywall as a sheet, opened from the Me screen's Ante Pro row. */
+/** The paywall as a full page, opened with `openPaywall` from wherever Pro is missing. */
 export default function ProScreen() {
   const navigation = useNavigation();
+  const params = useLocalSearchParams<{ source?: string }>();
+  const source = parseSource(params.source);
 
   const dismiss = () => {
-    // The sheet is swipe-dismissable; if it is already gone, `goBack` would
-    // pop the screen underneath instead.
+    // A double close must not pop the screen underneath too.
     if (navigation.isFocused()) {
       navigation.goBack();
     }
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.sheet} alwaysBounceVertical={false}>
-      <ProPaywall
-        source="pro_sheet"
-        onDismiss={dismiss}
-        onFinished={(outcome) => {
-          dismiss();
-          if (outcome === 'purchased') {
-            showToast('Welcome to Ante Pro', 'Your subscription is active.', 'success');
-          } else {
-            showToast('Subscription restored', 'Ante Pro is active on this device.', 'success');
-          }
-        }}
-      />
-    </ScrollView>
+    <ProPaywallScreen
+      source={source}
+      onClose={dismiss}
+      onFinished={(outcome) => {
+        dismiss();
+        if (outcome === 'purchased') {
+          showToast('Welcome to Ante Pro', 'Your subscription is active.', 'success');
+        } else {
+          showToast('Subscription restored', 'Ante Pro is active on this device.', 'success');
+        }
+      }}
+    />
   );
 }
 
-const styles = StyleSheet.create({
-  sheet: {
-    paddingTop: Spacing.four,
-    paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.five,
-  },
-});
+function parseSource(value: string | undefined): Exclude<PaywallSource, 'onboarding'> {
+  const known = PAYWALL_SOURCES.find((source) => source === value);
+  return known === undefined || known === 'onboarding' ? 'me' : known;
+}
