@@ -79,19 +79,17 @@ export function draftProofMethod(
   return draft.kind === 'habit' ? draft.proofMethod : 'photo';
 }
 
-/** Money unless it can't be had here; then a lockout for a habit, and their word for a goal. */
-export function defaultStakeKind(kind: CommitmentKind, allowMoney: boolean): StakeKind {
-  if (allowMoney) return 'money';
-  return kind === 'habit' ? 'lockout' : 'none';
+/** Money unless it can't be had here; then a friend who hears about a miss. */
+export function defaultStakeKind(allowMoney: boolean): StakeKind {
+  return allowMoney ? 'money' : 'friend';
 }
 
 /** The stake fields of a fresh draft. */
 export function freshStake(
-  kind: CommitmentKind,
   allowMoney: boolean,
 ): Pick<CommitmentDraft, 'stakeKind' | 'amountCents' | 'card' | 'friend' | 'lockoutDays'> {
   return {
-    stakeKind: defaultStakeKind(kind, allowMoney),
+    stakeKind: defaultStakeKind(allowMoney),
     amountCents: DEFAULT_STAKE_CENTS,
     card: null,
     friend: EMPTY_FRIEND,
@@ -165,7 +163,7 @@ export function upgradeDraft(draft: CommitmentDraft): CommitmentDraft {
   // Stored as JSON by an older build, so any of the stake fields may be missing.
   const stored = draft as Partial<CommitmentDraft> & Pick<CommitmentDraft, 'kind'>;
   const legacyAmount = stored.amountCents as number | null | undefined;
-  const fresh = freshStake(stored.kind, false);
+  const fresh = freshStake(false);
   return {
     ...draft,
     stakeKind: stored.stakeKind ?? (legacyAmount == null ? fresh.stakeKind : 'money'),

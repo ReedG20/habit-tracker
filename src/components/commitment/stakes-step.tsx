@@ -6,6 +6,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { friendName, proofAction } from './contract-text';
 import {
   cardForStake,
+  defaultStakeKind,
   isFriendComplete,
   lockoutLabel,
   reuseForStake,
@@ -91,9 +92,9 @@ export function StakesStep({
   // Money picked where it can't be had: fall back to the next best thing.
   useEffect(() => {
     if (draft.stakeKind === 'money' && moneyBlocked !== null) {
-      onChange({ stakeKind: draft.kind === 'habit' ? 'lockout' : 'friend' });
+      onChange({ stakeKind: defaultStakeKind(false) });
     }
-  }, [draft.stakeKind, draft.kind, moneyBlocked, onChange]);
+  }, [draft.stakeKind, moneyBlocked, onChange]);
 
   // Keep the amount under what the cap leaves.
   useEffect(() => {
