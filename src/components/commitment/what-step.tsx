@@ -68,6 +68,8 @@ export function WhatStep({
     ) {
       onChange({ proofMethod: result.bestMethod });
     }
+    // The icon follows the name until the user picks one themselves.
+    if (draft.iconChosen !== true) onChange({ icon: result.icon ?? undefined });
     wording.dismiss();
     onPhaseChange('proof');
   };

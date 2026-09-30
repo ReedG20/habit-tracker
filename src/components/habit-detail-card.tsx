@@ -9,11 +9,11 @@ import { Icon } from './icon';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
+import { commitmentIcon } from '@/constants/commitment-icons';
 import {
   Clock01Icon,
   CoinsDollarIcon,
   FlameIcon,
-  HabitIcon,
   LockKeyholeIcon,
   RepeatIcon,
   Tick02Icon,
@@ -64,7 +64,11 @@ export function HabitDetailCard({ habit, history, paused = false, now }: HabitDe
           onPress={open}
           style={({ pressed }) => [styles.main, pressed && styles.pressed]}>
           <View style={[styles.habitIcon, { backgroundColor: theme.background }]}>
-            <Icon icon={HabitIcon} size={26} themeColor={logged ? 'textSecondary' : 'text'} />
+            <Icon
+              icon={commitmentIcon(habit.icon, 'habit')}
+              size={26}
+              themeColor={logged ? 'textSecondary' : 'text'}
+            />
           </View>
           <View style={styles.body}>
             {ending === null ? null : <EndingKicker ending={ending} quiet={logged} />}

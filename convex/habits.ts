@@ -4,10 +4,12 @@ import { ConvexError, v } from 'convex/values';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
+import { newIconFields, repickIconOnRename, requireNewIcon } from './commitmentIcons';
 import { frozenDaysBetween } from './freezes';
 import { friendInputValidator, resolveFriend } from './friends';
 import { getCurrentUserOrNull } from './lib/auth';
 import { authedAction, authedMutation, authedQuery } from './lib/customFunctions';
+import { requireCommitmentIcon } from './lib/commitmentIcons';
 import { requireCommitmentText } from './lib/commitmentText';
 import {
   countThisWeek,
@@ -53,6 +55,8 @@ const habitValidator = v.object({
   brokenAt: v.optional(v.number()),
   proofMethod: v.optional(proofMethodValidator),
   timerMinutes: v.optional(v.number()),
+  icon: v.optional(v.string()),
+  iconChosen: v.optional(v.boolean()),
 });
 
 /**
@@ -332,6 +336,7 @@ const newHabitFields = {
   proofMethod: v.optional(proofMethodValidator),
   /** Required for a timer habit, and only for one. */
   timerMinutes: v.optional(v.number()),
+  ...newIconFields,
 };
 
 type NewHabitArgs = {
@@ -340,6 +345,8 @@ type NewHabitArgs = {
   timesPerWeek?: number;
   proofMethod?: ProofMethod;
   timerMinutes?: number;
+  icon?: string;
+  iconChosen?: boolean;
 };
 
 type ValidHabitFields = {
@@ -348,6 +355,8 @@ type ValidHabitFields = {
   timesPerWeek: number;
   proofMethod: ProofMethod;
   timerMinutes?: number;
+  icon?: string;
+  iconChosen?: true;
 };
 
 async function requireNewHabit(
@@ -363,7 +372,13 @@ async function requireNewHabit(
     throw new ConvexError('A habit is due 1 to 7 days a week');
   }
   const proof = requireProofSettings(args, devOverridesEnabled());
-  return { title: args.title, description: args.description, timesPerWeek, ...proof };
+  return {
+    title: args.title,
+    description: args.description,
+    timesPerWeek,
+    ...proof,
+    ...requireNewIcon(args),
+  };
 }
 
 async function insertHabit(
@@ -385,6 +400,8 @@ async function insertHabit(
     timesPerWeek: args.timesPerWeek,
     proofMethod: args.proofMethod,
     timerMinutes: args.timerMinutes,
+    icon: args.icon,
+    iconChosen: args.iconChosen,
     order,
     startDay: user.timeZone === undefined ? undefined : localDay(Date.now(), user.timeZone),
   });
@@ -454,6 +471,8 @@ export const createStaked = authedAction({
       timesPerWeek: args.timesPerWeek,
       proofMethod: args.proofMethod,
       timerMinutes: args.timerMinutes,
+      icon: args.icon,
+      iconChosen: args.iconChosen,
       ...card,
     });
     return habitId;
@@ -482,6 +501,8 @@ export const insertStaked = internalMutation({
       timesPerWeek,
       proofMethod,
       timerMinutes,
+      icon,
+      iconChosen,
       ...card
     } = args;
     const fields = await requireNewHabit(ctx, user, {
@@ -490,6 +511,8 @@ export const insertStaked = internalMutation({
       timesPerWeek,
       proofMethod,
       timerMinutes,
+      icon,
+      iconChosen,
     });
     const habit = await insertHabit(ctx, user, fields);
     // Checks the cap and replays; throwing here rolls the habit back with it.
@@ -601,12 +624,15 @@ export const update = authedMutation({
     title: v.optional(v.string()),
     // `null` clears the description; omitting it leaves the stored value alone.
     description: v.optional(v.union(v.string(), v.null())),
+    /** Picked by hand, so it sticks through later renames. */
+    icon: v.optional(v.string()),
   },
   returns: v.null(),
   handler: async (ctx, args): Promise<null> => {
     const habit = await requireOwnedHabit(ctx, args.habitId);
     await requireUnlocked(ctx, ctx.user._id);
     requireCommitmentText(args.title ?? habit.title, args.description);
+    requireCommitmentIcon(args.icon);
 
     // `patch` removes fields set to `undefined`, so only send what was provided.
     const fields: Partial<Doc<'habits'>> = {};
@@ -614,10 +640,15 @@ export const update = authedMutation({
     if (args.description !== undefined) {
       fields.description = args.description ?? undefined;
     }
+    if (args.icon !== undefined) {
+      fields.icon = args.icon;
+      fields.iconChosen = true;
+    }
 
     if (Object.keys(fields).length > 0) {
       await ctx.db.patch('habits', args.habitId, fields);
     }
+    await repickIconOnRename(ctx, { kind: 'habit', id: habit._id }, habit, args);
 
     return null;
   },

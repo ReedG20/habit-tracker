@@ -147,6 +147,12 @@ function RootNavigator() {
       <Stack.Protected guard={!isAuthenticated && !onboarding}>
         <Stack.Screen name="(auth)" />
       </Stack.Protected>
+
+      {/* Unguarded: onboarding's first commitment picks an icon before there's an account. */}
+      <Stack.Screen
+        name="icon-picker"
+        options={{ ...sheetScreenOptions, sheetAllowedDetents: [0.6, 1] }}
+      />
     </Stack>
   );
 }

@@ -7,8 +7,16 @@ import { StepLayout } from './step-layout';
 
 import { ActionButton } from '@/components/action-button';
 import { Countdown } from '@/components/countdown';
+import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
-import { CardRadius, ScreenHeadingTypography, Spacing } from '@/constants/theme';
+import { commitmentIcon } from '@/constants/commitment-icons';
+import {
+  ActionCardRadius,
+  CardRadius,
+  ControlHeight,
+  ScreenHeadingTypography,
+  Spacing,
+} from '@/constants/theme';
 import { DAILY, frequencyLabel } from '@/convex/lib/frequency';
 import { useTheme } from '@/hooks/use-theme';
 import { formatDueAt } from '@/lib/dates';
@@ -36,7 +44,14 @@ export function LockedIn({ draft, onDone, title = 'It’s on.', note }: LockedIn
       </ThemedText>
 
       <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
-        <Row label={draft.kind === 'habit' ? 'Habit' : 'Goal'} value={draft.title.trim()} />
+        <View style={styles.titleRow}>
+          <View style={[styles.iconTile, { backgroundColor: theme.background }]}>
+            <Icon icon={commitmentIcon(draft.icon, draft.kind)} size={26} />
+          </View>
+          <View style={styles.titleText}>
+            <Row label={draft.kind === 'habit' ? 'Habit' : 'Goal'} value={draft.title.trim()} />
+          </View>
+        </View>
         <Row label="Proof" value={proofSummary(draft)} />
         {draft.kind === 'goal' ? (
           <View style={styles.row}>
@@ -112,5 +127,21 @@ const styles = StyleSheet.create({
   },
   row: {
     gap: Spacing.half,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+  },
+  // The tile the cards show it with.
+  iconTile: {
+    width: ControlHeight,
+    height: ControlHeight,
+    borderRadius: ActionCardRadius - Spacing.three,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  titleText: {
+    flex: 1,
   },
 });
