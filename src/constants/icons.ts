@@ -11,6 +11,7 @@ import Alert02Icon from '@hugeicons/core-free-icons/Alert02Icon';
 import AppleIcon from '@hugeicons/core-free-icons/AppleIcon';
 import ArrowLeft01Icon from '@hugeicons/core-free-icons/ArrowLeft01Icon';
 import ArrowRight01Icon from '@hugeicons/core-free-icons/ArrowRight01Icon';
+import ArrowUpDoubleIcon from '@hugeicons/core-free-icons/ArrowUpDoubleIcon';
 import Book02Icon from '@hugeicons/core-free-icons/Book02Icon';
 import BrainIcon from '@hugeicons/core-free-icons/BrainIcon';
 import Calendar03Icon from '@hugeicons/core-free-icons/Calendar03Icon';
@@ -67,6 +68,7 @@ export {
   AppleIcon,
   ArrowLeft01Icon,
   ArrowRight01Icon,
+  ArrowUpDoubleIcon,
   Book02Icon,
   BrainIcon,
   Calendar03Icon,

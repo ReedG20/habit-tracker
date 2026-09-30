@@ -45,6 +45,18 @@ export type AnalyticsEvents = {
   /** One of the name check's proof ideas put in the proof field. */
   'proof idea picked': { kind: CommitmentKind; method: ProofMethod };
   'commitment restarted': { stake_kind: StakeKind; same_stakes: boolean };
+  /** Upped the ante on a running commitment (`raises.ts`). Cents are 0 for anything but money. */
+  'stakes raised': {
+    kind: CommitmentKind;
+    from_kind: StakeKind;
+    to_kind: StakeKind;
+    from_cents: number;
+    to_cents: number;
+    source: 'nudge' | 'detail';
+  };
+  /** The one-time Today card offering money on the onboarding commitment. */
+  'raise nudge shown': { kind: CommitmentKind; stake_kind: StakeKind };
+  'raise nudge dismissed': { kind: CommitmentKind; stake_kind: StakeKind };
   'commitment deleted': { kind: CommitmentKind };
   /** A staked habit given its notice (`habits.remove` scheduled it), or that notice taken back. */
   'habit ending started': { notice_days: number; stake_kind: StakeKind };
@@ -113,6 +125,7 @@ export type PaywallSource =
   | 'onboarding'
   | 'new'
   | 'restart'
+  | 'raise'
   | 'daily'
   | 'today_card'
   | 'habit_card'
@@ -124,6 +137,7 @@ export const PAYWALL_SOURCES: readonly PaywallSource[] = [
   'onboarding',
   'new',
   'restart',
+  'raise',
   'daily',
   'today_card',
   'habit_card',

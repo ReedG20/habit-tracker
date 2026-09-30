@@ -25,10 +25,14 @@ import { formatCents } from '@/lib/money';
 export type LockedInProps = {
   draft: CommitmentDraft;
   onDone: () => void;
+  /** "It's on." unless given: a raise says so. */
+  title?: string;
+  /** The handwritten aside under the card, when the usual one doesn't fit. */
+  note?: string;
 };
 
 /** The confirmation after locking in: what was just agreed to, in one card. */
-export function LockedIn({ draft, onDone }: LockedInProps) {
+export function LockedIn({ draft, onDone, title = 'It’s on.', note }: LockedInProps) {
   const theme = useTheme();
   const daily = draft.timesPerWeek >= DAILY;
   const stakes = stakesLine(draft, daily);
@@ -36,7 +40,7 @@ export function LockedIn({ draft, onDone }: LockedInProps) {
   return (
     <StepLayout footer={<ActionButton label="Done" variant="primary" fill onPress={onDone} />}>
       <ThemedText style={styles.title} themeColor="text">
-        It’s on.
+        {title}
       </ThemedText>
 
       <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
@@ -71,11 +75,12 @@ export function LockedIn({ draft, onDone }: LockedInProps) {
       </View>
 
       <Note>
-        {draft.kind === 'goal'
-          ? 'clock’s running.'
-          : daily
-            ? 'day one starts now.'
-            : 'week one starts now.'}
+        {note ??
+          (draft.kind === 'goal'
+            ? 'clock’s running.'
+            : daily
+              ? 'day one starts now.'
+              : 'week one starts now.')}
       </Note>
     </StepLayout>
   );

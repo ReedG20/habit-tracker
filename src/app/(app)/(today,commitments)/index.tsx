@@ -6,6 +6,7 @@ import { GoalCard } from '@/components/goal-card';
 import { HabitCard } from '@/components/habit-card';
 import { ProLockCard } from '@/components/pro-lock-card';
 import { ProLockHero } from '@/components/pro-lock-hero';
+import { RaiseNudge, useRaiseNudge } from '@/components/raise/raise-nudge';
 import { NotificationsOffBanner } from '@/components/reminders/notifications-off-banner';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
@@ -37,6 +38,7 @@ export default function TodayScreen() {
     habits && goals ? groupIntoHomeSections(habits, goals, today, now, { paused }) : undefined;
   // The first day is free; the hero must not warn about a skip on it.
   const accountableFrom = useQuery(api.lockouts.accountableFrom);
+  const raiseNudge = useRaiseNudge(now);
   const freeze = useQuery(api.freezes.current);
   const moment =
     habits && goals && accountableFrom !== undefined && freeze !== undefined
@@ -96,13 +98,18 @@ export default function TodayScreen() {
       </View>
 
       <View style={styles.sections}>
-        {/* Paused habits can't lock anything, so only goals are worth the ask. */}
-        <NotificationsOffBanner
-          habits={paused && habits !== undefined ? [] : habits}
-          goals={goals}
-          today={today}
-          now={now}
-        />
+        {/* One card at a time: the raise offer only runs a week, notifications come after. */}
+        {raiseNudge !== null ? (
+          <RaiseNudge candidate={raiseNudge} />
+        ) : (
+          // Paused habits can't lock anything, so only goals are worth the ask.
+          <NotificationsOffBanner
+            habits={paused && habits !== undefined ? [] : habits}
+            goals={goals}
+            today={today}
+            now={now}
+          />
+        )}
 
         {/* Without Pro the card above already says how to start. */}
         {sections?.length === 0 && !paused ? (
