@@ -61,12 +61,26 @@ export function endingStatus(habit: EndingHabit, today: string): EndingStatus | 
   return { lastDay, daysLeft, finished, label };
 }
 
-/** What the notice asks for: "Log it every day through Tue, Oct 7." */
-export function noticeRequirement(habit: Pick<HabitWithProgress, 'timesPerWeek'>, lastDay: string) {
+/**
+ * What the notice asks for, as concretely as it can: "Log it every day
+ * through Tue, Oct 7.", "Log it 2 more times by Sun, Oct 4.", or, with a
+ * week still to come, "Hit 3 this week and 3 next, through Sun, Oct 11."
+ */
+export function noticeRequirement(
+  habit: Pick<HabitWithProgress, 'timesPerWeek' | 'weekCount'>,
+  lastDay: string,
+  today: string,
+): string {
   const through = formatLastDay(lastDay);
-  return isDaily(habit)
-    ? `Log it every day through ${through}.`
-    : `Hit ${targetPerWeek(habit)} a week through ${through}.`;
+  if (isDaily(habit)) return `Log it every day through ${through}.`;
+
+  const target = targetPerWeek(habit);
+  if (weekEnd(today) < lastDay)
+    return `Hit ${target} this week and ${target} next, through ${through}.`;
+
+  const left = target - habit.weekCount;
+  if (left <= 0) return `This week’s ${target} are in. Nothing more is due before ${through}.`;
+  return `Log it ${left === 1 ? 'once more' : `${left} more times`} by ${through}.`;
 }
 
 /** What a miss during the notice costs, as "$20 is charged". `null` when nothing is on the line. */

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { endingStatus, noticeKeeps, noticeMissCost } from './ending';
+import { endingStatus, noticeKeeps, noticeMissCost, noticeRequirement } from './ending';
 
 import type { StakeView } from '@/convex/lib/stakeRules';
 
@@ -59,6 +59,24 @@ describe('notice copy', () => {
   test('names what a miss costs and what finishing keeps', () => {
     expect(noticeMissCost(money)).toBe('$20 is charged');
     expect(noticeKeeps(money)).toBe('your $20 is released');
+  });
+
+  test('asks for exactly what is left', () => {
+    expect(noticeRequirement(daily, '2026-09-28', '2026-09-22')).toMatch(
+      /^Log it every day through /,
+    );
+    expect(noticeRequirement({ ...weekly, weekCount: 1 }, '2026-09-27', '2026-09-23')).toMatch(
+      /^Log it 2 more times by /,
+    );
+    expect(noticeRequirement({ ...weekly, weekCount: 2 }, '2026-09-27', '2026-09-23')).toMatch(
+      /^Log it once more by /,
+    );
+    expect(noticeRequirement({ ...weekly, weekCount: 3 }, '2026-09-27', '2026-09-23')).toMatch(
+      /^This week’s 3 are in\./,
+    );
+    expect(noticeRequirement(weekly, '2026-10-04', '2026-09-26')).toMatch(
+      /^Hit 3 this week and 3 next, through /,
+    );
   });
 
   test('says nothing about a miss when nothing is on the line', () => {

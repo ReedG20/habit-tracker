@@ -43,7 +43,7 @@ export function EndingBanner({ habit, today, onKeep }: EndingBannerProps) {
   const heading = status.finished ? 'Last one’s in' : status.label;
   const body = status.finished
     ? `It wraps up ${status.daysLeft <= 1 ? 'tonight' : `after ${lastDay}`}, and ${keeps}.`
-    : `${noticeRequirement(habit, status.lastDay)} ${
+    : `${noticeRequirement(habit, status.lastDay, today)} ${
         miss === null ? '' : `Miss before then and ${miss}.`
       }`.trim();
 
@@ -69,7 +69,7 @@ export function EndingBanner({ habit, today, onKeep }: EndingBannerProps) {
         {body}
       </ThemedText>
 
-      {status.daysLeft > 0 ? (
+      {!status.finished ? (
         <NoticePips habit={habit} today={today} lastDay={status.lastDay} />
       ) : null}
 

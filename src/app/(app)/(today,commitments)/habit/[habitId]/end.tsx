@@ -76,9 +76,9 @@ function EndHabitForm({
   };
 
   const steps = [
-    noticeRequirement(habit, lastDay),
+    noticeRequirement(habit, lastDay, today),
     ...(miss === null ? [] : [`Miss before then and ${miss}, same as always.`]),
-    `Make it to the end and ${noticeKeeps(habit.stakeView)}. Then it wraps up, history and all.`,
+    `Make it to the end and ${noticeKeeps(habit.stakeView)}. Then it’s cleared away with its history.`,
   ];
 
   return (
@@ -86,14 +86,15 @@ function EndHabitForm({
       <ScrollView contentContainerStyle={styles.content} alwaysBounceVertical={false}>
         <View style={styles.header}>
           <ThemedText type="smallSemibold" themeColor="textSecondary" numberOfLines={1}>
-            Ending {habit.title}
+            Ending “{habit.title}”
           </ThemedText>
           <ThemedText style={styles.title} themeColor="text">
-            It ends after {last}.
+            Ends after {last}.
           </ThemedText>
           <ThemedText themeColor="textSecondary">
-            {onTheLine(habit.stakeView)}, so it doesn’t stop the moment you tap. It keeps counting{' '}
-            {isDaily(habit) ? 'for one more week' : `through ${last}`}, stakes and all.
+            {onTheLine(habit.stakeView)}, so ending takes{' '}
+            {isDaily(habit) ? 'a week’s notice' : 'about a week’s notice'}. It still counts until
+            then.
           </ThemedText>
         </View>
 

@@ -58,7 +58,7 @@ export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: Ha
           {deadlineAt !== undefined ? (
             <Countdown deadlineAt={deadlineAt} />
           ) : ending !== null ? (
-            <EndingKicker ending={ending} />
+            <EndingKicker ending={ending} quiet={logged} />
           ) : null}
           <ThemedText numberOfLines={1} themeColor={logged ? 'textSecondary' : 'text'}>
             {habit.title}
@@ -99,7 +99,9 @@ export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: Ha
               </ThemedText>
             ) : null}
             {ending !== null && deadlineAt !== undefined ? (
-              <ThemedText type="small" themeColor={ending.finished ? 'textSecondary' : 'accent'}>
+              <ThemedText
+                type="small"
+                themeColor={ending.finished || logged ? 'textSecondary' : 'accent'}>
                 {ending.label}
               </ThemedText>
             ) : null}
@@ -157,9 +159,12 @@ export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: Ha
   );
 }
 
-/** "Ending · 5 days left" with an hourglass; quiet once the last log is in. */
-function EndingKicker({ ending }: { ending: EndingStatus }) {
-  const tone = ending.finished ? 'textSecondary' : 'accent';
+/**
+ * "Ending · 5 days left" with an hourglass. Quiet once today is logged, like
+ * the rest of a logged card, and a check once the last log is in.
+ */
+function EndingKicker({ ending, quiet }: { ending: EndingStatus; quiet: boolean }) {
+  const tone = ending.finished || quiet ? 'textSecondary' : 'accent';
   return (
     <View style={styles.kicker}>
       <Icon
