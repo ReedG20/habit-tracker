@@ -4,20 +4,24 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { DetailHeader } from '@/components/detail-header';
 import { EmptyState } from '@/components/empty-state';
+import { EndingBanner } from '@/components/ending-banner';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { showToast } from '@/components/toast';
 import { ThemedView } from '@/components/themed-view';
-import { CheckmarkCircle02Icon } from '@/constants/icons';
+import { CheckmarkCircle02Icon, Flag02Icon } from '@/constants/icons';
 import { CardRadius, Fonts, ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
-import { describeEnding, isDaily } from '@/data/habits';
+import { daysBetween } from '@/convex/lib/days';
+import { isDaily } from '@/data/habits';
 import { useTheme } from '@/hooks/use-theme';
 import { track } from '@/lib/analytics';
 import { confirmDestructive } from '@/lib/confirm';
 import { formatCompletedAt, todayKey } from '@/lib/dates';
 import { useForceDelete } from '@/lib/dev-tools';
+import { successHaptic } from '@/lib/haptics';
+import { userErrorMessage } from '@/lib/user-errors';
 
 const PAGE_SIZE = 30;
 
@@ -30,7 +34,12 @@ export default function HabitDetailScreen() {
   const habit = useQuery(api.habits.get, { habitId });
   const stats = useQuery(api.habits.stats, habit === null ? 'skip' : { habitId, today });
   const remove = useMutation(api.habits.remove);
+  const keepGoing = useMutation(api.habits.keepGoing);
   const forceDelete = useForceDelete();
+  // Usually cached from the list behind this screen; it carries today's progress.
+  const progress = useQuery(api.habits.list, { today })?.find((item) => item._id === habitId);
+  // What ending it would do today, so the button can say so before it's tapped.
+  const terms = useQuery(api.habits.endingTerms, habit === null ? 'skip' : { habitId, today });
 
   const completions = usePaginatedQuery(
     api.habits.listCompletions,
@@ -60,49 +69,75 @@ export default function HabitDetailScreen() {
     );
   }
 
+  const ending = habit.endsAfter !== undefined;
+  const givesNotice = !forceDelete && terms?.kind === 'notice';
+
+  const deleteNow = (message: string) =>
+    confirmDestructive({
+      title: 'Delete habit',
+      message,
+      confirmLabel: 'Delete',
+      onConfirm: () => {
+        // Leave first: the screen's queries resolve to null once the row is gone.
+        router.back();
+        remove({ habitId, force: forceDelete || undefined })
+          .then((result) => {
+            track('commitment deleted', { kind: 'habit' });
+            // The terms changed under the tap (a stake armed since): it gave notice instead.
+            if (result === 'scheduled') {
+              showToast(
+                `${habit.title} is ending`,
+                'It keeps counting for a week. Open it to see.',
+              );
+            }
+          })
+          .catch((error: unknown) => {
+            showToast('Couldn’t delete it', userErrorMessage(error, 'Try again in a moment.'));
+          });
+      },
+    });
+
+  const onDelete = () => {
+    if (forceDelete) {
+      deleteNow('Force delete is on: it goes right away, with its entire completion history.');
+    } else if (terms?.kind === 'notice') {
+      router.push(`/habit/${habitId}/end`);
+    } else if (terms?.kind === 'now') {
+      deleteNow(
+        terms.reason === 'not-started'
+          ? 'It hasn’t started counting yet, so it goes right away, with its whole history.'
+          : 'Nothing’s on the line, so it goes right away, with its whole history.',
+      );
+    }
+  };
+
+  const keep = () => {
+    const daysLeft = habit.endsAfter === undefined ? 0 : daysBetween(today, habit.endsAfter).length;
+    keepGoing({ habitId })
+      .then(() => {
+        successHaptic();
+        track('habit ending cancelled', { days_left: daysLeft });
+        showToast(`${habit.title} is back on`, 'It’s no longer ending.', 'success');
+      })
+      .catch((error: unknown) => {
+        showToast('Couldn’t keep it', userErrorMessage(error, 'Try again in a moment.'));
+      });
+  };
+
   return (
     <ScreenScrollView>
       <DetailHeader
         title={habit.title}
         description={habit.description}
-        deleteLabel="Delete habit"
+        deleteLabel={givesNotice ? 'End habit' : 'Delete habit'}
+        deleteText={givesNotice ? 'End' : 'Delete'}
+        deleteIcon={givesNotice ? Flag02Icon : undefined}
         onEdit={() => router.push(`/habit/${habitId}/edit`)}
-        onDelete={() =>
-          confirmDestructive({
-            title: 'Delete habit',
-            message: forceDelete
-              ? 'Force delete is on: it goes right away, with its entire completion history.'
-              : isDaily(habit)
-                ? 'If it isn’t logged today, you still owe today: it stays until tonight, then goes with its entire history.'
-                : 'If this week’s target isn’t met yet, you still owe this week: it stays until Sunday, then goes with its entire history.',
-            confirmLabel: 'Delete',
-            onConfirm: () => {
-              // Leave first: the screen's queries resolve to null once the row is gone.
-              router.back();
-              remove({ habitId, force: forceDelete || undefined })
-                .then((result) => {
-                  track('commitment deleted', { kind: 'habit' });
-                  if (result === 'scheduled') {
-                    showToast(
-                      `${habit.title} is ending`,
-                      isDaily(habit)
-                        ? 'Log it one last time today.'
-                        : 'Finish this week, and it goes after Sunday.',
-                    );
-                  }
-                })
-                .catch((error: unknown) => {
-                  console.error('Failed to delete the habit', error);
-                });
-            },
-          })
-        }
+        onDelete={ending ? undefined : onDelete}
       />
 
-      {habit.endsAfter !== undefined ? (
-        <ThemedText type="smallSemibold" themeColor="accent">
-          {describeEnding(habit, today)}. It still counts until then.
-        </ThemedText>
+      {ending && progress !== undefined ? (
+        <EndingBanner habit={progress} today={today} onKeep={keep} />
       ) : null}
 
       <View style={styles.statRow}>

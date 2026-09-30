@@ -1,3 +1,4 @@
+import type { IconSvgElement } from '@hugeicons/react-native';
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -12,8 +13,12 @@ export type DetailHeaderProps = {
   title: string;
   description?: string;
   onEdit: () => void;
-  onDelete: () => void;
+  /** Leave out to hide the button (a habit already ending has nothing left to end). */
+  onDelete?: () => void;
   deleteLabel: string;
+  /** The button's visible text and icon: "End" with a flag for a habit that gives notice. */
+  deleteText?: string;
+  deleteIcon?: IconSvgElement;
 };
 
 /** Back row, heading, and the edit/delete pair shared by both detail screens. */
@@ -23,6 +28,8 @@ export function DetailHeader({
   onEdit,
   onDelete,
   deleteLabel,
+  deleteText = 'Delete',
+  deleteIcon = Delete02Icon,
 }: DetailHeaderProps) {
   return (
     <View style={styles.header}>
@@ -52,14 +59,16 @@ export function DetailHeader({
           size="small"
           onPress={onEdit}
         />
-        <ActionButton
-          label="Delete"
-          accessibilityLabel={deleteLabel}
-          icon={Delete02Icon}
-          variant="destructive"
-          size="small"
-          onPress={onDelete}
-        />
+        {onDelete === undefined ? null : (
+          <ActionButton
+            label={deleteText}
+            accessibilityLabel={deleteLabel}
+            icon={deleteIcon}
+            variant="destructive"
+            size="small"
+            onPress={onDelete}
+          />
+        )}
       </View>
     </View>
   );

@@ -7,11 +7,12 @@ import { Icon } from './icon';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
-import { FlameIcon, HabitIcon } from '@/constants/icons';
+import { CheckmarkCircle02Icon, FlameIcon, HabitIcon, HourglassIcon } from '@/constants/icons';
 import { PROOF_METHODS, proofMethodOf, proveLabel } from '@/constants/proof-methods';
 import { ActionCardRadius, ControlHeight, Spacing } from '@/constants/theme';
 import { targetPerWeek } from '@/convex/lib/frequency';
-import { describeEnding, isDaily, isWeekDone, type HabitWithProgress } from '@/data/habits';
+import { endingStatus, type EndingStatus } from '@/data/ending';
+import { isDaily, isWeekDone, type HabitWithProgress } from '@/data/habits';
 import { stakeChip } from '@/data/stakes';
 import { useTheme } from '@/hooks/use-theme';
 import { todayKey } from '@/lib/dates';
@@ -35,7 +36,7 @@ export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: Ha
   const weekDone = isWeekDone(habit);
   const logged = habit.completedToday || weekDone;
   const verifying = !logged && habit.verification?.status === 'pending';
-  const ending = describeEnding(habit, todayKey());
+  const ending = endingStatus(habit, todayKey());
   const broken = habit.brokenAt !== undefined;
   // A friend who opted out left the habit on the user's word until they pick someone.
   const friendGone = habit.stakeView?.kind === 'friend' && habit.stakeView.status === 'void';
@@ -53,7 +54,12 @@ export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: Ha
         </View>
 
         <View style={styles.body}>
-          {deadlineAt !== undefined ? <Countdown deadlineAt={deadlineAt} /> : null}
+          {/* An urgent deadline wins the slot above the title; the notice then sits in the meta row. */}
+          {deadlineAt !== undefined ? (
+            <Countdown deadlineAt={deadlineAt} />
+          ) : ending !== null ? (
+            <EndingKicker ending={ending} />
+          ) : null}
           <ThemedText numberOfLines={1} themeColor={logged ? 'textSecondary' : 'text'}>
             {habit.title}
           </ThemedText>
@@ -92,11 +98,11 @@ export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: Ha
                 Pick a new friend
               </ThemedText>
             ) : null}
-            {ending === null ? null : (
-              <ThemedText type="small" themeColor="accent">
-                {ending}
+            {ending !== null && deadlineAt !== undefined ? (
+              <ThemedText type="small" themeColor={ending.finished ? 'textSecondary' : 'accent'}>
+                {ending.label}
               </ThemedText>
-            )}
+            ) : null}
           </View>
         </View>
       </Pressable>
@@ -151,7 +157,30 @@ export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: Ha
   );
 }
 
+/** "Ending · 5 days left" with an hourglass; quiet once the last log is in. */
+function EndingKicker({ ending }: { ending: EndingStatus }) {
+  const tone = ending.finished ? 'textSecondary' : 'accent';
+  return (
+    <View style={styles.kicker}>
+      <Icon
+        icon={ending.finished ? CheckmarkCircle02Icon : HourglassIcon}
+        size={16}
+        strokeWidth={2}
+        themeColor={tone}
+      />
+      <ThemedText type="smallSemibold" themeColor={tone}>
+        {ending.label}
+      </ThemedText>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  kicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.one,
+  },
   card: {
     flexDirection: 'row',
     alignItems: 'stretch',

@@ -46,6 +46,9 @@ export type AnalyticsEvents = {
   'proof idea picked': { kind: CommitmentKind; method: ProofMethod };
   'commitment restarted': { stake_kind: StakeKind; same_stakes: boolean };
   'commitment deleted': { kind: CommitmentKind };
+  /** A staked habit given its notice (`habits.remove` scheduled it), or that notice taken back. */
+  'habit ending started': { notice_days: number; stake_kind: StakeKind };
+  'habit ending cancelled': { days_left: number };
 
   /** Sent for review; the verdict comes later from the server. */
   'habit checked in':

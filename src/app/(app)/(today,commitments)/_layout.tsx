@@ -25,6 +25,11 @@ export default function CommitmentsLayout({ segment }: { segment: string }) {
       <Stack.Screen name="habit/[habitId]/index" />
       <Stack.Screen name="habit/[habitId]/edit" options={sheetScreenOptions} />
       <Stack.Screen
+        name="habit/[habitId]/end"
+        // Taller than the edit sheet: the notice's terms have to fit without scrolling.
+        options={{ ...sheetScreenOptions, sheetAllowedDetents: [0.8] }}
+      />
+      <Stack.Screen
         name="habit/[habitId]/prove"
         // Proving it is a moment, not a sheet: and a running timer can't be swiped away.
         options={{ presentation: 'fullScreenModal', gestureEnabled: false }}

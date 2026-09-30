@@ -2,7 +2,6 @@ import { describe, expect, test } from 'vitest';
 
 import type { Id } from '../_generated/dataModel';
 import {
-  endOfPeriod,
   findMisses,
   firstCountedDay,
   isOwed,
@@ -149,11 +148,10 @@ describe('findMisses: weekly', () => {
   });
 });
 
-describe('isOwed and endOfPeriod', () => {
+describe('isOwed', () => {
   test('a daily habit is owed until today is logged', () => {
     expect(isOwed(habit(), new Set(), '2026-09-22', '2026-09-01')).toBe(true);
     expect(isOwed(habit(), new Set(['2026-09-22']), '2026-09-22', '2026-09-01')).toBe(false);
-    expect(endOfPeriod(habit(), '2026-09-22')).toBe('2026-09-22');
   });
 
   test('a habit made today owes nothing yet', () => {
@@ -168,7 +166,6 @@ describe('isOwed and endOfPeriod', () => {
     expect(isOwed(weekly, new Set(['2026-09-21', '2026-09-22']), '2026-09-23', '2026-09-01')).toBe(
       false,
     );
-    expect(endOfPeriod(weekly, '2026-09-23')).toBe('2026-09-27');
   });
 
   test('firstCountedDay is the later of the day after the start and accountableFrom', () => {

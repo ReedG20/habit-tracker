@@ -130,6 +130,7 @@ export async function checkUser(ctx: MutationCtx, user: Doc<'users'>, now: numbe
 
   const byId = new Map(habits.map((habit) => [habit._id, habit]));
   const lockouts: Extract<Doc<'stakes'>, { kind: 'lockout' }>[] = [];
+  const broke = new Set<Id<'habits'>>();
   for (const miss of misses) {
     const habit = byId.get(miss.habitId);
     if (habit?.stakeId === undefined) continue;
@@ -140,13 +141,16 @@ export async function checkUser(ctx: MutationCtx, user: Doc<'users'>, now: numbe
     const run = await runSnapshot(ctx, habit, stake, miss, frozenDays, timeZone);
     if (!(await loseStake(ctx, stake, now, run))) continue;
     await ctx.db.patch('habits', habit._id, { brokenAt: now });
+    broke.add(habit._id);
     if (stake.kind === 'lockout') lockouts.push({ ...stake, status: 'triggered' });
   }
   await startOrExtendFreeze(ctx, user, lockouts, now);
 
-  // A habit deleted while still owed stays until its last period has been checked.
+  // An ending habit stays until its last day has been checked. One that broke
+  // during its notice goes now: its stake is spent, so nothing is left to see through.
   for (const habit of habits) {
-    if (habit.endsAfter !== undefined && habit.endsAfter <= yesterday) {
+    if (habit.endsAfter === undefined) continue;
+    if (habit.endsAfter <= yesterday || broke.has(habit._id)) {
       await deleteHabit(ctx, habit._id);
     }
   }

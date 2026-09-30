@@ -15,17 +15,16 @@ import {
   streakLength,
   STREAK_WINDOW_DAYS,
   weeklyStreak,
-  weekStart,
 } from './lib/days';
 import { DAILY, isValidTimesPerWeek, targetPerWeek } from './lib/frequency';
 import { requirePro } from './lib/entitlements';
+import { endingPlan, type EndingPlan } from './lib/ending';
 import {
   devOverridesEnabled,
-  endOfPeriod,
-  isOwed,
   localDay,
   requireDevOverrides,
   requireUnlocked,
+  stakesV2Enabled,
 } from './lib/lockout';
 import { touchReminders } from './lib/notify';
 import { proofMethodValidator, requireProofSettings, type ProofMethod } from './lib/proofMethods';
@@ -625,10 +624,53 @@ export const update = authedMutation({
 });
 
 /**
- * Deleting a habit that is still owed (not logged today, or short this week)
- * only schedules it: it has to be done one last time, and the lockout check
- * removes it once that period has been judged. Otherwise quitting on the night
- * it is due would dodge the miss. `force` skips the wait, on dev and preview only.
+ * What ending `habit` on `today` would do (`lib/ending.ts`). Before stakes v2
+ * every habit sat under the re-entry fee lock, so every one counts as staked.
+ * No time zone or accountable day yet means nothing has ever been judged.
+ */
+async function planEnding(
+  ctx: QueryCtx | MutationCtx,
+  user: Doc<'users'>,
+  habit: Doc<'habits'>,
+  today: string | null,
+): Promise<EndingPlan> {
+  if (today === null || user.accountableFrom === undefined) {
+    return { kind: 'now', reason: 'not-started' };
+  }
+  const stake = habit.stakeId === undefined ? null : await ctx.db.get('stakes', habit.stakeId);
+  const stakeLive = !stakesV2Enabled() || (stake !== null && isStakeLive(stake));
+  return endingPlan({ habit, stakeLive, today, accountableFrom: user.accountableFrom });
+}
+
+const endingPlanValidator = v.union(
+  v.object({
+    kind: v.literal('now'),
+    reason: v.union(v.literal('nothing-on-the-line'), v.literal('not-started')),
+  }),
+  v.object({ kind: v.literal('notice'), lastDay: v.string() }),
+);
+
+/**
+ * What `remove` would do if it ran today, so the screen can say so before the
+ * tap. `null` once the habit is gone. Same rule as `remove`, so the two can't
+ * disagree.
+ */
+export const endingTerms = authedQuery({
+  args: { habitId: v.id('habits'), today: v.string() },
+  returns: v.union(endingPlanValidator, v.null()),
+  handler: async (ctx, args): Promise<EndingPlan | null> => {
+    const habit = await getOwnedHabitOrNull(ctx, args.habitId);
+    if (habit === null) return null;
+    return await planEnding(ctx, ctx.user, habit, args.today);
+  },
+});
+
+/**
+ * Ends a habit. With something live on the line it only gives notice
+ * (`lib/ending.ts`): it keeps counting through `endsAfter`, and the nightly
+ * check removes it once that day has been judged. Otherwise quitting on the
+ * night it is due would dodge the miss. `force` skips the wait, on dev and
+ * preview only.
  */
 export const remove = authedMutation({
   args: { habitId: v.id('habits'), force: v.optional(v.boolean()) },
@@ -642,26 +684,41 @@ export const remove = authedMutation({
     } else if (habit.endsAfter !== undefined) {
       return 'scheduled';
     } else {
-      const { timeZone, accountableFrom } = ctx.user;
-      if (timeZone !== undefined && accountableFrom !== undefined) {
-        const today = localDay(Date.now(), timeZone);
-        const completions = await ctx.db
-          .query('habitCompletions')
-          .withIndex('by_habit_and_day', (q) =>
-            q.eq('habitId', args.habitId).gte('day', weekStart(today)).lte('day', today),
-          )
-          .collect();
-        const days = new Set(completions.map((completion) => completion.day));
-
-        if (isOwed(habit, days, today, accountableFrom)) {
-          await ctx.db.patch('habits', args.habitId, { endsAfter: endOfPeriod(habit, today) });
-          return 'scheduled';
-        }
+      const { timeZone } = ctx.user;
+      const today = timeZone === undefined ? null : localDay(Date.now(), timeZone);
+      const plan = await planEnding(ctx, ctx.user, habit, today);
+      if (plan.kind === 'notice') {
+        await ctx.db.patch('habits', args.habitId, { endsAfter: plan.lastDay });
+        return 'scheduled';
       }
     }
 
     await deleteHabit(ctx, args.habitId);
     return 'deleted';
+  },
+});
+
+/**
+ * Takes back an ending: the habit carries on as if it had never been ended.
+ * Refused once its last day has passed, since the days after it were never
+ * going to be judged and must not start counting behind the user's back.
+ */
+export const keepGoing = authedMutation({
+  args: { habitId: v.id('habits') },
+  returns: v.null(),
+  handler: async (ctx, args): Promise<null> => {
+    const habit = await requireOwnedHabit(ctx, args.habitId);
+    await requireUnlocked(ctx, ctx.user._id);
+    if (habit.endsAfter === undefined) return null;
+
+    const { timeZone } = ctx.user;
+    if (timeZone !== undefined && habit.endsAfter < localDay(Date.now(), timeZone)) {
+      throw new ConvexError('This habit has already ended');
+    }
+
+    await ctx.db.patch('habits', args.habitId, { endsAfter: undefined });
+    await touchReminders(ctx, ctx.user._id);
+    return null;
   },
 });
 
