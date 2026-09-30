@@ -7,7 +7,7 @@ import { Icon } from './icon';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
-import { GoalListIcon } from '@/constants/icons';
+import { commitmentIcon } from '@/constants/commitment-icons';
 import { ActionCardRadius, ControlHeight, PillRadius, Spacing } from '@/constants/theme';
 import { COUNTDOWN_WINDOW_MS, isMissed, type GoalWithStatus } from '@/data/goals';
 import { describeGoalStake } from '@/data/stakes';
@@ -43,7 +43,11 @@ export function GoalCard({ goal, now, detailHref, submitHref }: GoalCardProps) {
         onPress={detail === null ? undefined : () => router.push(detail)}
         style={({ pressed }) => [styles.main, pressed && styles.pressed]}>
         <View style={[styles.goalIcon, { backgroundColor: theme.background }]}>
-          <Icon icon={GoalListIcon} size={26} themeColor={over ? 'textSecondary' : 'text'} />
+          <Icon
+            icon={commitmentIcon(goal.icon, 'goal')}
+            size={26}
+            themeColor={over ? 'textSecondary' : 'text'}
+          />
         </View>
 
         <View style={styles.body}>

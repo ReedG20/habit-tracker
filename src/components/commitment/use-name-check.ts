@@ -21,6 +21,7 @@ const OPEN: NameCheckResult = {
   suggestedTitle: null,
   bestMethod: null,
   ideas: { photo: [], location: [], timer: [] },
+  icon: null,
 };
 
 // Module-level, so they outlive the step: Back from the stakes remounts it.

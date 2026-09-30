@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { IconField } from '@/components/commitment/icon-field';
 import { alertRevision, useWordingCheck } from '@/components/commitment/use-wording-check';
 import { FormSheet } from '@/components/form-sheet';
 import { GoalSheetFields, type GoalDraft } from '@/components/goal-sheet-fields';
@@ -35,6 +36,8 @@ function EditGoalForm({ goal }: { goal: Goal }) {
   });
   // Bumped to remount the fields with a suggestion's text.
   const [fieldsKey, setFieldsKey] = useState(0);
+  // Set once an icon is picked in this sheet.
+  const [pickedIcon, setPickedIcon] = useState<string | undefined>(undefined);
   const draftRef = useRef<() => GoalDraft>(() => initial);
   // Wording that is already on the goal, or that the check wrote, needs no second look.
   const vetted = useRef(new Set([`${goal.title.trim()}\n${(goal.description ?? '').trim()}`]));
@@ -70,6 +73,7 @@ function EditGoalForm({ goal }: { goal: Goal }) {
       title,
       description: description.length > 0 ? description : null,
       dueAt: deadlineLocked ? undefined : draft.dueAt,
+      icon: pickedIcon,
     }).catch((error: unknown) => {
       console.error('Failed to update the goal', error);
     });
@@ -81,6 +85,12 @@ function EditGoalForm({ goal }: { goal: Goal }) {
       submitLabel={wording.checking ? 'Checking…' : 'Save changes'}
       submitDisabled={wording.checking}
       onSubmit={() => void save()}>
+      <IconField
+        kind="goal"
+        icon={pickedIcon ?? goal.icon ?? null}
+        chosen={pickedIcon !== undefined || goal.iconChosen === true}
+        onPick={setPickedIcon}
+      />
       <GoalSheetFields
         key={fieldsKey}
         initial={initial}

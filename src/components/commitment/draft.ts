@@ -39,6 +39,12 @@ export type CommitmentDraft = {
   timerMinutes: number;
   /** `wordingSignature` of the last wording that passed the check, so it isn't re-asked. */
   checkedWording?: string;
+  /**
+   * A key from `convex/lib/commitmentIcons.ts`: the name check's pick for the
+   * name, or the user's own once `iconChosen`, which the name check never moves.
+   */
+  icon?: string;
+  iconChosen?: boolean;
   /** Goals only. */
   dueAt: number;
   stakeKind: StakeKind;
@@ -70,6 +76,14 @@ export function proofInput(
   return draft.proofMethod === 'timer'
     ? { proofMethod: 'timer', timerMinutes: draft.timerMinutes }
     : { proofMethod: draft.proofMethod };
+}
+
+/** The icon fields every create call takes; nothing when no icon was picked. */
+export function iconInput(
+  draft: Pick<CommitmentDraft, 'icon' | 'iconChosen'>,
+): { icon: string; iconChosen?: true } | Record<string, never> {
+  if (draft.icon === undefined) return {};
+  return draft.iconChosen === true ? { icon: draft.icon, iconChosen: true } : { icon: draft.icon };
 }
 
 /** A goal is always proved with photos, whatever the habit side of the draft holds. */
