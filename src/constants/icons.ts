@@ -26,12 +26,14 @@ import Delete02Icon from '@hugeicons/core-free-icons/Delete02Icon';
 import Dumbbell01Icon from '@hugeicons/core-free-icons/Dumbbell01Icon';
 import Edit02Icon from '@hugeicons/core-free-icons/Edit02Icon';
 import FavouriteIcon from '@hugeicons/core-free-icons/FavouriteIcon';
+import Flag02Icon from '@hugeicons/core-free-icons/Flag02Icon';
 import FlameIcon from '@hugeicons/core-free-icons/FlameIcon';
 import FlashIcon from '@hugeicons/core-free-icons/FlashIcon';
 import FlashOffIcon from '@hugeicons/core-free-icons/FlashOffIcon';
 import GoalIcon from '@hugeicons/core-free-icons/GoalIcon';
 import GoogleIcon from '@hugeicons/core-free-icons/GoogleIcon';
 import Home01Icon from '@hugeicons/core-free-icons/Home01Icon';
+import HourglassIcon from '@hugeicons/core-free-icons/HourglassIcon';
 import Image01Icon from '@hugeicons/core-free-icons/Image01Icon';
 import Location01Icon from '@hugeicons/core-free-icons/Location01Icon';
 import LocationOffline01Icon from '@hugeicons/core-free-icons/LocationOffline01Icon';
@@ -79,12 +81,14 @@ export {
   Dumbbell01Icon,
   Edit02Icon,
   FavouriteIcon,
+  Flag02Icon,
   FlameIcon,
   FlashIcon,
   FlashOffIcon,
   GoalIcon,
   GoogleIcon,
   Home01Icon,
+  HourglassIcon,
   Image01Icon,
   Location01Icon,
   LocationOffline01Icon,

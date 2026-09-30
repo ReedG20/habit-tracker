@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Countdown } from './countdown';
+import { EndingKicker } from './ending-kicker';
 import { HabitActionButton } from './habit-action-button';
 import { Icon } from './icon';
 import { ThemedText } from './themed-text';
@@ -10,7 +11,8 @@ import { ThemedView } from './themed-view';
 import { FlameIcon, HabitIcon } from '@/constants/icons';
 import { ActionCardRadius, ControlHeight, Spacing } from '@/constants/theme';
 import { targetPerWeek } from '@/convex/lib/frequency';
-import { describeEnding, isDaily, isWeekDone, type HabitWithProgress } from '@/data/habits';
+import { endingStatus } from '@/data/ending';
+import { isDaily, isWeekDone, type HabitWithProgress } from '@/data/habits';
 import { stakeChip } from '@/data/stakes';
 import { useTheme } from '@/hooks/use-theme';
 import { todayKey } from '@/lib/dates';
@@ -34,7 +36,7 @@ export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: Ha
   const daily = isDaily(habit);
   const weekDone = isWeekDone(habit);
   const logged = habit.completedToday || weekDone;
-  const ending = describeEnding(habit, todayKey());
+  const ending = endingStatus(habit, todayKey());
   const broken = habit.brokenAt !== undefined;
   // A friend who opted out left the habit on the user's word until they pick someone.
   const friendGone = habit.stakeView?.kind === 'friend' && habit.stakeView.status === 'void';
@@ -54,7 +56,12 @@ export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: Ha
         </View>
 
         <View style={styles.body}>
-          {deadlineAt !== undefined ? <Countdown deadlineAt={deadlineAt} /> : null}
+          {/* An urgent deadline wins the slot above the title; the notice then sits in the meta row. */}
+          {deadlineAt !== undefined ? (
+            <Countdown deadlineAt={deadlineAt} />
+          ) : ending !== null ? (
+            <EndingKicker ending={ending} quiet={muted} />
+          ) : null}
           <ThemedText numberOfLines={1} themeColor={muted ? 'textSecondary' : 'text'}>
             {habit.title}
           </ThemedText>
@@ -98,11 +105,13 @@ export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: Ha
                 Pick a new friend
               </ThemedText>
             ) : null}
-            {ending === null ? null : (
-              <ThemedText type="small" themeColor="accent">
-                {ending}
+            {ending !== null && deadlineAt !== undefined ? (
+              <ThemedText
+                type="small"
+                themeColor={ending.finished || muted ? 'textSecondary' : 'accent'}>
+                {ending.label}
               </ThemedText>
-            )}
+            ) : null}
           </View>
         </View>
       </Pressable>

@@ -312,6 +312,10 @@ export function whatHappens(draft: CommitmentDraft): string[] {
         ? 'Miss a day'
         : 'End a week short';
   const restart = 'Then the habit waits for you to restart it.';
+  // Stakes can't be walked away from on a bad night: ending gives a week's notice.
+  const exit = daily
+    ? 'Want out later? Ending takes a week’s notice, and it keeps counting till then.'
+    : 'Want out later? Ending takes about a week’s notice, to the nearest Sunday, and it keeps counting till then.';
   const name = friendName(draft);
   const them = name === 'my friend' ? 'them' : name;
   const they = name === 'my friend' ? 'they' : name;
@@ -323,6 +327,7 @@ export function whatHappens(draft: CommitmentDraft): string[] {
             'Your card is saved now. Nothing is charged today.',
             cadence,
             `${miss} and you’re charged ${formatCents(draft.amountCents)}, once, automatically. ${restart}`,
+            exit,
           ]
         : [
             'Your card is saved now. Nothing is charged today, and with money on it the goal can’t be deleted.',
@@ -330,18 +335,24 @@ export function whatHappens(draft: CommitmentDraft): string[] {
             `${miss} and you’re charged ${formatCents(draft.amountCents)} automatically. Make it and nothing happens.`,
           ];
     case 'friend':
-      return [
-        `We email ${them} a heads-up now. If they reply, it comes to you.`,
-        cadence,
-        draft.kind === 'habit'
-          ? `${miss} and ${they} ${they === 'they' ? 'get' : 'gets'} one email nudging them to check in. The habit then waits for a restart.`
-          : `${miss} and ${they} ${they === 'they' ? 'get' : 'gets'} one email nudging them to check in on you.`,
-      ];
+      return draft.kind === 'habit'
+        ? [
+            `We email ${them} a heads-up now. If they reply, it comes to you.`,
+            cadence,
+            `${miss} and ${they} ${they === 'they' ? 'get' : 'gets'} one email nudging them to check in. The habit then waits for a restart.`,
+            exit,
+          ]
+        : [
+            `We email ${them} a heads-up now. If they reply, it comes to you.`,
+            cadence,
+            `${miss} and ${they} ${they === 'they' ? 'get' : 'gets'} one email nudging them to check in on you.`,
+          ];
     case 'lockout':
       return [
         cadence,
         `${miss} and every habit freezes for ${lockoutLabel(draft.lockoutDays)}: nothing can be logged, and no other streak breaks. Goals keep running.`,
         restart,
+        exit,
       ];
     case 'none':
       return draft.kind === 'habit'

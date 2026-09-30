@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CardDetailRow, lowerFirst } from './card-detail-row';
+import { EndingKicker } from './ending-kicker';
 import { HabitActionButton } from './habit-action-button';
 import { HabitHistoryStrip } from './habit-history-strip';
 import { Icon } from './icon';
@@ -22,7 +23,8 @@ import { formatMinutes, PROOF_METHODS, proofMethodOf } from '@/constants/proof-m
 import { ActionCardRadius, ControlHeight, Spacing } from '@/constants/theme';
 import type { HabitHistory } from '@/convex/habitHistory';
 import { frequencyLabel, targetPerWeek } from '@/convex/lib/frequency';
-import { describeEnding, isDaily, isWeekDone, type HabitWithProgress } from '@/data/habits';
+import { endingStatus } from '@/data/ending';
+import { isDaily, isWeekDone, type HabitWithProgress } from '@/data/habits';
 import { describeHabitStake } from '@/data/stakes';
 import { useTheme } from '@/hooks/use-theme';
 import { describeWhen, todayKey } from '@/lib/dates';
@@ -47,7 +49,7 @@ export function HabitDetailCard({ habit, history, paused = false, now }: HabitDe
   const target = targetPerWeek(habit);
   const logged = habit.completedToday || isWeekDone(habit);
   const broken = habit.brokenAt !== undefined;
-  const ending = describeEnding(habit, todayKey());
+  const ending = endingStatus(habit, todayKey());
   const method = proofMethodOf(habit);
   const stake = habit.stakeView;
   const stakeLive = stake !== null && (stake.status === 'armed' || stake.status === 'void');
@@ -65,6 +67,7 @@ export function HabitDetailCard({ habit, history, paused = false, now }: HabitDe
             <Icon icon={HabitIcon} size={26} themeColor={logged ? 'textSecondary' : 'text'} />
           </View>
           <View style={styles.body}>
+            {ending === null ? null : <EndingKicker ending={ending} quiet={logged} />}
             <ThemedText numberOfLines={2} themeColor={logged ? 'textSecondary' : 'text'}>
               {habit.title}
             </ThemedText>
@@ -85,11 +88,6 @@ export function HabitDetailCard({ habit, history, paused = false, now }: HabitDe
               ) : (
                 <ThemedText type="small" themeColor="textSecondary">
                   {daily ? 'Every day' : `${habit.weekCount} of ${target} this week`}
-                </ThemedText>
-              )}
-              {ending === null ? null : (
-                <ThemedText type="small" themeColor="accent">
-                  {ending}
                 </ThemedText>
               )}
             </View>

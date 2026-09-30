@@ -260,7 +260,7 @@ describe('while locked', () => {
 });
 
 describe('deleting', () => {
-  test('a habit still owed today is only scheduled, and still counts', async () => {
+  test('a habit ended with notice still counts through its last day', async () => {
     const t = setup();
     const alice = await signIn(t, 'alice');
     const habitId = await alice.as.mutation(api.habits.create, { title: 'Run' });
@@ -268,25 +268,29 @@ describe('deleting', () => {
     vi.setSystemTime(at('2026-09-22', 20));
     expect(await alice.as.mutation(api.habits.remove, { habitId })).toBe('scheduled');
     expect(await alice.as.query(api.habits.get, { habitId })).toMatchObject({
-      endsAfter: '2026-09-22',
+      endsAfter: '2026-09-28',
     });
 
-    // Skipped anyway: the lock still comes, and the habit is gone after it.
+    // Skipped anyway: the lock still comes, and the habit stays out its notice.
     await runCheck(t, '2026-09-23');
     expect(await alice.as.query(api.lockouts.current, {})).not.toBeNull();
-    expect(await alice.as.query(api.habits.get, { habitId })).toBeNull();
+    expect(await alice.as.query(api.habits.get, { habitId })).not.toBeNull();
   });
 
-  test('a scheduled habit that gets done its last day ends without a lock', async () => {
+  test('a habit kept up through its notice ends without a lock', async () => {
     const t = setup();
     const alice = await signIn(t, 'alice');
     const habitId = await alice.as.mutation(api.habits.create, { title: 'Run' });
 
     vi.setSystemTime(at('2026-09-22', 8));
     await alice.as.mutation(api.habits.remove, { habitId });
-    await logDay(t, alice.userId, habitId, '2026-09-22');
+    for (let day = '2026-09-22'; day <= '2026-09-28'; day = nextDay(day)) {
+      await logDay(t, alice.userId, habitId, day);
+    }
 
-    await runCheck(t, '2026-09-23');
+    await runCheck(t, '2026-09-28');
+    expect(await alice.as.query(api.habits.get, { habitId })).not.toBeNull();
+    await runCheck(t, '2026-09-29');
     expect(await alice.as.query(api.lockouts.current, {})).toBeNull();
     expect(await alice.as.query(api.habits.get, { habitId })).toBeNull();
   });

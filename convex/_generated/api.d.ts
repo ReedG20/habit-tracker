@@ -27,6 +27,7 @@ import type * as lib_commitmentText from "../lib/commitmentText.js";
 import type * as lib_customFunctions from "../lib/customFunctions.js";
 import type * as lib_days from "../lib/days.js";
 import type * as lib_emailCopy from "../lib/emailCopy.js";
+import type * as lib_ending from "../lib/ending.js";
 import type * as lib_entitlements from "../lib/entitlements.js";
 import type * as lib_frequency from "../lib/frequency.js";
 import type * as lib_habitHistory from "../lib/habitHistory.js";
@@ -85,6 +86,7 @@ declare const fullApi: ApiFromModules<{
   "lib/customFunctions": typeof lib_customFunctions;
   "lib/days": typeof lib_days;
   "lib/emailCopy": typeof lib_emailCopy;
+  "lib/ending": typeof lib_ending;
   "lib/entitlements": typeof lib_entitlements;
   "lib/frequency": typeof lib_frequency;
   "lib/habitHistory": typeof lib_habitHistory;

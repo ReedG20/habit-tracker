@@ -6,6 +6,7 @@ import { ThemedView } from '@/components/themed-view';
 import { ActionCardRadius, Spacing } from '@/constants/theme';
 import { daysLeftInWeek } from '@/convex/lib/days';
 import { targetPerWeek } from '@/convex/lib/frequency';
+import { endingStatus } from '@/data/ending';
 import { isDaily, isWeekDone, mustLogToday, type HabitWithProgress } from '@/data/habits';
 import { describeCountdown, endOfDay } from '@/lib/dates';
 
@@ -81,6 +82,13 @@ function describeNow(
       headline: 'Frozen',
       note: `Every habit is frozen until ${weekday.format(new Date(frozenUntil + 60 * 60 * 1000))}. Nothing counts against you till then.`,
     };
+  }
+  // Its last log is in: no "tomorrow" or "Monday" to point to. The ending
+  // banner above says when it wraps up.
+  if (endingStatus(habit, today)?.finished === true) {
+    return daily
+      ? { headline: 'Done for today', note: 'That was its last day.' }
+      : { headline: 'Done for the week', note: 'That was its last week.' };
   }
   if (isWeekDone(habit)) {
     return {

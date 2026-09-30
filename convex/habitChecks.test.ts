@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { api, internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
+import { nextDay } from './lib/days';
 import { MONEY_CAP_ERROR } from './lib/stakeRules';
 import { grantPro, setup as baseSetup, type Harness } from './test.helpers';
 
@@ -488,21 +489,83 @@ describe('restart', () => {
 });
 
 describe('ending a habit', () => {
-  test('a staked habit deleted while owed still counts today, then lets its stake go', async () => {
+  async function logWeek(t: Harness, userId: Id<'users'>, habitId: Id<'habits'>) {
+    for (let day = '2026-09-22'; day <= '2026-09-28'; day = nextDay(day)) {
+      await logDay(t, userId, habitId, day);
+    }
+  }
+
+  test('a staked habit gives a week’s notice, counts through it, then lets its stake go', async () => {
     const t = setup();
     const alice = await signIn(t, 'alice');
     const habitId = await moneyHabit(t, alice.userId);
     vi.setSystemTime(at('2026-09-22'));
 
+    expect(await alice.as.query(api.habits.endingTerms, { habitId, today: '2026-09-22' })).toEqual({
+      kind: 'notice',
+      lastDay: '2026-09-28',
+    });
     expect(await alice.as.mutation(api.habits.remove, { habitId })).toBe('scheduled');
-    await logDay(t, alice.userId, habitId, '2026-09-22');
-    await runCheck(t, '2026-09-23');
+    await logWeek(t, alice.userId, habitId);
 
+    await runCheck(t, '2026-09-28');
+    expect((await habitAndStake(t, habitId)).stake).toMatchObject({ status: 'armed' });
+
+    await runCheck(t, '2026-09-29');
     const stakes: Doc<'stakes'>[] = await t.run(
       async (ctx) => await ctx.db.query('stakes').collect(),
     );
     expect(stakes).toMatchObject([{ status: 'released' }]);
     expect(await t.run(async (ctx) => await ctx.db.get('habits', habitId))).toBeNull();
+  });
+
+  test('a miss during the notice costs the stake, and the habit goes with it', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    const habitId = await moneyHabit(t, alice.userId);
+    vi.setSystemTime(at('2026-09-22'));
+    await alice.as.mutation(api.habits.remove, { habitId });
+
+    await runCheck(t, '2026-09-23');
+
+    const stakes: Doc<'stakes'>[] = await t.run(
+      async (ctx) => await ctx.db.query('stakes').collect(),
+    );
+    expect(stakes).toMatchObject([{ status: 'charging' }]);
+    expect(await t.run(async (ctx) => await ctx.db.get('habits', habitId))).toBeNull();
+  });
+
+  test('a habit on just their word goes right away', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    const habitId = await alice.as.mutation(api.habits.create, {
+      title: 'Read',
+      stake: { kind: 'none' },
+    });
+    vi.setSystemTime(at('2026-09-22'));
+
+    expect(await alice.as.query(api.habits.endingTerms, { habitId, today: '2026-09-22' })).toEqual({
+      kind: 'now',
+      reason: 'nothing-on-the-line',
+    });
+    expect(await alice.as.mutation(api.habits.remove, { habitId })).toBe('deleted');
+  });
+
+  test('keeping it going takes the ending back, until the last day has passed', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    const habitId = await moneyHabit(t, alice.userId);
+    vi.setSystemTime(at('2026-09-22'));
+
+    await alice.as.mutation(api.habits.remove, { habitId });
+    await alice.as.mutation(api.habits.keepGoing, { habitId });
+    expect((await habitAndStake(t, habitId)).habit?.endsAfter).toBeUndefined();
+
+    await alice.as.mutation(api.habits.remove, { habitId });
+    vi.setSystemTime(at('2026-09-29'));
+    await expect(alice.as.mutation(api.habits.keepGoing, { habitId })).rejects.toThrow(
+      /already ended/,
+    );
   });
 });
 

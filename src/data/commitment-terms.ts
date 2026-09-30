@@ -14,7 +14,8 @@ import type { Doc } from '@/convex/_generated/dataModel';
 import { daysBetween } from '@/convex/lib/days';
 import { DAILY, frequencyLabel, targetPerWeek } from '@/convex/lib/frequency';
 import type { StakeView } from '@/convex/lib/stakeRules';
-import { describeEnding, type Habit } from '@/data/habits';
+import { formatLastDay } from '@/data/ending';
+import { type Habit } from '@/data/habits';
 import { describeGoalStake, freezeLength } from '@/data/stakes';
 import {
   describeTimeLeft,
@@ -42,7 +43,7 @@ export type Term = {
 export function habitTerms(habit: Habit & { stakeView: StakeView | null }, today: string): Term[] {
   return [
     habitProofTerm(habit),
-    habitScheduleTerm(habit, today),
+    habitScheduleTerm(habit),
     stakeTerm(habit.stakeView, missPhrase(habit)),
     startedTerm(habit.startDay ?? toDayKey(new Date(habit._creationTime)), today),
   ];
@@ -127,9 +128,8 @@ function habitProofTerm(habit: Habit): Term {
   }
 }
 
-function habitScheduleTerm(habit: Habit, today: string): Term {
+function habitScheduleTerm(habit: Habit): Term {
   const target = targetPerWeek(habit);
-  const ending = describeEnding(habit, today);
   const rule =
     target >= DAILY ? 'Log it before midnight, every day.' : 'Any days you like, Monday to Sunday.';
   return {
@@ -137,7 +137,10 @@ function habitScheduleTerm(habit: Habit, today: string): Term {
     icon: RepeatIcon,
     label: 'How often',
     value: frequencyLabel(target),
-    note: ending === null ? rule : `${rule} ${ending}.`,
+    note:
+      habit.endsAfter === undefined
+        ? rule
+        : `${rule} Ending: it counts through ${formatLastDay(habit.endsAfter)}.`,
   };
 }
 

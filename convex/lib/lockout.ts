@@ -63,7 +63,7 @@ export function firstCountedDay(habit: CheckedHabit, accountableFrom: string): s
 }
 
 /** The first Monday on or after `day`: a weekly habit only counts whole weeks. */
-function firstFullWeek(day: string): string {
+export function firstFullWeek(day: string): string {
   return dayOfWeek(day) === 0 ? day : nextDay(weekEnd(day));
 }
 
@@ -150,11 +150,6 @@ export function isOwed(
   return (
     monday >= firstFullWeek(first) && countThisWeek(completedDays, today) < targetPerWeek(habit)
   );
-}
-
-/** The last day a habit deleted on `today` still has to be done: today, or this Sunday. */
-export function endOfPeriod(habit: CheckedHabit, today: string): string {
-  return targetPerWeek(habit) >= DAILY ? today : weekEnd(today);
 }
 
 /**
