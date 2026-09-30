@@ -135,3 +135,21 @@ describe('groupIntoHomeSections, goals', () => {
     );
   });
 });
+
+describe('groupIntoHomeSections, without Ante Pro', () => {
+  const midnight = endOfDay(SATURDAY);
+  const morning = midnight - 14 * HOUR;
+
+  test('every habit is paused, below the goals that still settle', () => {
+    const soon = goal({ dueAt: midnight - 6 * HOUR });
+    const missed = goal({ dueAt: morning - HOUR });
+    const habits = [habit({}), habit({ completedToday: true }), habit({ timesPerWeek: 2 })];
+    const sections = groupIntoHomeSections(habits, [soon, missed], SATURDAY, morning, {
+      paused: true,
+    });
+    expect(sections.map((section) => section.id)).toEqual(['today', 'missed', 'paused']);
+    expect(sections[0].items).toEqual([{ kind: 'goal', goal: soon }]);
+    expect(sections.at(-1)?.items).toHaveLength(3);
+    expect(sections.at(-1)?.items[0]).not.toHaveProperty('deadlineAt');
+  });
+});

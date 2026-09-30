@@ -122,11 +122,8 @@ function RootNavigator() {
       <Stack.Protected guard={isAuthenticated && !onboarding}>
         <Stack.Screen name="(app)" />
         {/* In the root stack so it can open over the tab bar from any tab. */}
-        <Stack.Screen
-          name="pro"
-          // Taller than the form sheets: two plan cards plus the legal line.
-          options={{ ...sheetScreenOptions, sheetAllowedDetents: [0.9] }}
-        />
+        {/* A whole page, not a sheet: without Pro it's the one way forward. */}
+        <Stack.Screen name="pro" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen
           name="preferences"
           options={{ ...sheetScreenOptions, sheetAllowedDetents: [0.22] }}

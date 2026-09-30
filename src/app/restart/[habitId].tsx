@@ -22,6 +22,7 @@ import {
   type StakesPhase,
 } from '@/components/commitment/stakes-step';
 import { Icon } from '@/components/icon';
+import { ProPaywallScreen } from '@/components/pro-paywall-screen';
 import { ThemedText } from '@/components/themed-text';
 import { ArrowLeft01Icon, Cancel01Icon } from '@/constants/icons';
 import { ScreenHeadingTypography, Spacing } from '@/constants/theme';
@@ -29,6 +30,7 @@ import { api } from '@/convex/_generated/api';
 import type { Doc, Id } from '@/convex/_generated/dataModel';
 import { DAILY } from '@/convex/lib/frequency';
 import type { Loss } from '@/convex/stakes';
+import { useSubscription } from '@/hooks/use-subscription';
 import { useTheme } from '@/hooks/use-theme';
 import { captureError, track } from '@/lib/analytics';
 import { cardLabel } from '@/lib/money';
@@ -89,8 +91,16 @@ export default function RestartScreen() {
   );
   const insets = useSafeAreaInsets();
   const theme = useTheme();
+  const subscription = useSubscription();
 
   const loading = habit === undefined || (params.again !== undefined && lost === undefined);
+
+  // The server refuses a restart without Pro; ask first rather than fail at the signature.
+  if (!subscription.isPro && !subscription.isLoading) {
+    return (
+      <ProPaywallScreen source="restart" onClose={() => router.back()} onFinished={() => {}} />
+    );
+  }
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top }]}>

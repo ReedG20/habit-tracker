@@ -29,6 +29,7 @@ import { CardRadius, PillRadius, ScreenHeadingTypography, Spacing } from '@/cons
 import { api } from '@/convex/_generated/api';
 import { currentStreak, formatStreak } from '@/data/habits';
 import { describeSubscription } from '@/data/subscription';
+import { resetDailyPaywall } from '@/hooks/use-daily-paywall';
 import { useNow } from '@/hooks/use-now';
 import { useSignOut } from '@/hooks/use-sign-out';
 import { useSubscription } from '@/hooks/use-subscription';
@@ -38,6 +39,7 @@ import { setForceDelete, showDevTools, useForceDelete } from '@/lib/dev-tools';
 import { openLoss } from '@/lib/loss-screen';
 import { formatCents } from '@/lib/money';
 import { resetOnboarding } from '@/lib/onboarding';
+import { openPaywall } from '@/lib/paywall';
 import { manageSubscriptionsUrl, revenueCatSupported } from '@/lib/revenuecat';
 
 const settings: {
@@ -164,12 +166,15 @@ export default function MeScreen() {
             // still be worked on — and Apple's screen does nothing in a
             // simulator regardless.
             onPress={() =>
-              isPro && !__DEV__ ? void Linking.openURL(manageSubscriptionsUrl) : router.push('/pro')
+              isPro && !__DEV__ ? void Linking.openURL(manageSubscriptionsUrl) : openPaywall('me')
             }
             style={({ pressed }) => [styles.settingRow, pressed && styles.pressed]}>
             <Icon icon={SparklesIcon} size={22} themeColor="primary" />
             <ThemedText style={styles.settingLabel}>Ante Pro</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
+            {/* Without Pro it's the way forward, so it reads as one. */}
+            <ThemedText
+              type={isPro ? 'small' : 'smallSemibold'}
+              themeColor={isPro ? 'textSecondary' : 'primary'}>
               {describeSubscription(summary, now)}
             </ThemedText>
             <Icon icon={ArrowRight01Icon} size={20} strokeWidth={2} themeColor="textSecondary" />
@@ -339,6 +344,18 @@ export default function MeScreen() {
                   <ThemedText style={styles.settingLabel}>
                     {isPro ? 'End Pro now' : 'Grant Pro for 30 days'}
                   </ThemedText>
+                </Pressable>
+                {/* The once-a-day paywall again, on the next launch or return to the app. */}
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={resetDailyPaywall}
+                  style={({ pressed }) => [
+                    styles.settingRow,
+                    { borderTopWidth: 1, borderTopColor: theme.border },
+                    pressed && styles.pressed,
+                  ]}>
+                  <Icon icon={SparklesIcon} size={22} themeColor="textSecondary" />
+                  <ThemedText style={styles.settingLabel}>Reset the daily paywall</ThemedText>
                 </Pressable>
                 {/* The trial-ending push, now, rather than days out. */}
                 <Pressable

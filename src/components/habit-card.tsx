@@ -21,7 +21,10 @@ export type HabitCardProps = {
   habit: HabitWithProgress;
   /** When set, the card counts down to it (urgent items). */
   deadlineAt?: number;
-  /** Ante Pro has ended: nothing is checked, so logging leads to the paywall. */
+  /**
+   * No Ante Pro: nothing is checked and nothing can be logged or restarted, so
+   * the card greys out and trades its action for a lock.
+   */
   paused?: boolean;
   /** A lockout froze every habit until then: nothing can be logged. */
   frozenUntil?: number;
@@ -38,6 +41,8 @@ export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: Ha
   // A friend who opted out left the habit on the user's word until they pick someone.
   const friendGone = habit.stakeView?.kind === 'friend' && habit.stakeView.status === 'void';
   const chip = broken ? null : stakeChip(habit.stakeView);
+  // Greyed out: done for now, or not counting at all without Pro.
+  const muted = logged || paused;
 
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
@@ -47,7 +52,7 @@ export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: Ha
         onPress={() => router.push(`/habit/${habit._id}`)}
         style={({ pressed }) => [styles.main, pressed && styles.pressed]}>
         <View style={[styles.habitIcon, { backgroundColor: theme.background }]}>
-          <Icon icon={HabitIcon} size={26} themeColor={logged ? 'textSecondary' : 'text'} />
+          <Icon icon={HabitIcon} size={26} themeColor={muted ? 'textSecondary' : 'text'} />
         </View>
 
         <View style={styles.body}>
@@ -55,26 +60,31 @@ export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: Ha
           {deadlineAt !== undefined ? (
             <Countdown deadlineAt={deadlineAt} />
           ) : ending !== null ? (
-            <EndingKicker ending={ending} quiet={logged} />
+            <EndingKicker ending={ending} quiet={muted} />
           ) : null}
-          <ThemedText numberOfLines={1} themeColor={logged ? 'textSecondary' : 'text'}>
+          <ThemedText numberOfLines={1} themeColor={muted ? 'textSecondary' : 'text'}>
             {habit.title}
           </ThemedText>
 
           <View style={styles.metaRow}>
             {habit.streak > 0 ? (
               <View style={styles.streak}>
-                <Icon icon={FlameIcon} size={16} color={theme.accent} fill={theme.accent} />
+                <Icon
+                  icon={FlameIcon}
+                  size={16}
+                  color={paused ? theme.textSecondary : theme.accent}
+                  fill={paused ? theme.textSecondary : theme.accent}
+                />
                 <ThemedText
                   type="smallSemibold"
-                  themeColor={logged ? 'textSecondary' : 'text'}
+                  themeColor={muted ? 'textSecondary' : 'text'}
                   accessibilityLabel={`${habit.streak} ${daily ? 'day' : 'week'} streak`}>
                   {daily ? habit.streak : `${habit.streak}w`}
                 </ThemedText>
               </View>
             ) : null}
             {broken ? (
-              <ThemedText type="small" themeColor="accent">
+              <ThemedText type="small" themeColor={paused ? 'textSecondary' : 'accent'}>
                 Streak lost
               </ThemedText>
             ) : (
@@ -85,7 +95,7 @@ export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: Ha
             {chip === null ? null : (
               <ThemedText
                 type="smallSemibold"
-                themeColor="accent"
+                themeColor={paused ? 'textSecondary' : 'accent'}
                 accessibilityLabel={`On the line: ${chip}`}>
                 {chip}
               </ThemedText>
@@ -98,7 +108,7 @@ export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: Ha
             {ending !== null && deadlineAt !== undefined ? (
               <ThemedText
                 type="small"
-                themeColor={ending.finished || logged ? 'textSecondary' : 'accent'}>
+                themeColor={ending.finished || muted ? 'textSecondary' : 'accent'}>
                 {ending.label}
               </ThemedText>
             ) : null}
