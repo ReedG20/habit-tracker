@@ -7,7 +7,7 @@ import { Icon } from './icon';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
-import { FlameIcon, HabitIcon } from '@/constants/icons';
+import { FlameIcon, HabitIcon, LockKeyholeIcon } from '@/constants/icons';
 import { PROOF_METHODS, proofMethodOf, proveLabel } from '@/constants/proof-methods';
 import { ActionCardRadius, ControlHeight, Spacing } from '@/constants/theme';
 import { targetPerWeek } from '@/convex/lib/frequency';
@@ -20,7 +20,10 @@ export type HabitCardProps = {
   habit: HabitWithProgress;
   /** When set, the card counts down to it (urgent items). */
   deadlineAt?: number;
-  /** Ante Pro has ended: nothing is checked, so logging leads to the paywall. */
+  /**
+   * No Ante Pro: nothing is checked and nothing can be logged or restarted, so
+   * the card greys out and trades its action for a lock.
+   */
   paused?: boolean;
   /** A lockout froze every habit until then: nothing can be logged. */
   frozenUntil?: number;
@@ -40,6 +43,8 @@ export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: Ha
   // A friend who opted out left the habit on the user's word until they pick someone.
   const friendGone = habit.stakeView?.kind === 'friend' && habit.stakeView.status === 'void';
   const chip = broken ? null : stakeChip(habit.stakeView);
+  // Greyed out: done for now, or not counting at all without Pro.
+  const muted = logged || paused;
 
   return (
     <ThemedView type="backgroundElement" style={styles.card}>
@@ -49,29 +54,34 @@ export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: Ha
         onPress={() => router.push(`/habit/${habit._id}`)}
         style={({ pressed }) => [styles.main, pressed && styles.pressed]}>
         <View style={[styles.habitIcon, { backgroundColor: theme.background }]}>
-          <Icon icon={HabitIcon} size={26} themeColor={logged ? 'textSecondary' : 'text'} />
+          <Icon icon={HabitIcon} size={26} themeColor={muted ? 'textSecondary' : 'text'} />
         </View>
 
         <View style={styles.body}>
           {deadlineAt !== undefined ? <Countdown deadlineAt={deadlineAt} /> : null}
-          <ThemedText numberOfLines={1} themeColor={logged ? 'textSecondary' : 'text'}>
+          <ThemedText numberOfLines={1} themeColor={muted ? 'textSecondary' : 'text'}>
             {habit.title}
           </ThemedText>
 
           <View style={styles.metaRow}>
             {habit.streak > 0 ? (
               <View style={styles.streak}>
-                <Icon icon={FlameIcon} size={16} color={theme.accent} fill={theme.accent} />
+                <Icon
+                  icon={FlameIcon}
+                  size={16}
+                  color={paused ? theme.textSecondary : theme.accent}
+                  fill={paused ? theme.textSecondary : theme.accent}
+                />
                 <ThemedText
                   type="smallSemibold"
-                  themeColor={logged ? 'textSecondary' : 'text'}
+                  themeColor={muted ? 'textSecondary' : 'text'}
                   accessibilityLabel={`${habit.streak} ${daily ? 'day' : 'week'} streak`}>
                   {daily ? habit.streak : `${habit.streak}w`}
                 </ThemedText>
               </View>
             ) : null}
             {broken ? (
-              <ThemedText type="small" themeColor="accent">
+              <ThemedText type="small" themeColor={paused ? 'textSecondary' : 'accent'}>
                 Streak lost
               </ThemedText>
             ) : (
@@ -82,7 +92,7 @@ export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: Ha
             {chip === null ? null : (
               <ThemedText
                 type="smallSemibold"
-                themeColor="accent"
+                themeColor={paused ? 'textSecondary' : 'accent'}
                 accessibilityLabel={`On the line: ${chip}`}>
                 {chip}
               </ThemedText>
@@ -101,7 +111,16 @@ export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: Ha
         </View>
       </Pressable>
 
-      {broken ? (
+      {paused ? (
+        // Ahead of Restart and Frozen: neither can happen without Pro. Just a
+        // quiet lock; the section above offers the way back, once.
+        <View
+          accessible
+          accessibilityLabel={`${habit.title} is paused until Ante Pro is back`}
+          style={styles.pausedLock}>
+          <Icon icon={LockKeyholeIcon} size={20} strokeWidth={2} themeColor="textSecondary" />
+        </View>
+      ) : broken ? (
         <ActionButton
           label="Restart"
           accessibilityLabel={`Restart ${habit.title}`}
@@ -121,13 +140,6 @@ export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: Ha
         <ActionButton label="Done this week" disabled onPress={() => {}} style={styles.logAction} />
       ) : logged ? (
         <ActionButton label="Logged" disabled onPress={() => {}} style={styles.logAction} />
-      ) : paused ? (
-        <ActionButton
-          label="Paused"
-          accessibilityLabel={`${habit.title} is paused. Resubscribe to Ante Pro`}
-          onPress={() => router.navigate('/pro')}
-          style={styles.logAction}
-        />
       ) : verifying ? (
         <ActionButton
           label="Verifying…"
@@ -191,6 +203,12 @@ const styles = StyleSheet.create({
   },
   logAction: {
     alignSelf: 'flex-start',
+  },
+  pausedLock: {
+    width: ControlHeight,
+    height: ControlHeight,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pressed: {
     opacity: 0.7,

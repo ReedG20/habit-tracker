@@ -1,10 +1,11 @@
 import { useQuery } from 'convex/react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { EmptyState } from '@/components/empty-state';
 import { GoalCard } from '@/components/goal-card';
 import { HabitCard } from '@/components/habit-card';
-import { ProPausedBanner } from '@/components/pro-paused-banner';
+import { ProLockCard } from '@/components/pro-lock-card';
+import { ProLockHero } from '@/components/pro-lock-hero';
 import { NotificationsOffBanner } from '@/components/reminders/notifications-off-banner';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
@@ -13,10 +14,12 @@ import { HabitIcon } from '@/constants/icons';
 import { Fonts, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { groupIntoHomeSections, type HomeSection } from '@/data/home-sections';
+import { liveGoalCount } from '@/data/pro-lock';
 import { formatHoursMinutes, pickTodayMoment } from '@/data/today-moment';
 import { useNow } from '@/hooks/use-now';
 import { useSubscription } from '@/hooks/use-subscription';
 import { endOfDay, todayKey } from '@/lib/dates';
+import { openPaywall } from '@/lib/paywall';
 
 export default function TodayScreen() {
   // Recomputed every render, so the day rolls over on the next interaction
@@ -26,17 +29,19 @@ export default function TodayScreen() {
   // Refreshed once a minute so a goal's countdown and "missed" roll over on their own.
   const now = useNow();
   const goals = useQuery(api.goals.list);
-  const sections = habits && goals ? groupIntoHomeSections(habits, goals, today, now) : undefined;
-  // Without Pro nothing is checked, so there are no stakes to warn about.
+  // Without Pro habits aren't checked, so they drop to their own section and
+  // out of the hero; goals still settle, and keep both.
   const subscription = useSubscription();
   const paused = !subscription.isPro && !subscription.isLoading;
+  const sections =
+    habits && goals ? groupIntoHomeSections(habits, goals, today, now, { paused }) : undefined;
   // The first day is free; the hero must not warn about a skip on it.
   const accountableFrom = useQuery(api.lockouts.accountableFrom);
   const freeze = useQuery(api.freezes.current);
   const moment =
     habits && goals && accountableFrom !== undefined && freeze !== undefined
       ? pickTodayMoment({
-          habits,
+          habits: paused ? [] : habits,
           goals,
           today,
           now,
@@ -56,12 +61,36 @@ export default function TodayScreen() {
   return (
     <ScreenScrollView>
       <View style={styles.header}>
-        {paused ? (
-          <ProPausedBanner summary={subscription.summary} />
+        {moment === undefined ? (
+          // Holds the hero's height while loading so the list doesn't jump.
+          <View style={styles.hero} />
+        ) : paused && habits !== undefined && goals !== undefined ? (
+          // Without Pro a goal still leads if it has a moment, with the lock
+          // under it; otherwise the lock is the moment.
+          moment === null ? (
+            <ProLockHero
+              summary={subscription.summary}
+              pausedHabits={habits.length}
+              liveGoals={liveGoalCount(goals, now)}
+            />
+          ) : (
+            <>
+              <View style={styles.hero}>
+                <TodayHero moment={moment} />
+              </View>
+              <ProLockCard
+                source="today_card"
+                summary={subscription.summary}
+                pausedHabits={habits.length}
+                liveGoals={liveGoalCount(goals, now)}
+              />
+            </>
+          )
         ) : (
           moment !== null && (
-            // Holds the hero's height while loading so the list doesn't jump.
-            <View style={styles.hero}>{moment && <TodayHero moment={moment} />}</View>
+            <View style={styles.hero}>
+              <TodayHero moment={moment} />
+            </View>
           )
         )}
       </View>
@@ -75,7 +104,8 @@ export default function TodayScreen() {
           now={now}
         />
 
-        {sections?.length === 0 ? (
+        {/* Without Pro the card above already says how to start. */}
+        {sections?.length === 0 && !paused ? (
           <EmptyState
             icon={HabitIcon}
             message="Nothing for today. Add a habit or goal from Commitments."
@@ -88,7 +118,17 @@ export default function TodayScreen() {
               <ThemedText style={styles.sectionTitle} themeColor="text">
                 {section.title}
               </ThemedText>
-              {sectionMeta(section) === null ? null : (
+              {section.id === 'paused' ? (
+                <Pressable
+                  accessibilityRole="button"
+                  hitSlop={Spacing.three}
+                  onPress={() => openPaywall('today_card')}
+                  style={({ pressed }) => pressed && styles.pressed}>
+                  <ThemedText type="smallSemibold" themeColor="primary">
+                    {subscription.summary === null ? 'Start Ante Pro' : 'Resubscribe'}
+                  </ThemedText>
+                </Pressable>
+              ) : sectionMeta(section) === null ? null : (
                 <ThemedText type="smallSemibold" themeColor="accent">
                   {sectionMeta(section)}
                 </ThemedText>
@@ -149,5 +189,8 @@ const styles = StyleSheet.create({
   },
   list: {
     gap: Spacing.three,
+  },
+  pressed: {
+    opacity: 0.7,
   },
 });

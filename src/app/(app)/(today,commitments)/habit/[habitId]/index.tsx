@@ -2,22 +2,26 @@ import { useMutation, usePaginatedQuery, useQuery } from 'convex/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { ActionButton } from '@/components/action-button';
 import { DetailHeader } from '@/components/detail-header';
 import { EmptyState } from '@/components/empty-state';
+import { Icon } from '@/components/icon';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { showToast } from '@/components/toast';
 import { ThemedView } from '@/components/themed-view';
-import { CheckmarkCircle02Icon } from '@/constants/icons';
+import { CheckmarkCircle02Icon, LockKeyholeIcon } from '@/constants/icons';
 import { CardRadius, Fonts, ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import { describeEnding, isDaily } from '@/data/habits';
+import { useSubscription } from '@/hooks/use-subscription';
 import { useTheme } from '@/hooks/use-theme';
 import { track } from '@/lib/analytics';
 import { confirmDestructive } from '@/lib/confirm';
 import { formatCompletedAt, todayKey } from '@/lib/dates';
 import { useForceDelete } from '@/lib/dev-tools';
+import { openPaywall } from '@/lib/paywall';
 
 const PAGE_SIZE = 30;
 
@@ -31,6 +35,8 @@ export default function HabitDetailScreen() {
   const stats = useQuery(api.habits.stats, habit === null ? 'skip' : { habitId, today });
   const remove = useMutation(api.habits.remove);
   const forceDelete = useForceDelete();
+  const subscription = useSubscription();
+  const paused = !subscription.isPro && !subscription.isLoading;
 
   const completions = usePaginatedQuery(
     api.habits.listCompletions,
@@ -98,6 +104,24 @@ export default function HabitDetailScreen() {
           })
         }
       />
+
+      {paused ? (
+        <ThemedView type="backgroundElement" style={styles.paused}>
+          <View style={styles.pausedLine}>
+            <Icon icon={LockKeyholeIcon} size={20} strokeWidth={2} themeColor="primary" />
+            <ThemedText type="small" themeColor="text" style={styles.pausedText}>
+              Paused while Ante Pro is off. Nothing counts against it, and it can’t be logged.
+            </ThemedText>
+          </View>
+          <ActionButton
+            label={subscription.summary === null ? 'Start Ante Pro' : 'Resubscribe'}
+            variant="primary"
+            size="small"
+            onPress={() => openPaywall('habit_detail')}
+            style={styles.pausedButton}
+          />
+        </ThemedView>
+      ) : null}
 
       {habit.endsAfter !== undefined ? (
         <ThemedText type="smallSemibold" themeColor="accent">
@@ -178,6 +202,22 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   missingTitle: ScreenHeadingTypography,
+  paused: {
+    borderRadius: CardRadius,
+    padding: Spacing.three,
+    gap: Spacing.two,
+  },
+  pausedLine: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.two,
+  },
+  pausedText: {
+    flex: 1,
+  },
+  pausedButton: {
+    alignSelf: 'flex-start',
+  },
   statRow: {
     flexDirection: 'row',
     gap: Spacing.three,

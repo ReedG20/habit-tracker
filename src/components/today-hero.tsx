@@ -34,7 +34,7 @@ export type TodayHeroProps = {
 };
 
 /** Brand violet reads too dark as thin text on black; this is its dark-mode ink. */
-const INK_DARK = '#9F8CFF';
+export const INK_DARK = '#9F8CFF';
 
 /** The corner the note gets; two short handwritten lines. */
 const NOTE_WIDTH = 150;

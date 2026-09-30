@@ -33,10 +33,12 @@ const showDiagnostics = __DEV__ || Updates.channel === 'preview';
 const TERMS_URL = 'https://useanteapp.com/terms';
 const PRIVACY_URL = 'https://useanteapp.com/privacy';
 
+// There is no free tier: every commitment runs on Pro, so these say what Ante
+// is rather than what Pro unlocks over something smaller.
 const benefits = [
-  { icon: FlameIcon, label: 'Unlimited habits and goals' },
+  { icon: FlameIcon, label: 'Habits and goals with real stakes' },
   { icon: Camera01Icon, label: 'Every check-in proven: photo, place or timer' },
-  { icon: CoinsDollarIcon, label: 'Put money on any goal' },
+  { icon: CoinsDollarIcon, label: 'Put money, a friend or a lockout on the line' },
 ];
 
 type Plan = 'annual' | 'monthly';
@@ -59,7 +61,7 @@ export type ProPaywallProps = {
 };
 
 /**
- * The paywall body, shared by the `/pro` sheet and the onboarding paywall.
+ * The paywall body, shared by `ProPaywallScreen` and the onboarding paywall.
  * Prices come from the store through RevenueCat, never from code, so a price
  * change in App Store Connect needs no release. Errors are rendered inline: a
  * UIKit sheet sits above the toast host. The caller provides the scroll view.

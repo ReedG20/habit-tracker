@@ -6,12 +6,14 @@ import { EmptyState } from '@/components/empty-state';
 import { GoalCard } from '@/components/goal-card';
 import { HabitCard } from '@/components/habit-card';
 import { HeaderAddButton } from '@/components/header-add-button';
+import { ProLockCard } from '@/components/pro-lock-card';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { GoalListIcon } from '@/constants/icons';
 import { Fonts, ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { groupGoals, type GoalWithStatus } from '@/data/goals';
+import { liveGoalCount } from '@/data/pro-lock';
 import type { HabitWithProgress } from '@/data/habits';
 import { useNow } from '@/hooks/use-now';
 import { useSubscription } from '@/hooks/use-subscription';
@@ -38,7 +40,7 @@ export default function CommitmentsScreen() {
             title: 'goals',
             items: groupGoals(goals, now).flatMap((section) => section.items),
           },
-          { id: 'habits' as const, title: 'habits', items: habits },
+          { id: 'habits' as const, title: paused ? 'habits · paused' : 'habits', items: habits },
         ].filter((section) => section.items.length > 0)
       : undefined;
 
@@ -51,11 +53,22 @@ export default function CommitmentsScreen() {
         <ThemedText themeColor="textSecondary">
           Goals with a deadline and the habits you keep up.
         </ThemedText>
-        <HeaderAddButton label="New" onPress={() => router.push('/new')} />
+        {/* Without Pro, New opens the paywall that leads into the contract. */}
+        <HeaderAddButton label="New" locked={paused} onPress={() => router.push('/new')} />
       </View>
 
       <View style={styles.sections}>
-        {sections?.length === 0 ? (
+        {paused && goals !== undefined && habits !== undefined ? (
+          <ProLockCard
+            source="commitments"
+            summary={subscription.summary}
+            pausedHabits={habits.length}
+            liveGoals={liveGoalCount(goals, now)}
+          />
+        ) : null}
+
+        {/* Without Pro the card above already says how to start. */}
+        {sections?.length === 0 && !paused ? (
           <EmptyState
             icon={GoalListIcon}
             message="Nothing yet. Tap New to add a habit or a goal."

@@ -1,7 +1,7 @@
 import { useAction, useMutation, useQuery } from 'convex/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -28,7 +28,7 @@ import { StepProgress } from '@/components/commitment/step-progress';
 import { WhatStep, whatTitle, type WhatPhase } from '@/components/commitment/what-step';
 import { Icon } from '@/components/icon';
 import { DismissKeyboardArea } from '@/components/keyboard/dismiss-keyboard-area';
-import { ProPaywall } from '@/components/pro-paywall';
+import { ProPaywallScreen } from '@/components/pro-paywall-screen';
 import { ThemedText } from '@/components/themed-text';
 import { ArrowLeft01Icon, Cancel01Icon } from '@/constants/icons';
 import { ScreenHeadingTypography, Spacing } from '@/constants/theme';
@@ -249,27 +249,8 @@ export default function NewCommitmentScreen() {
   };
 
   if (!subscription.isPro && !subscription.isLoading && step !== 'done') {
-    return (
-      <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top }]}>
-        <View style={styles.header}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Close"
-            onPress={() => router.back()}
-            hitSlop={Spacing.three}
-            style={({ pressed }) => [styles.back, pressed && styles.pressed]}>
-            <Icon icon={Cancel01Icon} size={20} strokeWidth={2} themeColor="textSecondary" />
-            <ThemedText type="small" themeColor="textSecondary">
-              Close
-            </ThemedText>
-          </Pressable>
-        </View>
-        <ScrollView contentContainerStyle={styles.paywall} alwaysBounceVertical={false}>
-          {/* A purchase flips `isPro`, and the first step takes this one's place. */}
-          <ProPaywall source="new" onDismiss={() => router.back()} onFinished={() => {}} />
-        </ScrollView>
-      </View>
-    );
+    // A purchase flips `isPro`, and the first step takes this one's place.
+    return <ProPaywallScreen source="new" onClose={() => router.back()} onFinished={() => {}} />;
   }
 
   // Only the very first page closes the screen; every other one steps back.
@@ -353,10 +334,6 @@ const styles = StyleSheet.create({
   },
   step: {
     flex: 1,
-  },
-  paywall: {
-    paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.five,
   },
   back: {
     flexDirection: 'row',
