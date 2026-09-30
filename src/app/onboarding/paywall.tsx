@@ -82,7 +82,7 @@ export default function OnboardingPaywallScreen() {
         : pending.kind === 'habit'
           ? createHabit({
               title: pending.title.trim(),
-              description: pending.proof.trim(),
+              description: pending.proof.trim() || undefined,
               timesPerWeek: pending.timesPerWeek,
               ...proofInput(pending),
               stake: plainStake(pending),

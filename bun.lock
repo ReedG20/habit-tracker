@@ -9,6 +9,7 @@
         "@clerk/expo-google-signin": "^1.0.4",
         "@convex-dev/rate-limiter": "^0.4.0",
         "@convex-dev/resend": "^0.2.8",
+        "@expo-google-fonts/averia-serif-libre": "^0.4.1",
         "@expo-google-fonts/mansalva": "^0.4.1",
         "@expo/ui": "~57.0.18",
         "@hugeicons/core-free-icons": "^4.3.3",
@@ -343,6 +344,8 @@
     "@eslint/object-schema": ["@eslint/object-schema@2.1.7", "", {}, "sha512-VtAOaymWVfZcmZbp6E2mympDIHvyjXs/12LqWYjVw6qjrfF+VK+fyG33kChz3nnK+SU5/NeHOqrTEHS8sXO3OA=="],
 
     "@eslint/plugin-kit": ["@eslint/plugin-kit@0.4.1", "", { "dependencies": { "@eslint/core": "^0.17.0", "levn": "^0.4.1" } }, "sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA=="],
+
+    "@expo-google-fonts/averia-serif-libre": ["@expo-google-fonts/averia-serif-libre@0.4.1", "", {}, "sha512-fTvwqMkfLMxTJDAWKhQmu6dyrEaV+xTyv8osTbU9196Q7sUUWIPHwMtl6D3HdD3Y/DswsXFplcCHtmO0bafTUQ=="],
 
     "@expo-google-fonts/mansalva": ["@expo-google-fonts/mansalva@0.4.1", "", {}, "sha512-1IM3T0QkdVWItG53unfd/HgprCIf2siqnZ3t9Tv+ACcr74y07O7CqlbREkOzrOwIq3B+Ddc+yd/fGYS1E9spzg=="],
 

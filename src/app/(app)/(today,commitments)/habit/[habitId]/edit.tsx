@@ -6,7 +6,7 @@ import { StyleSheet, View } from 'react-native';
 import { alertRevision, useWordingCheck } from '@/components/commitment/use-wording-check';
 import { FormSheet } from '@/components/form-sheet';
 import { HabitSheetFields, type HabitDraft } from '@/components/habit-sheet-fields';
-import { proofMethodOf } from '@/constants/proof-methods';
+import { PROOF_METHODS, proofMethodOf } from '@/constants/proof-methods';
 import { Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
@@ -47,7 +47,9 @@ function EditHabitForm({ habit }: { habit: Habit }) {
     if (title.length === 0) return;
     const description = draftRef.current.description.trim();
 
-    if (!vetted.current.has(`${title}\n${description}`)) {
+    // A timer's description is optional, so an empty one has nothing to check.
+    const optional = description.length === 0 && PROOF_METHODS[proofMethodOf(habit)].proofOptional;
+    if (!optional && !vetted.current.has(`${title}\n${description}`)) {
       const revision = await wording.run({
         kind: 'habit',
         title,
