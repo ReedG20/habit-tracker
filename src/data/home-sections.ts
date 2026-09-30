@@ -8,7 +8,7 @@ export type HomeItem =
   | { kind: 'habit'; habit: HabitWithProgress; deadlineAt?: number }
   | { kind: 'goal'; goal: GoalWithStatus };
 
-export type HomeSectionId = 'today' | 'upcoming' | 'done' | 'missed';
+export type HomeSectionId = 'today' | 'upcoming' | 'done' | 'missed' | 'paused';
 
 export type HomeSection = {
   id: HomeSectionId;
@@ -43,12 +43,15 @@ function byDeadline(entries: Sorted[]): HomeItem[] {
  *   user's part is done; a rejection sends it back up).
  * - missed: goals past their deadline, last but never hidden, since a charge
  *   should always be visible.
+ * - paused: without Ante Pro, every habit, below it all. Nothing is owed on
+ *   them, so they must not crowd out goals that still settle.
  */
 export function groupIntoHomeSections(
   habits: HabitWithProgress[],
   goals: GoalWithStatus[],
   today: string,
   now: number,
+  { paused = false }: { paused?: boolean } = {},
 ): HomeSection[] {
   const midnight = endOfDay(today);
   const sunday = endOfDay(weekEnd(today));
@@ -56,9 +59,12 @@ export function groupIntoHomeSections(
   const upcoming: Sorted[] = [];
   const done: HomeItem[] = [];
   const missed: HomeItem[] = [];
+  const pausedHabits: HomeItem[] = [];
 
   for (const habit of habits) {
-    if (isDoneForToday(habit) || isPending(habit)) {
+    if (paused) {
+      pausedHabits.push({ kind: 'habit', habit });
+    } else if (isDoneForToday(habit) || isPending(habit)) {
       done.push({ kind: 'habit', habit });
     } else if (isSetback(habit)) {
       dueToday.push({ item: { kind: 'habit', habit, deadlineAt: midnight }, key: -Infinity });
@@ -88,6 +94,7 @@ export function groupIntoHomeSections(
     { id: 'upcoming', title: 'coming up', items: byDeadline(upcoming) },
     { id: 'done', title: 'done', items: done },
     { id: 'missed', title: 'missed', items: missed },
+    { id: 'paused', title: 'paused', items: pausedHabits },
   ];
 
   return sections.filter((section) => section.items.length > 0);

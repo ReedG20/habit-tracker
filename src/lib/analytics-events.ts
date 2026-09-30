@@ -103,7 +103,28 @@ export function commitmentCreatedProperties(
 }
 
 /** Where a Pro paywall was opened from. */
-export type PaywallSource = 'onboarding' | 'new' | 'pro_sheet';
+export type PaywallSource =
+  | 'onboarding'
+  | 'new'
+  | 'restart'
+  | 'daily'
+  | 'today_card'
+  | 'habit_card'
+  | 'habit_detail'
+  | 'commitments'
+  | 'me';
+
+export const PAYWALL_SOURCES: readonly PaywallSource[] = [
+  'onboarding',
+  'new',
+  'restart',
+  'daily',
+  'today_card',
+  'habit_card',
+  'habit_detail',
+  'commitments',
+  'me',
+];
 
 type ProPurchaseProperties = {
   plan: 'monthly' | 'annual';
