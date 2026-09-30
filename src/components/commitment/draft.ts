@@ -111,13 +111,36 @@ export function freshStake(
   };
 }
 
-/** Tomorrow evening: far enough to be a real goal, near enough to feel urgent. */
+/** How far out a new goal's deadline starts: room for a real goal, still close enough to feel. */
+export const DEFAULT_DUE_DAYS = 20;
+
+/** The evening `DEFAULT_DUE_DAYS` from now. */
 export function defaultDueAt(now: number = Date.now()): number {
   const date = new Date(now);
-  date.setDate(date.getDate() + 1);
+  date.setDate(date.getDate() + DEFAULT_DUE_DAYS);
   date.setHours(21, 0, 0, 0);
 
   return date.getTime();
+}
+
+/** `days` calendar days from today, at the time of day `dueAt` already has. */
+export function dueInDays(days: number, dueAt: number, now: number = Date.now()): number {
+  const time = new Date(dueAt);
+  const date = new Date(now);
+  date.setDate(date.getDate() + days);
+  date.setHours(time.getHours(), time.getMinutes(), 0, 0);
+
+  return date.getTime();
+}
+
+/** Calendar days from today to `dueAt`'s day; rounded so a DST shift doesn't knock it off by one. */
+export function daysUntil(dueAt: number, now: number = Date.now()): number {
+  const from = new Date(now);
+  from.setHours(0, 0, 0, 0);
+  const to = new Date(dueAt);
+  to.setHours(0, 0, 0, 0);
+
+  return Math.round((to.getTime() - from.getTime()) / (24 * 60 * 60 * 1000));
 }
 
 /** The saved card, if it was saved for exactly the amount on the stake. */

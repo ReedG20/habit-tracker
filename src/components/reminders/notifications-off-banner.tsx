@@ -139,6 +139,8 @@ const styles = StyleSheet.create({
     borderRadius: CardRadius,
     padding: Spacing.three,
     gap: Spacing.two,
+    // Tucks up under the hero: the list's gap reads as too much air above it.
+    marginTop: -Spacing.two,
   },
   heading: {
     flexDirection: 'row',
