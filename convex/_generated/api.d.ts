@@ -9,6 +9,7 @@
  */
 
 import type * as accomplishments from "../accomplishments.js";
+import type * as accountDeletion from "../accountDeletion.js";
 import type * as accountNotices from "../accountNotices.js";
 import type * as appVersion from "../appVersion.js";
 import type * as calendar from "../calendar.js";
@@ -81,6 +82,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   accomplishments: typeof accomplishments;
+  accountDeletion: typeof accountDeletion;
   accountNotices: typeof accountNotices;
   appVersion: typeof appVersion;
   calendar: typeof calendar;

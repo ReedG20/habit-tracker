@@ -1,12 +1,15 @@
 import { v } from 'convex/values';
+import Stripe from 'stripe';
 
+import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, internalQuery, mutation } from './_generated/server';
 import { getCurrentUser } from './lib/auth';
-import { authedMutation } from './lib/customFunctions';
+import { authedAction, authedMutation } from './lib/customFunctions';
 import { nextDay } from './lib/days';
 import { isValidTimeZone, localDay } from './lib/lockout';
 import { touchReminders } from './lib/notify';
+import { stripeClient } from './lib/stripe';
 import schema, { onboardingValidator } from './schema';
 
 /**
@@ -137,5 +140,45 @@ export const saveOnboarding = authedMutation({
       },
     });
     return null;
+  },
+});
+
+/**
+ * Deletes the signed-in user's account and everything in it
+ * (`accountDeletion.ts`). Armed stakes are let go; a charge in flight refuses
+ * it. The Stripe customer goes too, and its saved cards with it; Stripe keeps
+ * its own record of past charges, including a declined one still owed. The
+ * client then deletes the Clerk user and signs out.
+ *
+ * Safe to call again after a failure: the `users` row goes last, so a retry
+ * picks up where the last run stopped.
+ */
+export const deleteAccount = authedAction({
+  args: {},
+  returns: v.null(),
+  handler: async (ctx): Promise<null> => {
+    const userId = ctx.user._id;
+    const customerId: string | null = await ctx.runMutation(internal.accountDeletion.prepare, {
+      userId,
+    });
+
+    if (customerId !== null) {
+      try {
+        await stripeClient().customers.del(customerId);
+      } catch (error: unknown) {
+        // Already deleted by an earlier run that didn't finish.
+        if (!(error instanceof Stripe.errors.StripeError && error.code === 'resource_missing')) {
+          throw error;
+        }
+      }
+    }
+
+    for (;;) {
+      const { done }: { done: boolean } = await ctx.runMutation(
+        internal.accountDeletion.purgeBatch,
+        { userId },
+      );
+      if (done) return null;
+    }
   },
 });

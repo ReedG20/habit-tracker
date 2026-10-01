@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import * as Updates from 'expo-updates';
 import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
 
+import { DeleteAccountRow } from '@/components/delete-account-row';
 import { Icon } from '@/components/icon';
 import { ProgressCalendar } from '@/components/progress-calendar';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
@@ -216,6 +217,8 @@ export default function MeScreen() {
           <ThemedText style={styles.settingLabel}>Sign out</ThemedText>
         </Pressable>
       </ThemedView>
+
+      <DeleteAccountRow />
 
       {showDevTools ? (
         <View style={styles.devTools}>
