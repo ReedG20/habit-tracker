@@ -23,7 +23,7 @@ export type HabitStakeLine =
 
 export type HabitLine = {
   title: string;
-  /** Set for a weekly habit that has no slack left: logs still needed by Sunday. */
+  /** Set for a weekly habit that has no slack left: logs still needed before its week ends. */
   weeklyNeeded?: number;
   stake?: HabitStakeLine;
 };
@@ -219,8 +219,8 @@ function habitsCopy(message: Extract<ReminderMessage, { kind: 'habits' }>): Push
           : pick(
               seed,
               [
-                `${needed} more by Sunday. No slack left.`,
-                `Need ${needed} by Sunday, so today counts.`,
+                `${needed} more this week. No slack left.`,
+                `Need ${needed} before the week’s out, so today counts.`,
               ],
               step,
             ),
@@ -246,7 +246,7 @@ function habitsCopy(message: Extract<ReminderMessage, { kind: 'habits' }>): Push
       body: pick(
         seed,
         [
-          `Still open. ${left} till midnight.`,
+          `Still open. ${left} till 3am.`,
           `Not logged yet. ${left} on the clock.`,
           `Still waiting on your proof. ${left} left.`,
         ],
@@ -264,7 +264,7 @@ function habitsCopy(message: Extract<ReminderMessage, { kind: 'habits' }>): Push
   }
   return {
     title: `${habits.length} still open`,
-    body: pick(seed, [`${list}. ${left} till midnight.`, `${list}. Clock’s running.`], step),
+    body: pick(seed, [`${list}. ${left} till 3am.`, `${list}. Clock’s running.`], step),
   };
 }
 

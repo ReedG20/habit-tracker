@@ -6,7 +6,7 @@ import { PRO_REQUIRED } from './lib/entitlements';
 import { parseProEntitlement } from './subscriptions';
 import { grantPro, setup, type Harness } from './test.helpers';
 
-// 2026-09-21 is a Monday. Everyone here lives in UTC, so local midnight is 00:00Z.
+// 2026-09-21 is a Monday. Everyone here lives in UTC, so the local day ends at 03:00Z.
 const at = (day: string, hour = 12) => new Date(`${day}T${String(hour).padStart(2, '0')}:00:00Z`);
 
 async function signIn(t: Harness, tokenIdentifier: string, pro = true) {
@@ -16,7 +16,7 @@ async function signIn(t: Harness, tokenIdentifier: string, pro = true) {
   return { as, userId };
 }
 
-async function runCheck(t: Harness, day: string, hour = 1) {
+async function runCheck(t: Harness, day: string, hour = 4) {
   vi.setSystemTime(at(day, hour));
   await t.mutation(internal.lockouts.checkAll, {});
 }
@@ -80,8 +80,8 @@ describe('habits pause when Pro ends', () => {
     const t = setup();
     const alice = await signIn(t, 'alice');
     await alice.as.mutation(api.habits.create, { title: 'Run' });
-    // Monday is free, and Pro ended as Tuesday began.
-    await grantPro(t, alice.userId, at('2026-09-22', 0).getTime());
+    // Monday is free, and Pro ended as Tuesday began (at 3 AM, when Monday ended).
+    await grantPro(t, alice.userId, at('2026-09-22', 3).getTime());
 
     await runCheck(t, '2026-09-26');
     expect(await alice.as.query(api.lockouts.current, {})).toBeNull();
@@ -104,7 +104,7 @@ describe('habits pause when Pro ends', () => {
     const t = setup();
     const alice = await signIn(t, 'alice');
     await alice.as.mutation(api.habits.create, { title: 'Run' });
-    await grantPro(t, alice.userId, at('2026-09-22', 0).getTime());
+    await grantPro(t, alice.userId, at('2026-09-22', 3).getTime());
     await runCheck(t, '2026-09-25');
 
     vi.setSystemTime(at('2026-09-25', 10));

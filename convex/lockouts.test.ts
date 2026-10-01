@@ -6,7 +6,7 @@ import { nextDay } from './lib/days';
 import { localDay } from './lib/lockout';
 import { grantPro, setup, type Harness } from './test.helpers';
 
-// 2026-09-21 is a Monday. Every user here lives in UTC, so local midnight is 00:00Z.
+// 2026-09-21 is a Monday. Every user here lives in UTC, so the local day ends at 03:00Z.
 const at = (day: string, hour = 12) => new Date(`${day}T${String(hour).padStart(2, '0')}:00:00Z`);
 
 async function signIn(t: Harness, tokenIdentifier: string) {
@@ -16,7 +16,7 @@ async function signIn(t: Harness, tokenIdentifier: string) {
   return { as, userId };
 }
 
-async function runCheck(t: Harness, day: string, hour = 1) {
+async function runCheck(t: Harness, day: string, hour = 4) {
   vi.setSystemTime(at(day, hour));
   await t.mutation(internal.lockouts.checkAll, {});
 }

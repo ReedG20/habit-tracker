@@ -2,24 +2,27 @@ import { ConvexError } from 'convex/values';
 
 import type { Doc, Id } from '../_generated/dataModel';
 import { env, type MutationCtx, type QueryCtx } from '../_generated/server';
-import { countThisWeek, dayOfWeek, daysBefore, nextDay, weekEnd, weekStart } from './days';
+import { countThisWeek, daysBefore, nextDay, weekEnd, weekStart } from './days';
 import { DAILY, targetPerWeek } from './frequency';
+import { firstJudgedWeek, weekStartsOn } from './habitWeek';
+import { habitDay } from './zonedTime';
 
 /**
  * The lockout rules, kept pure so they can be tested without a database.
  *
- * A daily habit is missed when a local day ends without an approved photo; a
- * weekly one when a Monday-to-Sunday week ends short of `timesPerWeek`. The day
- * a habit is made and the day the user pays to get back in are free, and a
- * weekly habit is first checked on the first full week after that. A day whose
- * last photo check `failed` (our error, not a rejection) is excused.
+ * A daily habit is missed when a local day (ending at `DAY_ENDS_AT_HOUR`) ends
+ * without an approved photo; a weekly one when one of its weeks ends short of
+ * `timesPerWeek`. Each weekly habit's weeks start on the weekday it was made
+ * (`habitWeek.ts`), and week one counts. The day a daily habit is made and the
+ * day the user pays to get back in are free. A day whose last photo check
+ * `failed` (our error, not a rejection) is excused.
  */
 
 export type Miss = {
   habitId: Id<'habits'>;
   title: string;
   kind: 'day' | 'week';
-  /** The missed day, or the Monday of the week that ended short. */
+  /** The missed day, or the first day of the week that ended short. */
   period: string;
 };
 
@@ -29,21 +32,12 @@ export type CheckedHabit = Pick<
 > & { brokenAt?: number };
 
 /**
- * The user's calendar day at `now` in `timeZone`, as a `YYYY-MM-DD` key. Throws
- * a RangeError for a zone the runtime does not know.
+ * The user's habit day at `now` in `timeZone`, as a `YYYY-MM-DD` key: it ends
+ * at `DAY_ENDS_AT_HOUR`, not midnight. Throws a RangeError for a zone the
+ * runtime does not know.
  */
 export function localDay(now: number, timeZone: string): string {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date(now));
-
-  const part = (type: 'year' | 'month' | 'day') =>
-    parts.find((candidate) => candidate.type === type)?.value ?? '';
-
-  return `${part('year')}-${part('month')}-${part('day')}`;
+  return habitDay(now, timeZone);
 }
 
 export function isValidTimeZone(timeZone: string): boolean {
@@ -62,15 +56,11 @@ export function firstCountedDay(habit: CheckedHabit, accountableFrom: string): s
   return afterStart > accountableFrom ? afterStart : accountableFrom;
 }
 
-/** The first Monday on or after `day`: a weekly habit only counts whole weeks. */
-export function firstFullWeek(day: string): string {
-  return dayOfWeek(day) === 0 ? day : nextDay(weekEnd(day));
-}
-
 /**
  * Every habit that was missed in the days `from` through `to`, at most one
  * entry per habit (its earliest). A weekly habit is judged in the check that
- * covers its Sunday, so `completedDays` must reach back to `weekStart(from)`.
+ * covers its week's last day, so `completedDays` must reach back six days
+ * before `from`.
  *
  * `frozenDays` (a lockout's freeze) are never judged: a daily habit skips
  * them, and a week that touches one isn't judged at all. A broken habit (its
@@ -94,17 +84,16 @@ export function findMisses({
   to: string;
 }): Miss[] {
   const misses: Miss[] = [];
-  const frozenWeeks = new Set([...frozenDays].map((day) => weekStart(day)));
 
   for (const habit of habits) {
     if (habit.brokenAt !== undefined) continue;
     const done = completedDays.get(habit._id) ?? new Set<string>();
     const excused = excusedDays.get(habit._id) ?? new Set<string>();
-    const first = firstCountedDay(habit, accountableFrom);
     const counts = (day: string) => habit.endsAfter === undefined || day <= habit.endsAfter;
 
     const target = targetPerWeek(habit);
     if (target >= DAILY) {
+      const first = firstCountedDay(habit, accountableFrom);
       for (let day = from; day <= to; day = nextDay(day)) {
         if (day < first || !counts(day) || frozenDays.has(day)) continue;
         if (done.has(day) || excused.has(day)) continue;
@@ -114,14 +103,16 @@ export function findMisses({
       continue;
     }
 
-    const firstWeek = firstFullWeek(first);
-    for (let sunday = weekEnd(from); sunday <= to; sunday = daysBefore(sunday, -7)) {
-      const monday = weekStart(sunday);
-      if (monday < firstWeek || !counts(sunday) || frozenWeeks.has(monday)) continue;
+    const startsOn = weekStartsOn(habit);
+    const firstWeek = firstJudgedWeek(habit, accountableFrom);
+    const frozenWeeks = new Set([...frozenDays].map((day) => weekStart(day, startsOn)));
+    for (let last = weekEnd(from, startsOn); last <= to; last = daysBefore(last, -7)) {
+      const start = weekStart(last, startsOn);
+      if (start < firstWeek || !counts(last) || frozenWeeks.has(start)) continue;
       // Excused days stand in for the photo the failed check could not confirm.
-      const logged = countThisWeek(new Set([...done, ...excused]), sunday);
+      const logged = countThisWeek(new Set([...done, ...excused]), last, startsOn);
       if (logged >= target) continue;
-      misses.push({ habitId: habit._id, title: habit.title, kind: 'week', period: monday });
+      misses.push({ habitId: habit._id, title: habit.title, kind: 'week', period: start });
       break;
     }
   }
@@ -131,8 +122,9 @@ export function findMisses({
 
 /**
  * Whether `habit` is still owed for the period containing `today`: a daily
- * habit not logged today, or a weekly one short of this week's target. A habit
- * made today owes nothing yet, since its first day is free.
+ * habit not logged today, or a weekly one short of this week's target. A daily
+ * habit made today owes nothing yet, since its first day is free; a weekly one
+ * owes from the day it is made.
  */
 export function isOwed(
   habit: CheckedHabit,
@@ -142,13 +134,13 @@ export function isOwed(
 ): boolean {
   // Broken: its stake already came due, and it isn't judged until restarted.
   if (habit.brokenAt !== undefined) return false;
-  const first = firstCountedDay(habit, accountableFrom);
   if (targetPerWeek(habit) >= DAILY) {
-    return today >= first && !completedDays.has(today);
+    return today >= firstCountedDay(habit, accountableFrom) && !completedDays.has(today);
   }
-  const monday = weekStart(today);
+  const startsOn = weekStartsOn(habit);
   return (
-    monday >= firstFullWeek(first) && countThisWeek(completedDays, today) < targetPerWeek(habit)
+    weekStart(today, startsOn) >= firstJudgedWeek(habit, accountableFrom) &&
+    countThisWeek(completedDays, today, startsOn) < targetPerWeek(habit)
   );
 }
 

@@ -6,7 +6,7 @@ import type { MutationCtx, QueryCtx } from '../_generated/server';
 import type { outgoingPushValidator } from '../push';
 import { eventCopy, type EventMessage, type PushCopy } from './reminderCopy';
 import { DEFAULT_REMINDER_SETTINGS, type ReminderSettings } from './reminderPresets';
-import { nextLocalMidnight, zonedDay } from './zonedTime';
+import { habitDay, nextDayEnd } from './zonedTime';
 
 /**
  * The shared plumbing for pushes: whose devices can receive them, how a message
@@ -133,16 +133,16 @@ export async function notifyHabitVerdict(
     return;
   }
 
-  // Only while the proof's day is still running: after midnight it's settled.
-  if (user.timeZone === undefined || zonedDay(now, user.timeZone) !== verification.day) return;
-  const midnight = nextLocalMidnight(now, user.timeZone);
+  // Only while the proof's day is still running: once it ends it's settled.
+  if (user.timeZone === undefined || habitDay(now, user.timeZone) !== verification.day) return;
+  const dayEnd = nextDayEnd(now, user.timeZone);
   const message: EventMessage = {
     kind: 'rejected',
     subject: 'habit',
     title: habit.title,
     reason,
     method: verification.method,
-    msLeft: midnight - now,
+    msLeft: dayEnd - now,
   };
   await deliver(ctx, user._id, [
     eventPush(eventCopy(message), {
@@ -150,7 +150,7 @@ export async function notifyHabitVerdict(
       collapseId: `proof:${habit._id}:${verification.day}`,
       threadId: 'proof',
       quiet: false,
-      expiresAt: midnight,
+      expiresAt: dayEnd,
     }),
   ]);
 }

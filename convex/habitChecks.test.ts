@@ -8,7 +8,7 @@ import { nextDay } from './lib/days';
 import { MONEY_CAP_ERROR } from './lib/stakeRules';
 import { grantPro, setup as baseSetup, type Harness } from './test.helpers';
 
-// 2026-09-21 is a Monday. Every user here lives in UTC, so local midnight is 00:00Z.
+// 2026-09-21 is a Monday. Every user here lives in UTC, so the local day ends at 03:00Z.
 const at = (day: string, hour = 12) => new Date(`${day}T${String(hour).padStart(2, '0')}:00:00Z`);
 
 function setup(): Harness {
@@ -25,7 +25,7 @@ async function signIn(t: Harness, tokenIdentifier: string) {
   return { as, userId };
 }
 
-async function runCheck(t: Harness, day: string, hour = 1) {
+async function runCheck(t: Harness, day: string, hour = 4) {
   vi.setSystemTime(at(day, hour));
   await t.mutation(internal.lockouts.checkAll, {});
 }
@@ -94,7 +94,7 @@ describe('money', () => {
     const habitId = await moneyHabit(t, alice.userId);
 
     await runCheck(t, '2026-09-23');
-    await runCheck(t, '2026-09-23', 2);
+    await runCheck(t, '2026-09-23', 5);
 
     const { habit, stake } = await habitAndStake(t, habitId);
     expect(habit?.brokenAt).toBeDefined();
@@ -103,6 +103,57 @@ describe('money', () => {
     expect(await scheduled(t, 'stripe:chargeStake')).toHaveLength(1);
     // No fee lock under the new rules.
     expect(await alice.as.query(api.lockouts.current, {})).toBeNull();
+  });
+
+  test('a weekly habit runs its own weeks, from the day it was made', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    // Made on Thursday: its weeks run Thursday to Wednesday, and this one counts.
+    vi.setSystemTime(at('2026-09-24'));
+    const habitId = await moneyHabit(t, alice.userId);
+    await t.run(async (ctx) => await ctx.db.patch('habits', habitId, { timesPerWeek: 3 }));
+    // The day it was made counts toward week one.
+    await logDay(t, alice.userId, habitId, '2026-09-24');
+    await logDay(t, alice.userId, habitId, '2026-09-27');
+
+    // Sunday ends nothing: the week still has until Wednesday.
+    await runCheck(t, '2026-09-28');
+    await runCheck(t, '2026-09-30');
+    expect((await habitAndStake(t, habitId)).habit?.brokenAt).toBeUndefined();
+
+    // Wednesday ended one short.
+    await runCheck(t, '2026-10-01');
+    const { habit, stake } = await habitAndStake(t, habitId);
+    expect(habit?.brokenAt).toBeDefined();
+    expect(stake?.run).toMatchObject({
+      unit: 'week',
+      completions: 2,
+      missedPeriod: '2026-09-24',
+    });
+  });
+
+  test('a week met on its last day, after midnight, is no miss', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    vi.setSystemTime(at('2026-09-24'));
+    const habitId = await moneyHabit(t, alice.userId);
+    await t.run(async (ctx) => await ctx.db.patch('habits', habitId, { timesPerWeek: 2 }));
+    await logDay(t, alice.userId, habitId, '2026-09-24');
+    // 1 AM on Thursday the 1st still belongs to Wednesday, the week's last day:
+    // the hourly check leaves it alone, and a log now counts for Wednesday.
+    await runCheck(t, '2026-10-01', 1);
+    expect((await habitAndStake(t, habitId)).habit?.brokenAt).toBeUndefined();
+    await t.run(async (ctx) => {
+      await ctx.db.insert('habitCompletions', {
+        userId: alice.userId,
+        habitId,
+        day: '2026-09-30',
+        completedAt: Date.now(),
+      });
+    });
+
+    await runCheck(t, '2026-10-01');
+    expect((await habitAndStake(t, habitId)).habit?.brokenAt).toBeUndefined();
   });
 
   test('the run it ended is kept for the loss screen', async () => {
@@ -327,7 +378,7 @@ describe('lockout', () => {
     expect(await alice.as.query(api.freezes.current, {})).toMatchObject({
       startDay: '2026-09-23',
       endDay: '2026-09-25',
-      endsAt: at('2026-09-26', 0).getTime(),
+      endsAt: at('2026-09-26', 3).getTime(),
     });
 
     // Habits can't be logged; goal proof still goes in.
@@ -368,7 +419,7 @@ describe('lockout', () => {
     const freeze = await alice.as.query(api.freezes.current, {});
     expect(freeze).toMatchObject({ startDay: '2026-09-23', endDay: '2026-09-23' });
 
-    vi.setSystemTime(at('2026-09-24', 0));
+    vi.setSystemTime(at('2026-09-24', 3));
     await t.mutation(internal.freezes.lift, { freezeId: freeze!._id });
     expect(await alice.as.query(api.freezes.current, {})).toBeNull();
 

@@ -4,6 +4,7 @@ import { SegmentedPicker } from '@/components/segmented-picker';
 import { ThemedText } from '@/components/themed-text';
 import { DAILY } from '@/convex/lib/frequency';
 import { Spacing } from '@/constants/theme';
+import { describeWeekSpan, todayKey } from '@/lib/dates';
 
 type FrequencyValue = '1' | '2' | '3' | '4' | '5' | '6' | '7';
 
@@ -20,10 +21,10 @@ const options: { value: FrequencyValue; label: string }[] = [
 /** The rule in words, under the control, so "3×" is never a guess. */
 function describe(timesPerWeek: number): string {
   if (timesPerWeek >= DAILY) {
-    return 'Every day, by midnight your time. Today’s free: your first day is tomorrow.';
+    return 'Every day, by 3\u00a0AM your time, so a late night still counts. Today’s free: your first day is tomorrow.';
   }
   const days = timesPerWeek === 1 ? 'one day' : `${timesPerWeek} days`;
-  return `Any ${days} a week, your pick. Weeks run Monday to Sunday, and a week that ends short is a miss. Your first full week starts Monday.`;
+  return `Any ${days} a week, your pick. Week one starts today, so weeks run ${describeWeekSpan(todayKey())}, and a week that ends short is a miss.`;
 }
 
 export type FrequencyPickerProps = {

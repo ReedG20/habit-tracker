@@ -5,7 +5,7 @@ import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import { grantPro, setup, type Harness } from './test.helpers';
 
-// 2026-09-21 is a Monday. Everyone here lives in UTC, so local midnight is 00:00Z.
+// 2026-09-21 is a Monday. Everyone here lives in UTC, so the local day ends at 03:00Z.
 const at = (value: string) => Date.parse(value);
 const TOKEN = 'ExponentPushToken[alice-phone]';
 
@@ -334,7 +334,7 @@ describe('event pushes', () => {
 
     expect(sent.at(-1)).toMatchObject({
       title: 'Run: photo didn’t pass',
-      body: 'That looks like a screenshot. 3h left to retry.',
+      body: 'That looks like a screenshot. 6h left to retry.',
     });
   });
 

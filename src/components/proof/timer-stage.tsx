@@ -164,7 +164,7 @@ function Footer({
   switch (phase.kind) {
     case 'ready':
     case 'starting': {
-      // A run never crosses midnight (the server refuses), so say so before the tap.
+      // A run never crosses the end of the day at 3 AM (the server refuses), so say so before the tap.
       const tooLate = now + durationMs > endOfDay(todayKey());
       return (
         <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.footer}>

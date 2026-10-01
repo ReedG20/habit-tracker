@@ -5,7 +5,7 @@ import type { Id } from './_generated/dataModel';
 import type { SubscriptionEvent } from './revenuecat';
 import { grantPro, setup, type Harness } from './test.helpers';
 
-// 2026-09-21 is a Monday. Everyone here lives in UTC, so local midnight is 00:00Z.
+// 2026-09-21 is a Monday. Everyone here lives in UTC, so the local day ends at 03:00Z.
 const at = (value: string) => Date.parse(value);
 const TOKEN = 'ExponentPushToken[alice-phone]';
 
@@ -77,8 +77,8 @@ describe('still locked, still subscribed', () => {
     const t = setup();
     const alice = await signIn(t);
     await alice.as.mutation(api.habits.create, { title: 'Run' });
-    // Tuesday is missed; the check just after midnight on Wednesday locks.
-    vi.setSystemTime(at('2026-09-23T01:00:00Z'));
+    // Tuesday is missed; the check just after Tuesday ends, at 3 AM Wednesday, locks.
+    vi.setSystemTime(at('2026-09-23T04:00:00Z'));
     await t.mutation(internal.lockouts.checkAll, {});
     expect(await alice.as.query(api.lockouts.current, {})).not.toBeNull();
 

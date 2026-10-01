@@ -17,8 +17,10 @@ import { endOfDay } from '@/lib/dates';
 const TUESDAY = '2026-09-29';
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
-const MIDNIGHT = endOfDay(TUESDAY);
-const MORNING = MIDNIGHT - 16 * HOUR;
+// Tuesday's day ends at 3 AM Wednesday.
+const DAY_END = endOfDay(TUESDAY);
+const MORNING = DAY_END - 16 * HOUR;
+const MIDNIGHT = DAY_END - 3 * HOUR;
 const STAKE_ID = 'stake' as Id<'stakes'>;
 const TEN_DOLLARS = {
   kind: 'money' as const,
@@ -54,7 +56,7 @@ function goal(fields: Partial<GoalWithStatus> & { stakeCents?: number }): GoalWi
     userId: 'user' as Id<'users'>,
     title: `Goal ${nextId}`,
     order: nextId,
-    dueAt: MIDNIGHT + 4 * DAY,
+    dueAt: DAY_END + 4 * DAY,
     submission: null,
     stakeView:
       stakeCents === undefined
@@ -146,7 +148,7 @@ describe('pickTodayMoment', () => {
 
   test('while frozen, nothing is owed and the thaw is the headline', () => {
     const gym = habit({ title: 'Gym', streak: 23 });
-    const moment = pick({ habits: [gym], frozenUntil: MIDNIGHT + 2 * DAY });
+    const moment = pick({ habits: [gym], frozenUntil: DAY_END + 2 * DAY });
     expect(moment).toMatchObject({
       kind: 'frozen',
       kicker: 'Your habits are frozen',
@@ -164,7 +166,7 @@ describe('pickTodayMoment', () => {
 
   test('last call beats the streak', () => {
     const gym = habit({ title: 'Gym', streak: 23 });
-    const moment = pick({ habits: [gym], now: MIDNIGHT - 80 * 60_000 });
+    const moment = pick({ habits: [gym], now: DAY_END - 80 * 60_000 });
     expect(moment).toMatchObject({
       kind: 'lastCall',
       tone: 'urgent',
@@ -174,7 +176,7 @@ describe('pickTodayMoment', () => {
   });
 
   test('a staked goal inside three hours beats last call', () => {
-    const now = MIDNIGHT - 2 * HOUR;
+    const now = DAY_END - 2 * HOUR;
     const run = goal({ title: 'Run a 5K', dueAt: now + HOUR, stakeCents: 2500 });
     const moment = pick({ habits: [habit({ streak: 23 })], goals: [run], now });
     expect(moment).toMatchObject({
@@ -186,7 +188,7 @@ describe('pickTodayMoment', () => {
   });
 
   test('a staked goal due tonight beats the streak', () => {
-    const run = goal({ title: 'Run a 5K', dueAt: MIDNIGHT - 4 * HOUR, stakeCents: 2500 });
+    const run = goal({ title: 'Run a 5K', dueAt: DAY_END - 4 * HOUR, stakeCents: 2500 });
     const moment = pick({ habits: [habit({ streak: 23 })], goals: [run] });
     expect(moment?.kind).toBe('goalToday');
   });
@@ -204,7 +206,8 @@ describe('pickTodayMoment', () => {
     expect(moment).toMatchObject({
       kind: 'retake',
       kicker: 'Your Gym photo didn’t pass',
-      sentence: 'to retake it before midnight. Your 23-day streak’s still alive.',
+      figure: { kind: 'time', text: '4h' },
+      sentence: 'to retake it before 3\u00a0AM. Your 23-day streak’s still alive.',
     });
   });
 
@@ -316,12 +319,22 @@ describe('pickTodayMoment', () => {
       expect(pick({ habits })?.figure).toEqual({ kind: 'tally', text: '1 of 4' });
     });
 
-    test('made midweek, the first part-week is practice', () => {
+    test('made today, its first week counts from today', () => {
       const gym = habit({ title: 'Gym', timesPerWeek: 4, startDay: TUESDAY });
       expect(pick({ habits: [gym] })).toMatchObject({
         kicker: 'This week',
         figure: { kind: 'tally', text: '0 of 4' },
-        sentence: 'Gym this week. It counts from Monday, so this one’s practice.',
+        sentence: 'Gym this week, with 7 days left to fit in 4 more.',
+      });
+    });
+
+    test('a week under way when the user got back in is practice', () => {
+      // Made on a Thursday, so its weeks run Thursday to Wednesday; back in today.
+      const gym = habit({ title: 'Gym', timesPerWeek: 1, startDay: '2026-09-24' });
+      expect(pick({ habits: [gym], accountableFrom: '2026-09-30' })).toMatchObject({
+        kicker: 'This week',
+        figure: { kind: 'tally', text: '0 of 1' },
+        sentence: 'Gym this week. It counts from Thursday, so this one’s practice.',
         note: 'free week. build the habit anyway.',
       });
     });
@@ -373,7 +386,7 @@ describe('pickTodayMoment, several habits', () => {
 describe('pickTodayMoment, last call with several habits', () => {
   test("doesn't pin the streak on a skip that wouldn't end it", () => {
     const habits = [habit({ title: 'Gym', streak: 23 }), habit({ title: 'Read' })];
-    const moment = pick({ habits, now: MIDNIGHT - HOUR });
+    const moment = pick({ habits, now: DAY_END - HOUR });
     expect(moment?.sentence).toBe('2 habits are still open. Skip one and $10 is charged.');
     expect(moment?.also).toContain('Gym: 23 days in a row');
   });
@@ -416,7 +429,7 @@ describe('caption emphasis', () => {
     const run = goal({ title: 'Run a 5K', stakeCents: 2500 });
     const dayBack = pick({ habits: [habit({})], goals: [run], accountableFrom: '2026-09-30' });
     expect(dayBack?.emphasis[0]).toBe('Run a 5K');
-    const last = pick({ habits: [habit({ title: 'Gym', streak: 23 })], now: MIDNIGHT - HOUR });
+    const last = pick({ habits: [habit({ title: 'Gym', streak: 23 })], now: DAY_END - HOUR });
     expect(last?.emphasis).toEqual(['Gym', '23-day streak', '$10']);
   });
 
@@ -426,8 +439,8 @@ describe('caption emphasis', () => {
       pick({ habits: [habit({ title: 'Gym', streak: 23 })], goals: [run] }),
       pick({ habits: [habit({ title: 'Walk' })] }),
       pick({ habits: [habit({ title: 'Walk', stakeView: null })] }),
-      pick({ habits: [habit({ title: 'Walk' })], frozenUntil: MIDNIGHT + DAY }),
-      pick({ habits: [habit({ title: 'Gym', streak: 23 })], now: MIDNIGHT - HOUR }),
+      pick({ habits: [habit({ title: 'Walk' })], frozenUntil: DAY_END + DAY }),
+      pick({ habits: [habit({ title: 'Gym', streak: 23 })], now: DAY_END - HOUR }),
       pick({
         habits: [habit({ streak: 23 })],
         goals: [goal({ stakeCents: 2500, dueAt: MORNING + HOUR })],
