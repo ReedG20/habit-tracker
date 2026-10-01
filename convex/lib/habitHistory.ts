@@ -104,16 +104,21 @@ export function weekHistory(
 /**
  * The longest run the habit ever had, in days for a daily habit and in weeks
  * that hit `target` for a weekly one. Frozen days bridge a run, as they do for
- * the current streak: they neither break it nor add to it. `startsOn` is the
- * weekday a weekly habit's weeks start on.
+ * the current streak: they neither break it nor add to it. Excused days follow
+ * `lib/streaks.ts`: they bridge a daily run and count toward a weekly target.
+ * `startsOn` is the weekday a weekly habit's weeks start on.
  */
 export function bestStreak(
-  done: Set<string>,
+  logged: Set<string>,
   target: number,
   startsOn: number,
-  frozen: Set<string>,
+  frozenDays: Set<string>,
+  excused: Set<string> = new Set(),
 ): number {
-  if (target >= DAILY) {
+  const daily = target >= DAILY;
+  const done = daily ? logged : new Set([...logged, ...excused]);
+  const frozen = daily ? new Set([...frozenDays, ...excused]) : frozenDays;
+  if (daily) {
     let best = 0;
     let run = 0;
     let last: string | undefined;
