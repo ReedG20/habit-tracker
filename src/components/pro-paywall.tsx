@@ -49,8 +49,11 @@ export type PaywallOutcome = 'purchased' | 'restored';
 export type ProPaywallProps = {
   /** Where it was opened from, for analytics. */
   source: PaywallSource;
-  /** Replaces the default "Ante Pro" title block. */
-  header?: ReactNode;
+  /**
+   * Replaces the default "Ante Pro" title block. A function is told whether
+   * this user gets the free trial, so its copy only promises one when they do.
+   */
+  header?: ReactNode | ((offer: { trialEligible: boolean }) => ReactNode);
   /** After a successful purchase or restore; the caller dismisses and toasts. */
   onFinished: (outcome: PaywallOutcome) => void;
   /** The "Done" button when already subscribed, or the sheet's own dismissal. */
@@ -206,7 +209,7 @@ export function ProPaywall({
 
   return (
     <View style={styles.body}>
-      {header ?? (
+      {(typeof header === 'function' ? header({ trialEligible }) : header) ?? (
         <View style={styles.header}>
           <View style={styles.titleRow}>
             <Icon icon={SparklesIcon} size={26} themeColor="primary" />
@@ -277,7 +280,9 @@ export function ProPaywall({
               title="Yearly"
               priceLine={`${offering.annual.product.priceString} / year`}
               subline={perMonth(offering.annual)}
-              badge={offering.annual.product.introPrice !== null ? '7-day free trial' : undefined}
+              // Apple grants the trial once per Apple ID, so having an offer
+              // isn't enough: only promise it to someone who would get it.
+              badge={trialEligible ? '7-day free trial' : undefined}
               selected={selected === 'annual'}
               onPress={() => setSelected('annual')}
             />
