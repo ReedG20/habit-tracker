@@ -22,6 +22,7 @@ import {
 import { Icon } from '@/components/icon';
 import { ProPaywallScreen } from '@/components/pro-paywall-screen';
 import { StakeLadder } from '@/components/raise/stake-ladder';
+import type { Signed } from '@/components/signed-contract/types';
 import { ThemedText } from '@/components/themed-text';
 import { ArrowLeft01Icon, Cancel01Icon } from '@/constants/icons';
 import { ScreenHeadingTypography, Spacing } from '@/constants/theme';
@@ -31,6 +32,7 @@ import { heldStake, raiseOptions, type RaiseOptions } from '@/convex/lib/stakeLa
 import type { StakeView } from '@/convex/lib/stakeRules';
 import { missNow, raiseDraft, stakeCents, type RaiseTarget } from '@/data/raise';
 import { useNow } from '@/hooks/use-now';
+import { useSignContract } from '@/hooks/use-sign-contract';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useTheme } from '@/hooks/use-theme';
 import { captureError, track } from '@/lib/analytics';
@@ -161,6 +163,7 @@ function RaiseFlow({
   const { found, options } = snapshot;
   const raise = useMutation(api.raises.raise);
   const raiseWithCard = useAction(api.raises.raiseWithCard);
+  const signContract = useSignContract();
   const [draft, setDraft] = useState<CommitmentDraft>(() => raiseDraft(found, options));
   const [step, setStep] = useState<Step>('stakes');
   // Only one way up, or the Today card already asked about money: straight to the amount.
@@ -175,7 +178,7 @@ function RaiseFlow({
   const current = heldStake(found.stake);
   const stakesRaise = { options, current: found.stake };
 
-  const lockIn = async () => {
+  const lockIn = async (signed: Signed) => {
     if (busy) return;
     setBusy(true);
     try {
@@ -207,6 +210,7 @@ function RaiseFlow({
         case 'none':
           return;
       }
+      signContract(target, signed);
       track('stakes raised', {
         kind: found.commitment,
         from_kind: options.currentKind,
@@ -292,7 +296,7 @@ function RaiseFlow({
           />
         ) : null}
         {step === 'sign' ? (
-          <SignStep draft={draft} busy={busy} onConfirm={() => void lockIn()} />
+          <SignStep draft={draft} busy={busy} onConfirm={(signed) => void lockIn(signed)} />
         ) : null}
         {step === 'done' ? (
           <LockedIn

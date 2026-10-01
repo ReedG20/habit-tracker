@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { contractRuns } from './contract-text';
+import { contractRuns, receiptRuns } from './contract-text';
 import type { CommitmentDraft } from './draft';
 import { HoldToConfirmButton } from './hold-to-confirm-button';
 import { Note } from './note';
@@ -10,6 +10,7 @@ import { SignaturePad } from './signature-pad';
 import { StepLayout } from './step-layout';
 
 import { ReplayMask } from '@/components/replay-mask';
+import type { Signature, Signed } from '@/components/signed-contract/types';
 
 import { ThemedText } from '@/components/themed-text';
 import { CardRadius, Spacing } from '@/constants/theme';
@@ -22,7 +23,8 @@ const SIGNATURE_HEIGHT = 96;
 export type SignStepProps = {
   draft: CommitmentDraft;
   busy: boolean;
-  onConfirm: () => void;
+  /** Gets the short terms and the signature, to keep for when the commitment ends. */
+  onConfirm: (signed: Signed) => void;
 };
 
 /** Step 3: the whole commitment as a contract, signed by finger and locked in by holding. */
@@ -32,10 +34,17 @@ export function SignStep({ draft, busy, onConfirm }: SignStepProps) {
   const [padKey, setPadKey] = useState(0);
   const [drawing, setDrawing] = useState(false);
   const [showSignHint, setShowSignHint] = useState(false);
+  const signature = useRef<Signature | null>(null);
 
   const clear = () => {
     setPadKey((key) => key + 1);
     setSigned(false);
+    signature.current = null;
+  };
+
+  const confirm = () => {
+    if (signature.current === null) return;
+    onConfirm({ terms: receiptRuns(draft), signature: signature.current });
   };
 
   return (
@@ -56,7 +65,7 @@ export function SignStep({ draft, busy, onConfirm }: SignStepProps) {
             onDisabledPress={() => {
               if (!busy) setShowSignHint(true);
             }}
-            onConfirm={onConfirm}
+            onConfirm={confirm}
           />
         </>
       }>
@@ -89,6 +98,9 @@ export function SignStep({ draft, busy, onConfirm }: SignStepProps) {
                 if (next) setShowSignHint(false);
               }}
               onDrawingChange={setDrawing}
+              onInkChange={(ink) => {
+                signature.current = ink;
+              }}
             />
           </ReplayMask>
           <View

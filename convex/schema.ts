@@ -2,6 +2,7 @@ import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
 import { accomplishmentValidator } from './lib/accomplishmentSchema';
+import { contractValidator } from './lib/contractSchema';
 import { proofMethodValidator } from './lib/proofMethods';
 import { lockoutDaysValidator, moneyStatusValidator, stakeDocValidator } from './lib/stakeSchema';
 
@@ -456,4 +457,9 @@ export default defineSchema({
     'seenAt',
     'achievedAt',
   ]),
+
+  /** Signed contracts (`lib/contractSchema.ts`), held back up on the Kept and loss screens. */
+  contracts: defineTable(contractValidator)
+    .index('by_habit', ['habitId'])
+    .index('by_goal', ['goalId']),
 });

@@ -3,6 +3,8 @@ import { useRef, useState } from 'react';
 import { StyleSheet, View, type GestureResponderEvent } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
+import type { Signature } from '@/components/signed-contract/types';
+
 type Point = { x: number; y: number };
 
 /** Total ink needed before it counts as a signature rather than a stray tap. */
@@ -15,28 +17,34 @@ export type SignaturePadProps = {
   onSignedChange: (signed: boolean) => void;
   /** The screen's scroll view should hold still while a finger is drawing. */
   onDrawingChange?: (drawing: boolean) => void;
+  /** The signature as drawn so far, after each stroke: what the signed contract keeps. */
+  onInkChange?: (signature: Signature) => void;
 };
+
+/** A tenth of a point is finer than a finger: it keeps the saved paths short. */
+const round = (value: number) => Math.round(value * 10) / 10;
 
 /** Smooths a stroke by curving through the midpoints between samples. */
 function strokePath(points: Point[]): string {
   const [first, ...rest] = points;
   if (first === undefined) return '';
-  if (rest.length === 0) return `M${first.x},${first.y} l0.1,0`;
+  if (rest.length === 0) return `M${round(first.x)},${round(first.y)} l0.1,0`;
 
-  let path = `M${first.x},${first.y}`;
+  let path = `M${round(first.x)},${round(first.y)}`;
   let previous = first;
   for (const point of rest) {
-    const midX = (previous.x + point.x) / 2;
-    const midY = (previous.y + point.y) / 2;
-    path += ` Q${previous.x},${previous.y} ${midX},${midY}`;
+    const midX = round((previous.x + point.x) / 2);
+    const midY = round((previous.y + point.y) / 2);
+    path += ` Q${round(previous.x)},${round(previous.y)} ${midX},${midY}`;
     previous = point;
   }
 
-  return `${path} L${previous.x},${previous.y}`;
+  return `${path} L${round(previous.x)},${round(previous.y)}`;
 }
 
 /**
- * A finger signature. Nothing is stored: signing is the point, not the pixels.
+ * A finger signature. The paths go up through `onInkChange` so the signed
+ * contract can show them again when the commitment ends.
  * To clear it, remount it with a new `key`.
  */
 export function SignaturePad({
@@ -44,8 +52,10 @@ export function SignaturePad({
   height,
   onSignedChange,
   onDrawingChange,
+  onInkChange,
 }: SignaturePadProps) {
   const [strokes, setStrokes] = useState<Point[][]>([]);
+  const width = useRef(0);
   const ink = useRef<Point[][]>([]);
   const inkLength = useRef(0);
   const signed = useRef(false);
@@ -74,11 +84,21 @@ export function SignaturePad({
     }
   };
 
-  const end = () => onDrawingChange?.(false);
+  const end = () => {
+    onDrawingChange?.(false);
+    onInkChange?.({
+      width: round(width.current),
+      height,
+      strokes: ink.current.map(strokePath),
+    });
+  };
 
   return (
     <View
       style={[styles.pad, { height }]}
+      onLayout={(event) => {
+        width.current = event.nativeEvent.layout.width;
+      }}
       accessible
       accessibilityLabel="Signature. Draw your signature with a finger."
       onStartShouldSetResponder={() => true}

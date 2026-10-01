@@ -30,6 +30,7 @@ import { WhatStep, whatTitle, type WhatPhase } from '@/components/commitment/wha
 import { Icon } from '@/components/icon';
 import { DismissKeyboardArea } from '@/components/keyboard/dismiss-keyboard-area';
 import { ProPaywallScreen } from '@/components/pro-paywall-screen';
+import type { Signed } from '@/components/signed-contract/types';
 import { ThemedText } from '@/components/themed-text';
 import { ArrowLeft01Icon, Cancel01Icon } from '@/constants/icons';
 import { ScreenHeadingTypography, Spacing } from '@/constants/theme';
@@ -37,6 +38,7 @@ import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import { limitMessage } from '@/convex/lib/commitmentLimits';
 import { DAILY } from '@/convex/lib/frequency';
+import { useSignContract } from '@/hooks/use-sign-contract';
 import { captureError, track } from '@/lib/analytics';
 import { commitmentCreatedProperties } from '@/lib/analytics-events';
 import { cardLabel } from '@/lib/money';
@@ -76,6 +78,7 @@ export default function NewCommitmentScreen() {
   const createHabitStaked = useAction(api.habits.createStaked);
   const createGoal = useMutation(api.goals.create);
   const createStaked = useAction(api.goals.createStaked);
+  const signContract = useSignContract();
   const again = useQuery(
     api.stakes.loss,
     params.again === undefined ? 'skip' : { stakeId: params.again as Id<'stakes'> },
@@ -163,7 +166,7 @@ export default function NewCommitmentScreen() {
     }
   };
 
-  const lockIn = async () => {
+  const lockIn = async (signed: Signed) => {
     if (busy) return;
 
     const title = draft.title.trim();
@@ -192,7 +195,7 @@ export default function NewCommitmentScreen() {
       }
       if (draft.stakeKind !== 'money') {
         if (draft.kind === 'habit') {
-          await createHabit({
+          const habitId = await createHabit({
             title,
             description,
             timesPerWeek: draft.timesPerWeek,
@@ -200,8 +203,9 @@ export default function NewCommitmentScreen() {
             ...iconInput(draft),
             stake: plainStake(draft),
           });
+          signContract({ habitId }, signed);
         } else {
-          await createGoal({
+          const goalId = await createGoal({
             title,
             description,
             dueAt: draft.dueAt,
@@ -211,6 +215,7 @@ export default function NewCommitmentScreen() {
                 ? { kind: 'friend', friend: friendInput(draft.friend) }
                 : undefined,
           });
+          signContract({ goalId }, signed);
         }
         track('commitment created', createdProperties);
         goTo('done');
@@ -226,7 +231,7 @@ export default function NewCommitmentScreen() {
         return;
       }
       if (draft.kind === 'habit' && card !== null) {
-        await createHabitStaked({
+        const habitId = await createHabitStaked({
           title,
           description,
           timesPerWeek: draft.timesPerWeek,
@@ -235,8 +240,9 @@ export default function NewCommitmentScreen() {
           amountCents: card.amountCents,
           setupIntentId: card.setupIntentId,
         });
+        signContract({ habitId }, signed);
       } else {
-        await createStaked({
+        const goalId = await createStaked({
           title,
           description,
           dueAt: draft.dueAt,
@@ -246,6 +252,7 @@ export default function NewCommitmentScreen() {
             ? { setupIntentId: card.setupIntentId }
             : { reuseFromStakeId: reuse?.fromStakeId }),
         });
+        signContract({ goalId }, signed);
       }
       track('commitment created', { ...createdProperties, reused_card: card === null });
       goTo('done');
@@ -324,7 +331,7 @@ export default function NewCommitmentScreen() {
           />
         ) : null}
         {step === 'sign' ? (
-          <SignStep draft={draft} busy={busy} onConfirm={() => void lockIn()} />
+          <SignStep draft={draft} busy={busy} onConfirm={(signed) => void lockIn(signed)} />
         ) : null}
         {step === 'done' ? <LockedIn draft={draft} onDone={() => router.back()} /> : null}
       </Animated.View>

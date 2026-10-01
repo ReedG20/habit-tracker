@@ -25,14 +25,22 @@ import Svg, { Path } from 'react-native-svg';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { Icon } from '@/components/icon';
+import {
+  contractBeats,
+  SignedContractCard,
+  signedAgo,
+  useRevealContract,
+} from '@/components/signed-contract/signed-contract';
 import { Flag02Icon, Tick02Icon } from '@/constants/icons';
 import { ControlHeight, Fonts, PillRadius, Spacing } from '@/constants/theme';
 import type { Kept } from '@/convex/accomplishments';
+import type { SignedContract } from '@/convex/contracts';
 import type { Id } from '@/convex/_generated/dataModel';
 import { api } from '@/convex/_generated/api';
+import { useFitsScreen } from '@/hooks/use-fits-screen';
 import { keptStory, type KeptStory } from '@/data/kept-story';
 import { track } from '@/lib/analytics';
-import { successHaptic } from '@/lib/haptics';
+import { pressHaptic, successHaptic } from '@/lib/haptics';
 import { watchKept } from '@/lib/kept-screen';
 
 /**
@@ -59,12 +67,17 @@ const BEAT = {
   line: 1800,
   stake: 2200,
   run: 2600,
+  /** The signed contract, when there is one; the actions wait for its stamp. */
+  contract: 3000,
   actions: 3100,
 };
 
 export default function KeptScreen() {
   const { accomplishmentId } = useLocalSearchParams<{ accomplishmentId: string }>();
   const kept = useQuery(api.accomplishments.get, {
+    accomplishmentId: accomplishmentId as Id<'accomplishments'>,
+  });
+  const contract = useQuery(api.contracts.forKept, {
     accomplishmentId: accomplishmentId as Id<'accomplishments'>,
   });
   const markSeen = useMutation(api.accomplishments.markSeen);
@@ -90,10 +103,14 @@ export default function KeptScreen() {
 
   const viewed = useRef(false);
   useEffect(() => {
-    if (kept == null || viewed.current) return;
+    if (kept == null || contract === undefined || viewed.current) return;
     viewed.current = true;
-    track('kept viewed', { kind: kept.kind, stake_kind: kept.stake?.kind ?? 'none' });
-  }, [kept]);
+    track('kept viewed', {
+      kind: kept.kind,
+      stake_kind: kept.stake?.kind ?? 'none',
+      has_contract: contract !== null,
+    });
+  }, [kept, contract]);
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -102,8 +119,14 @@ export default function KeptScreen() {
           <Text style={styles.line}>Nothing to see here.</Text>
           <LightButton label="Close" onPress={() => leave('done')} />
         </View>
-      ) : kept === undefined ? null : (
-        <KeptBody kept={kept} story={keptStory(kept)} bottomInset={insets.bottom} onLeave={leave} />
+      ) : kept === undefined || contract === undefined ? null : (
+        <KeptBody
+          kept={kept}
+          story={keptStory(kept)}
+          contract={contract}
+          bottomInset={insets.bottom}
+          onLeave={leave}
+        />
       )}
     </View>
   );
@@ -112,44 +135,83 @@ export default function KeptScreen() {
 function KeptBody({
   kept,
   story,
+  contract,
   bottomInset,
   onLeave,
 }: {
   kept: Kept;
   story: KeptStory;
+  contract: SignedContract | null;
   bottomInset: number;
   onLeave: (action: 'done' | 'start_another', next?: Href) => void;
 }) {
   const reduceMotion = useReducedMotion();
   const delay = (ms: number) => (reduceMotion ? 0 : ms);
+  const actionsAt = contract === null ? BEAT.actions : contractBeats(BEAT.contract, true).end;
+  // With the contract to show, the page tightens up to stay on one screen.
+  const compact = contract !== null;
+  const fit = useFitsScreen(compact, 1);
+  const scroll = useRef<ScrollView>(null);
+  useRevealContract(scroll, BEAT.contract, compact && !reduceMotion);
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.body, { paddingBottom: bottomInset + Spacing.four }]}
-      alwaysBounceVertical={false}>
+      ref={scroll}
+      contentContainerStyle={[
+        styles.body,
+        compact && styles.bodyCompact,
+        { paddingBottom: bottomInset + (compact ? Spacing.three : Spacing.four) },
+      ]}
+      alwaysBounceVertical={false}
+      {...fit.scrollProps}>
       <Animated.Text entering={FadeIn.delay(delay(BEAT.kicker))} style={styles.kicker}>
         {story.kicker.toUpperCase()}
       </Animated.Text>
 
-      <RingedHeadline story={story} reduceMotion={reduceMotion} />
+      <RingedHeadline story={story} reduceMotion={reduceMotion} compact={compact} />
 
-      <Animated.View entering={FadeIn.delay(delay(BEAT.line)).duration(500)}>
-        <Emphasized text={story.line} emphasis={story.emphasis} />
-      </Animated.View>
+      <View style={compact ? styles.linesCompact : styles.lines}>
+        <Animated.View entering={FadeIn.delay(delay(BEAT.line)).duration(500)}>
+          <Emphasized
+            text={story.line}
+            emphasis={story.emphasis}
+            style={compact && styles.lineCompact}
+          />
+        </Animated.View>
 
-      <Animated.View entering={FadeIn.delay(delay(BEAT.stake)).duration(500)}>
-        <Emphasized text={story.stakeLine} emphasis={story.emphasis} style={styles.stakeLine} />
-      </Animated.View>
+        <Animated.View entering={FadeIn.delay(delay(BEAT.stake)).duration(500)}>
+          <Emphasized
+            text={story.stakeLine}
+            emphasis={story.emphasis}
+            style={[styles.stakeLine, compact && styles.lineCompact]}
+          />
+        </Animated.View>
+      </View>
 
-      {story.dots !== null ? (
+      {story.dots !== null && fit.shows(0) ? (
         <Animated.View
           entering={FadeInDown.delay(delay(BEAT.run)).duration(500)}
-          style={styles.panel}>
-          <RunDots count={story.dots.count} unit={story.dots.unit} />
+          style={[styles.panel, compact && styles.panelCompact]}>
+          <RunDots count={story.dots.count} unit={story.dots.unit} compact={compact} />
         </Animated.View>
       ) : null}
 
-      <Animated.View entering={FadeIn.delay(delay(BEAT.actions))} style={styles.actions}>
+      {contract !== null ? (
+        <SignedContractCard
+          contract={contract}
+          stamp={{ label: 'KEPT', color: KEPT.background }}
+          lead={`you signed this ${signedAgo(contract.signedAt, kept.achievedAt)}. you kept it.`}
+          leadColor={KEPT.text}
+          replay
+          at={BEAT.contract}
+          reduceMotion={reduceMotion}
+          onStamp={pressHaptic}
+        />
+      ) : null}
+
+      <Animated.View
+        entering={FadeIn.delay(delay(actionsAt))}
+        style={[styles.actions, compact && styles.actionsCompact]}>
         <LightButton label="Done" onPress={() => onLeave('done')} />
         <Pressable
           accessibilityRole="button"
@@ -160,7 +222,8 @@ function KeptBody({
             {kept.kind === 'goal' ? 'Set another goal' : 'Start another habit'}
           </Text>
         </Pressable>
-        <Text style={styles.note}>{story.note}</Text>
+        {/* The line over the contract says it now. */}
+        {compact ? null : <Text style={styles.note}>{story.note}</Text>}
       </Animated.View>
     </ScrollView>
   );
@@ -178,7 +241,16 @@ const RING_PATH =
 const RING_DASH = 640;
 
 /** The big line, with a ring drawing itself around it: the loss screen's strike, reversed. */
-function RingedHeadline({ story, reduceMotion }: { story: KeptStory; reduceMotion: boolean }) {
+function RingedHeadline({
+  story,
+  reduceMotion,
+  compact,
+}: {
+  story: KeptStory;
+  reduceMotion: boolean;
+  /** Smaller, with the unit beside the ring, to leave room for the contract. */
+  compact: boolean;
+}) {
   const draw = useSharedValue(reduceMotion ? 1 : 0);
 
   useEffect(() => {
@@ -202,12 +274,19 @@ function RingedHeadline({ story, reduceMotion }: { story: KeptStory; reduceMotio
       : story.headline.text;
 
   return (
-    <View style={styles.headlineBlock} accessible accessibilityLabel={label}>
+    <View
+      style={[styles.headlineBlock, compact && styles.headlineRow]}
+      accessible
+      accessibilityLabel={label}>
       <Animated.View
         entering={FadeInDown.delay(reduceMotion ? 0 : BEAT.headline).duration(600)}
         style={styles.ringed}>
         <Text
-          style={story.headline.kind === 'count' ? styles.count : styles.words}
+          style={
+            story.headline.kind === 'count'
+              ? [styles.count, compact && styles.countCompact]
+              : [styles.words, compact && styles.wordsCompact]
+          }
           numberOfLines={1}>
           {story.headline.kind === 'count' ? story.headline.count : story.headline.text}
         </Text>
@@ -231,7 +310,7 @@ function RingedHeadline({ story, reduceMotion }: { story: KeptStory; reduceMotio
       {story.headline.kind === 'count' ? (
         <Animated.Text
           entering={FadeIn.delay(reduceMotion ? 0 : BEAT.unit).duration(500)}
-          style={styles.unit}>
+          style={[styles.unit, compact && styles.unitCompact]}>
           {story.headline.unit}.
         </Animated.Text>
       ) : null}
@@ -240,8 +319,17 @@ function RingedHeadline({ story, reduceMotion }: { story: KeptStory; reduceMotio
 }
 
 /** The run, a tick a day (or week), finished with a flag instead of the loss screen's miss. */
-function RunDots({ count, unit }: { count: number; unit: 'day' | 'week' }) {
-  const MAX = 42;
+function RunDots({
+  count,
+  unit,
+  compact = false,
+}: {
+  count: number;
+  unit: 'day' | 'week';
+  /** One row, the latest few, to leave room for the contract. */
+  compact?: boolean;
+}) {
+  const MAX = compact ? 10 : 42;
   const shown = Math.min(count, MAX);
   return (
     <View
@@ -326,6 +414,16 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.five,
     gap: Spacing.four,
   },
+  bodyCompact: {
+    paddingTop: Spacing.three,
+    gap: Spacing.three,
+  },
+  lines: {
+    gap: Spacing.four,
+  },
+  linesCompact: {
+    gap: Spacing.two,
+  },
   kicker: {
     color: KEPT.soft,
     fontSize: 14,
@@ -334,6 +432,11 @@ const styles = StyleSheet.create({
   },
   headlineBlock: {
     gap: Spacing.one,
+  },
+  headlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
   },
   // Sized to the headline, so the ring hugs it.
   ringed: {
@@ -369,6 +472,18 @@ const styles = StyleSheet.create({
     lineHeight: 56,
     color: KEPT.text,
   },
+  countCompact: {
+    fontSize: 80,
+    lineHeight: 100,
+  },
+  wordsCompact: {
+    fontSize: 64,
+    lineHeight: 84,
+  },
+  unitCompact: {
+    fontSize: 40,
+    lineHeight: 52,
+  },
   line: {
     color: KEPT.soft,
     fontSize: 20,
@@ -376,6 +491,10 @@ const styles = StyleSheet.create({
   },
   stakeLine: {
     color: KEPT.text,
+  },
+  lineCompact: {
+    fontSize: 18,
+    lineHeight: 26,
   },
   bold: {
     color: KEPT.text,
@@ -385,6 +504,9 @@ const styles = StyleSheet.create({
     backgroundColor: KEPT.panel,
     borderRadius: 24,
     padding: Spacing.four,
+  },
+  panelCompact: {
+    paddingVertical: Spacing.three,
   },
   dots: {
     flexDirection: 'row',
@@ -409,6 +531,9 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
     gap: Spacing.three,
     paddingTop: Spacing.four,
+  },
+  actionsCompact: {
+    paddingTop: Spacing.two,
   },
   lightButton: {
     height: ControlHeight,

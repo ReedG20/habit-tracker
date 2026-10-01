@@ -21,6 +21,7 @@ import { WhatStep, whatTitle, type WhatPhase } from '@/components/commitment/wha
 import { Icon } from '@/components/icon';
 import { DismissKeyboardArea } from '@/components/keyboard/dismiss-keyboard-area';
 import { OnboardingProgress } from '@/components/onboarding/onboarding-progress';
+import type { Signed } from '@/components/signed-contract/types';
 import { ThemedText } from '@/components/themed-text';
 import { ArrowLeft01Icon } from '@/constants/icons';
 import { ScreenHeadingTypography, Spacing } from '@/constants/theme';
@@ -29,7 +30,7 @@ import { historyReply, suggestionsFor, suggestKind } from '@/data/onboarding';
 import { useTheme } from '@/hooks/use-theme';
 import { track } from '@/lib/analytics';
 import { useNotificationPermission } from '@/lib/notifications';
-import { getOnboarding, setDraft as saveDraft } from '@/lib/onboarding';
+import { getOnboarding, setDraft as saveDraft, setFirstSigned } from '@/lib/onboarding';
 
 type Step = 'what' | 'stakes' | 'sign';
 
@@ -112,10 +113,11 @@ export default function OnboardingCommitmentScreen() {
     }
   };
 
-  const lockIn = () => {
+  const lockIn = (signed: Signed) => {
     // No money in onboarding: there's no account to save a card to yet.
     const stakeKind = draft.stakeKind === 'money' ? 'none' : draft.stakeKind;
     saveDraft({ ...draft, stakeKind, card: null });
+    setFirstSigned(signed);
     track('onboarding step completed', {
       step: 'commitment',
       kind: draft.kind,
