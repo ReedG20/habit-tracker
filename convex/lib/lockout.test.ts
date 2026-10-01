@@ -137,7 +137,12 @@ describe('findMisses: weekly', () => {
     // Signed up and made it the same day: accountableFrom is the day after.
     const made = thrice({ startDay: '2026-09-23' });
     expect(
-      check({ habits: [made], accountableFrom: '2026-09-24', from: '2026-09-29', to: '2026-09-29' }),
+      check({
+        habits: [made],
+        accountableFrom: '2026-09-24',
+        from: '2026-09-29',
+        to: '2026-09-29',
+      }),
     ).toMatchObject([{ period: '2026-09-23' }]);
   });
 
@@ -145,7 +150,12 @@ describe('findMisses: weekly', () => {
     const made = thrice({ startDay: '2026-09-23' });
     // Back in on Friday the 25th: that week is free, the next one counts.
     expect(
-      check({ habits: [made], accountableFrom: '2026-09-26', from: '2026-09-29', to: '2026-10-06' }),
+      check({
+        habits: [made],
+        accountableFrom: '2026-09-26',
+        from: '2026-09-29',
+        to: '2026-10-06',
+      }),
     ).toMatchObject([{ period: '2026-09-30' }]);
   });
 

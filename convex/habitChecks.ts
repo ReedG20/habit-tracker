@@ -203,8 +203,7 @@ async function runSnapshot(
   return {
     streak,
     unit: daily ? 'day' : 'week',
-    completions: rows.filter((row) => row.day <= (daily ? miss.period : periodEnd))
-      .length,
+    completions: rows.filter((row) => row.day <= (daily ? miss.period : periodEnd)).length,
     sinceDay,
     missedPeriod: miss.period,
   };
