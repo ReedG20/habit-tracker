@@ -153,8 +153,8 @@ export default function DeleteAccountScreen() {
         <ThemedView type="backgroundElement" style={styles.card}>
           <ThemedText type="smallSemibold">Ante Pro</ThemedText>
           <ThemedText themeColor="textSecondary">
-            Apple bills Ante Pro, so deleting your account doesn’t cancel it. If you’re
-            subscribed, cancel it in your App Store subscriptions first.
+            Apple bills Ante Pro, so deleting your account doesn’t cancel it. If you’re subscribed,
+            cancel it in your App Store subscriptions first.
           </ThemedText>
           <ActionButton
             label="Manage subscription"
