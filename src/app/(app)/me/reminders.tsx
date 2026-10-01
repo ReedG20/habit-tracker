@@ -108,9 +108,13 @@ export default function RemindersScreen() {
   const test = async () => {
     setTestStatus('Sending…');
     try {
-      const devices = await sendTest({});
+      const { devices, delivering } = await sendTest({});
       setTestStatus(
-        devices === 0 ? 'Turn notifications on first.' : 'Sent. Should land any second.',
+        devices === 0
+          ? 'Turn notifications on first.'
+          : !delivering
+            ? "This server doesn't deliver pushes (PUSH_DELIVERY is off)."
+            : 'Sent. Should land any second.',
       );
     } catch {
       setTestStatus('Easy there. Try again in a minute.');

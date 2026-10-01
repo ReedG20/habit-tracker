@@ -143,11 +143,15 @@ export const unregister = authedMutation({
   },
 });
 
-/** The Reminders screen's "Send a test". Returns how many devices it went to. */
+/**
+ * The Reminders screen's "Send a test". Returns how many devices it went to,
+ * and whether this deployment delivers at all: with `PUSH_DELIVERY` off the
+ * push is only logged, and the screen should say so rather than "Sent".
+ */
 export const sendTest = authedMutation({
   args: {},
-  returns: v.number(),
-  handler: async (ctx): Promise<number> => {
+  returns: v.object({ devices: v.number(), delivering: v.boolean() }),
+  handler: async (ctx): Promise<{ devices: number; delivering: boolean }> => {
     await rateLimiter.limit(ctx, 'testPush', { key: ctx.user._id, throws: true });
     const tokens = await grantedTokens(ctx, ctx.user._id);
     await deliver(
@@ -165,7 +169,7 @@ export const sendTest = authedMutation({
       ],
       tokens,
     );
-    return tokens.length;
+    return { devices: tokens.length, delivering: env.PUSH_DELIVERY === 'on' };
   },
 });
 
