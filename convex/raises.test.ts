@@ -124,7 +124,7 @@ describe('raises.raise', () => {
     const small = await moneyHabit(t, alice.userId, 4000, 'Write');
     const before = await stakeOfHabit(t, small);
 
-    // $140 armed: +$10 fits the $150 cap exactly, +$11 doesn't.
+    // $50 is the most one stake can be, cap or no cap.
     await expect(
       alice.as.mutation(api.raises.raise, {
         target: { habitId: small },
@@ -151,10 +151,12 @@ describe('raises.raise', () => {
     const alice = await signIn(t, 'alice');
     await moneyHabit(t, alice.userId, 5000, 'Run');
     await moneyHabit(t, alice.userId, 5000, 'Read');
+    await moneyHabit(t, alice.userId, 5000, 'Lift');
+    await moneyHabit(t, alice.userId, 5000, 'Stretch');
     await moneyHabit(t, alice.userId, 1500, 'Swim');
     const habitId = await moneyHabit(t, alice.userId, 3000, 'Write');
 
-    // $145 armed: +$10 would make $155.
+    // $245 armed: +$10 would make $255.
     await expect(
       alice.as.mutation(api.raises.raise, {
         target: { habitId },

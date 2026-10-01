@@ -173,6 +173,8 @@ describe('money', () => {
     const alice = await signIn(t, 'alice');
     await moneyHabit(t, alice.userId, 'Run', 5000);
     await moneyHabit(t, alice.userId, 'Read', 5000);
+    await moneyHabit(t, alice.userId, 'Swim', 5000);
+    await moneyHabit(t, alice.userId, 'Lift', 5000);
     await t.mutation(internal.goals.insertStaked, {
       userId: alice.userId,
       title: 'Ship',
@@ -184,7 +186,7 @@ describe('money', () => {
     });
 
     expect(await alice.as.query(api.stakes.headroom, {})).toMatchObject({
-      usedCents: 14000,
+      usedCents: 24000,
       remainingCents: 1000,
     });
     // A `ConvexError`, so the reason reaches the app in production too.
@@ -193,7 +195,7 @@ describe('money', () => {
     );
     // Nothing half-made: the habit went with the refused stake.
     const habits = await t.run(async (ctx) => await ctx.db.query('habits').collect());
-    expect(habits.map((habit) => habit.title).sort()).toEqual(['Read', 'Run']);
+    expect(habits.map((habit) => habit.title).sort()).toEqual(['Lift', 'Read', 'Run', 'Swim']);
     await moneyHabit(t, alice.userId, 'Stretch', 1000);
   });
 

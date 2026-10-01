@@ -35,11 +35,13 @@ import { ArrowLeft01Icon, Cancel01Icon } from '@/constants/icons';
 import { ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
+import { limitMessage } from '@/convex/lib/commitmentLimits';
 import { DAILY } from '@/convex/lib/frequency';
 import { captureError, track } from '@/lib/analytics';
 import { commitmentCreatedProperties } from '@/lib/analytics-events';
 import { cardLabel } from '@/lib/money';
 import { userErrorMessage } from '@/lib/user-errors';
+import { useNow } from '@/hooks/use-now';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -80,6 +82,7 @@ export default function NewCommitmentScreen() {
   );
   const syncSubscription = useAction(api.subscriptions.sync);
   const subscription = useSubscription();
+  const room = useQuery(api.limits.room, { now: useNow() });
 
   const insets = useSafeAreaInsets();
   const theme = useTheme();
@@ -129,6 +132,10 @@ export default function NewCommitmentScreen() {
   }, [again, update]);
 
   const goTo = (next: Step) => setStep(next);
+
+  // Already as many of this kind as Ante allows: said up front, before anything is typed.
+  const slots = room === undefined ? null : draft.kind === 'habit' ? room.habits : room.goals;
+  const full = slots !== null && slots.used >= slots.max ? limitMessage(draft.kind) : null;
 
   const back = () => {
     // Steps 1 and 2 are two pages each: Back walks through both.
@@ -304,6 +311,7 @@ export default function NewCommitmentScreen() {
             onNext={() => goTo('stakes')}
             phase={whatPhase}
             onPhaseChange={setWhatPhase}
+            full={full}
           />
         ) : null}
         {step === 'stakes' ? (

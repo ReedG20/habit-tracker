@@ -13,11 +13,14 @@ import { WordingFeedback } from './wording-feedback';
 import { ActionButton } from '@/components/action-button';
 import { DeadlineField } from '@/components/deadline-field';
 import { DeadlinePresets } from '@/components/deadline-presets';
+import { Icon } from '@/components/icon';
 import { ChoiceChip } from '@/components/onboarding/choice-chip';
 import { SegmentedPicker } from '@/components/segmented-picker';
 import type { TextFieldHandle } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { LockIcon } from '@/constants/icons';
+import { BorderRadius, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 
 const kindOptions: { value: CommitmentKind; label: string }[] = [
   { value: 'habit', label: 'Habit · repeats' },
@@ -36,6 +39,8 @@ export type NamePageProps = {
   /** The name passed its check: on to the proof. */
   onNext: (result: NameCheckResult) => void;
   suggestions?: Record<CommitmentKind, { title: string; proof: string }[]>;
+  /** Why no more of this kind can be made right now (`lib/commitmentLimits.ts`), or null. */
+  full?: string | null;
 };
 
 /**
@@ -43,7 +48,15 @@ export type NamePageProps = {
  * checked in the background as it's typed (`useNameCheck`), so moving on is
  * usually instant; a name that can't be proven is only raised on Next.
  */
-export function NamePage({ draft, onChange, nameCheck, onNext, suggestions }: NamePageProps) {
+export function NamePage({
+  draft,
+  onChange,
+  nameCheck,
+  onNext,
+  suggestions,
+  full = null,
+}: NamePageProps) {
+  const theme = useTheme();
   const readTitle = useRef<(() => string) | null>(null);
   // Bumped when the name is replaced, remounting the field with the new text.
   const [fieldKey, setFieldKey] = useState(0);
@@ -129,7 +142,7 @@ export function NamePage({ draft, onChange, nameCheck, onNext, suggestions }: Na
           label={waiting ? 'Checking…' : 'Next: how you’ll prove it'}
           variant="primary"
           fill
-          disabled={waiting}
+          disabled={waiting || full !== null}
           onPress={() => void next()}
         />
       }
@@ -147,6 +160,15 @@ export function NamePage({ draft, onChange, nameCheck, onNext, suggestions }: Na
           }}
         />
       }>
+      {full !== null ? (
+        <View style={[styles.full, { backgroundColor: theme.backgroundElement }]}>
+          <Icon icon={LockIcon} size={20} strokeWidth={2} themeColor="textSecondary" />
+          <ThemedText type="small" themeColor="textSecondary" style={styles.fullText}>
+            {full}
+          </ThemedText>
+        </View>
+      ) : null}
+
       <View style={styles.titleRow}>
         <IconTile
           kind={draft.kind}
@@ -232,6 +254,16 @@ export function NamePage({ draft, onChange, nameCheck, onNext, suggestions }: Na
 }
 
 const styles = StyleSheet.create({
+  full: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    padding: Spacing.three,
+    borderRadius: BorderRadius,
+  },
+  fullText: {
+    flex: 1,
+  },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
