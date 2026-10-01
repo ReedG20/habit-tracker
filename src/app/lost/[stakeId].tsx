@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from 'convex/react';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
@@ -17,15 +17,22 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ActionButton } from '@/components/action-button';
 import { Countdown } from '@/components/countdown';
 import { Icon } from '@/components/icon';
+import {
+  contractBeats,
+  SignedContractCard,
+  useRevealContract,
+} from '@/components/signed-contract/signed-contract';
 import { Cancel01Icon, Tick02Icon } from '@/constants/icons';
 import { Fonts, PillRadius, Spacing } from '@/constants/theme';
 import type { Id } from '@/convex/_generated/dataModel';
 import { api } from '@/convex/_generated/api';
+import type { SignedContract } from '@/convex/contracts';
+import { useFitsScreen } from '@/hooks/use-fits-screen';
 import type { Loss } from '@/convex/stakes';
 import { lossStory, textFriendBody, type LossStory } from '@/data/loss-story';
 import { useSettleUp } from '@/hooks/use-settle-up';
 import { captureError, track, type AnalyticsEvents } from '@/lib/analytics';
-import { lossHaptic, successHaptic } from '@/lib/haptics';
+import { lossHaptic, pressHaptic, successHaptic } from '@/lib/haptics';
 import { watchLoss } from '@/lib/loss-screen';
 import { cardLabel, formatCents } from '@/lib/money';
 import { userErrorMessage } from '@/lib/user-errors';
@@ -58,12 +65,15 @@ const BEAT = {
   gone: 2000,
   line: 2300,
   bought: 2800,
+  /** The signed contract, when there is one; the actions wait for its stamp. */
+  contract: 3100,
   actions: 3300,
 };
 
 export default function LostScreen() {
   const { stakeId } = useLocalSearchParams<{ stakeId: string }>();
   const loss = useQuery(api.stakes.loss, { stakeId: stakeId as Id<'stakes'> });
+  const contract = useQuery(api.contracts.forLoss, { stakeId: stakeId as Id<'stakes'> });
   const markSeen = useMutation(api.stakes.markSeen);
   const insets = useSafeAreaInsets();
   useEffect(() => watchLoss(stakeId), [stakeId]);
@@ -88,15 +98,16 @@ export default function LostScreen() {
 
   const viewed = useRef(false);
   useEffect(() => {
-    if (loss == null || viewed.current) return;
+    if (loss == null || contract === undefined || viewed.current) return;
     viewed.current = true;
     track('stake lost viewed', {
       kind: loss.habitId !== undefined ? 'habit' : 'goal',
       stake_kind: loss.stake.kind,
       stake_status: loss.stake.status,
       amount_cents: loss.stake.kind === 'money' ? loss.stake.amountCents : 0,
+      has_contract: contract !== null,
     });
-  }, [loss]);
+  }, [loss, contract]);
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -105,8 +116,14 @@ export default function LostScreen() {
           <Text style={styles.line}>This one’s gone.</Text>
           <ActionButton label="Close" variant="primary" onPress={() => leave()} />
         </View>
-      ) : loss === undefined || story === null ? null : (
-        <LossBody loss={loss} story={story} bottomInset={insets.bottom} onLeave={leave} />
+      ) : loss === undefined || story === null || contract === undefined ? null : (
+        <LossBody
+          loss={loss}
+          story={story}
+          contract={contract}
+          bottomInset={insets.bottom}
+          onLeave={leave}
+        />
       )}
     </View>
   );
@@ -115,16 +132,25 @@ export default function LostScreen() {
 function LossBody({
   loss,
   story,
+  contract,
   bottomInset,
   onLeave,
 }: {
   loss: Loss;
   story: LossStory;
+  contract: SignedContract | null;
   bottomInset: number;
   onLeave: (next?: Href) => void;
 }) {
   const reduceMotion = useReducedMotion();
   const delay = (ms: number) => (reduceMotion ? 0 : ms);
+  const actionsAt = contract === null ? BEAT.actions : contractBeats(BEAT.contract, false).end;
+  // With the contract to show, the page tightens up to stay on one screen.
+  const compact = contract !== null;
+  // Extras, most important first: the run the stake bought, then what the friend got.
+  const fit = useFitsScreen(compact, 2);
+  const scroll = useRef<ScrollView>(null);
+  useRevealContract(scroll, BEAT.contract, compact && !reduceMotion);
 
   useEffect(() => {
     lossHaptic();
@@ -132,18 +158,29 @@ function LossBody({
 
   return (
     <ScrollView
-      contentContainerStyle={[styles.body, { paddingBottom: bottomInset + Spacing.four }]}
-      alwaysBounceVertical={false}>
+      ref={scroll}
+      contentContainerStyle={[
+        styles.body,
+        compact && styles.bodyCompact,
+        { paddingBottom: bottomInset + (compact ? Spacing.three : Spacing.four) },
+      ]}
+      alwaysBounceVertical={false}
+      {...fit.scrollProps}>
       <Animated.Text entering={FadeIn.delay(delay(BEAT.kicker))} style={styles.kicker}>
         {story.kicker.toUpperCase()}
       </Animated.Text>
 
       {story.headline.kind === 'money' ? (
-        <StruckAmount cents={story.headline.cents} gone={story.gone} reduceMotion={reduceMotion} />
+        <StruckAmount
+          cents={story.headline.cents}
+          gone={story.gone}
+          reduceMotion={reduceMotion}
+          compact={compact}
+        />
       ) : (
         <Animated.Text
           entering={FadeInDown.delay(delay(BEAT.strike)).duration(600)}
-          style={styles.words}
+          style={[styles.words, compact && styles.wordsCompact]}
           adjustsFontSizeToFit
           numberOfLines={1}>
           {story.headline.text}
@@ -151,7 +188,7 @@ function LossBody({
       )}
 
       <Animated.View entering={FadeIn.delay(delay(BEAT.line)).duration(500)}>
-        <Emphasized text={story.line} emphasis={story.emphasis} />
+        <Emphasized text={story.line} emphasis={story.emphasis} compact={compact} />
       </Animated.View>
 
       {loss.stake.kind === 'lockout' && loss.frozenUntil !== undefined ? (
@@ -160,31 +197,51 @@ function LossBody({
         </Animated.View>
       ) : null}
 
-      {story.bought !== null ? (
+      {story.bought !== null && fit.shows(0) ? (
         <Animated.View
           entering={FadeInDown.delay(delay(BEAT.bought)).duration(500)}
-          style={styles.panel}>
-          <RunDots count={story.bought.count} unit={story.bought.unit} />
-          <Text style={styles.panelTitle}>{story.bought.title}</Text>
-          <Text style={styles.panelBody}>{story.bought.body}</Text>
+          style={[styles.panel, compact && styles.panelCompact]}>
+          <RunDots count={story.bought.count} unit={story.bought.unit} compact={compact} />
+          <Text style={[styles.panelTitle, compact && styles.panelTitleCompact]}>
+            {story.bought.title}
+          </Text>
+          {compact ? null : <Text style={styles.panelBody}>{story.bought.body}</Text>}
         </Animated.View>
       ) : null}
 
-      {loss.stake.kind === 'friend' ? (
+      {loss.stake.kind === 'friend' && fit.shows(1) ? (
         <Animated.View
           entering={FadeInDown.delay(delay(BEAT.bought)).duration(500)}
-          style={styles.panel}>
-          <Text style={styles.panelTitle}>What {loss.stake.friendName} got</Text>
+          style={[styles.panel, compact && styles.panelCompact]}>
+          <Text style={[styles.panelTitle, compact && styles.panelTitleCompact]}>
+            What {loss.stake.friendName} got
+          </Text>
           <Text style={styles.panelBody}>
-            One email saying you missed, with a nudge to check in on you. If they reply, it comes
-            straight to you.
+            One email saying you missed, with a nudge to check in on you.
+            {compact ? null : ' If they reply, it comes straight to you.'}
           </Text>
         </Animated.View>
       ) : null}
 
-      <Animated.View entering={FadeIn.delay(delay(BEAT.actions))} style={styles.actions}>
-        <Actions loss={loss} onLeave={onLeave} />
-        <Text style={styles.note}>{story.note}</Text>
+      {contract !== null ? (
+        <SignedContractCard
+          contract={contract}
+          stamp={{ label: 'MISSED', color: INK.accent }}
+          lead="your signature’s still on it."
+          leadColor={INK.soft}
+          replay={false}
+          at={BEAT.contract}
+          reduceMotion={reduceMotion}
+          onStamp={pressHaptic}
+        />
+      ) : null}
+
+      <Animated.View
+        entering={FadeIn.delay(delay(actionsAt))}
+        style={[styles.actions, compact && styles.actionsCompact]}>
+        <Actions loss={loss} onLeave={onLeave} compact={compact} />
+        {/* The line over the contract says it now. */}
+        {compact ? null : <Text style={styles.note}>{story.note}</Text>}
       </Animated.View>
     </ScrollView>
   );
@@ -198,10 +255,13 @@ function StruckAmount({
   cents,
   gone,
   reduceMotion,
+  compact,
 }: {
   cents: number;
   gone: boolean;
   reduceMotion: boolean;
+  /** Smaller, with "Gone." beside the amount, to leave room for the contract. */
+  compact: boolean;
 }) {
   const strike = useSharedValue(reduceMotion ? 1 : 0);
   const fade = useSharedValue(reduceMotion ? 0.4 : 1);
@@ -220,18 +280,20 @@ function StruckAmount({
 
   return (
     <View
-      style={styles.amountBlock}
+      style={[styles.amountBlock, compact && styles.amountRow]}
       accessible
       accessibilityLabel={`${formatCents(cents)} ${gone ? 'lost' : 'still owed'}`}>
       <View style={styles.struck}>
-        <Animated.Text style={[styles.amount, amountStyle]} numberOfLines={1}>
+        <Animated.Text
+          style={[styles.amount, compact && styles.amountCompact, amountStyle]}
+          numberOfLines={1}>
           {formatCents(cents)}
         </Animated.Text>
         <Animated.View style={[styles.strike, strikeStyle]} />
       </View>
       <Animated.Text
         entering={FadeIn.delay(reduceMotion ? 0 : BEAT.gone).duration(500)}
-        style={styles.gone}>
+        style={[styles.gone, compact && styles.goneCompact]}>
         {gone ? 'Gone.' : 'Still owed.'}
       </Animated.Text>
     </View>
@@ -239,8 +301,17 @@ function StruckAmount({
 }
 
 /** The run the stake held up, a dot a day (or week), ending in the miss. */
-function RunDots({ count, unit }: { count: number; unit: 'day' | 'week' }) {
-  const MAX = 42;
+function RunDots({
+  count,
+  unit,
+  compact = false,
+}: {
+  count: number;
+  unit: 'day' | 'week';
+  /** One row, the latest few, to leave room for the contract. */
+  compact?: boolean;
+}) {
+  const MAX = compact ? 10 : 42;
   const shown = Math.min(count, MAX);
   return (
     <View
@@ -261,7 +332,16 @@ function RunDots({ count, unit }: { count: number; unit: 'day' | 'week' }) {
 }
 
 /** The way back in, which depends on what was lost and whether it can be restarted. */
-function Actions({ loss, onLeave }: { loss: Loss; onLeave: (next?: Href) => void }) {
+function Actions({
+  loss,
+  onLeave,
+  compact,
+}: {
+  loss: Loss;
+  onLeave: (next?: Href) => void;
+  /** The quieter ways out side by side, to save a row. */
+  compact: boolean;
+}) {
   const settleUp = useSettleUp();
   const [busy, setBusy] = useState(false);
   const { stake } = loss;
@@ -275,6 +355,7 @@ function Actions({ loss, onLeave }: { loss: Loss; onLeave: (next?: Href) => void
 
   const secondary = (label: string, onPress: () => void) => (
     <Pressable
+      key={label}
       accessibilityRole="button"
       onPress={onPress}
       disabled={busy}
@@ -283,6 +364,8 @@ function Actions({ loss, onLeave }: { loss: Loss; onLeave: (next?: Href) => void
       <Text style={styles.secondaryText}>{label}</Text>
     </Pressable>
   );
+  const links = (...items: ReactNode[]) =>
+    compact ? <View style={styles.links}>{items}</View> : <>{items}</>;
 
   if (stake.kind === 'money' && stake.status === 'charge_failed') {
     const pay = async () => {
@@ -351,8 +434,10 @@ function Actions({ loss, onLeave }: { loss: Loss; onLeave: (next?: Href) => void
           fill
           onPress={() => leave('go_again', restartHref(true))}
         />
-        {secondary('Change the stakes', () => leave('change_stakes', restartHref(false)))}
-        {secondary('Not now', () => leave('not_now'))}
+        {links(
+          secondary('Change the stakes', () => leave('change_stakes', restartHref(false))),
+          secondary('Not now', () => leave('not_now')),
+        )}
       </>
     );
   }
@@ -370,8 +455,10 @@ function Actions({ loss, onLeave }: { loss: Loss; onLeave: (next?: Href) => void
             void Linking.openURL(`sms:&body=${encodeURIComponent(textFriendBody(loss.title))}`);
           }}
         />
-        {secondary(`Restart ${loss.title}`, () => leave('restart', restartHref(true)))}
-        {secondary('Not now', () => leave('not_now'))}
+        {links(
+          secondary(`Restart ${loss.title}`, () => leave('restart', restartHref(true))),
+          secondary('Not now', () => leave('not_now')),
+        )}
       </>
     );
   }
@@ -390,7 +477,15 @@ function Actions({ loss, onLeave }: { loss: Loss; onLeave: (next?: Href) => void
 }
 
 /** `text` with each term in `emphasis` set in bold, where it first appears. */
-function Emphasized({ text, emphasis }: { text: string; emphasis: string[] }) {
+function Emphasized({
+  text,
+  emphasis,
+  compact,
+}: {
+  text: string;
+  emphasis: string[];
+  compact: boolean;
+}) {
   const runs: { text: string; bold: boolean }[] = [];
   let rest = text;
   for (;;) {
@@ -407,7 +502,7 @@ function Emphasized({ text, emphasis }: { text: string; emphasis: string[] }) {
   if (rest.length > 0) runs.push({ text: rest, bold: false });
 
   return (
-    <Text style={styles.line}>
+    <Text style={[styles.line, compact && styles.lineCompact]}>
       {runs.map((run, index) => (
         <Text key={index} style={run.bold ? styles.bold : undefined}>
           {run.text}
@@ -434,6 +529,10 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.five,
     gap: Spacing.four,
   },
+  bodyCompact: {
+    paddingTop: Spacing.three,
+    gap: Spacing.three,
+  },
   kicker: {
     color: INK.accent,
     fontSize: 14,
@@ -442,6 +541,11 @@ const styles = StyleSheet.create({
   },
   amountBlock: {
     gap: Spacing.one,
+  },
+  amountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
   },
   // Sized to the number, so the strike runs just past its edges.
   struck: {
@@ -478,10 +582,28 @@ const styles = StyleSheet.create({
     lineHeight: 96,
     color: INK.text,
   },
+  amountCompact: {
+    fontSize: 80,
+    lineHeight: 100,
+  },
+  // Wraps under itself, rather than off the edge, beside a wide amount.
+  goneCompact: {
+    flexShrink: 1,
+    fontSize: 36,
+    lineHeight: 46,
+  },
+  wordsCompact: {
+    fontSize: 56,
+    lineHeight: 74,
+  },
   line: {
     color: INK.soft,
     fontSize: 20,
     lineHeight: 29,
+  },
+  lineCompact: {
+    fontSize: 18,
+    lineHeight: 26,
   },
   bold: {
     color: INK.text,
@@ -501,6 +623,14 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 28,
     fontWeight: '700',
+  },
+  panelCompact: {
+    paddingVertical: Spacing.three,
+    gap: 0,
+  },
+  panelTitleCompact: {
+    fontSize: 20,
+    lineHeight: 26,
   },
   panelBody: {
     color: INK.soft,
@@ -531,6 +661,16 @@ const styles = StyleSheet.create({
     marginTop: 'auto',
     gap: Spacing.three,
     paddingTop: Spacing.four,
+  },
+  actionsCompact: {
+    paddingTop: Spacing.two,
+  },
+  links: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    columnGap: Spacing.five,
+    rowGap: Spacing.two,
   },
   secondary: {
     alignSelf: 'center',

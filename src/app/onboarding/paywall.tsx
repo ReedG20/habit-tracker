@@ -22,11 +22,18 @@ import {
 } from '@/components/commitment/draft';
 import { commitmentNoun, freshDueAt } from '@/data/onboarding';
 import { useSessionUserId } from '@/hooks/use-signed-in-session';
+import { useSignContract, type ContractTarget } from '@/hooks/use-sign-contract';
 import { captureError, track } from '@/lib/analytics';
 import { commitmentCreatedProperties } from '@/lib/analytics-events';
 import { showDevTools } from '@/lib/dev-tools';
 import { successHaptic } from '@/lib/haptics';
-import { completeOnboarding, getOnboarding, markDraftSaved } from '@/lib/onboarding';
+import {
+  completeOnboarding,
+  getFirstSigned,
+  getOnboarding,
+  markDraftSaved,
+  setFirstSigned,
+} from '@/lib/onboarding';
 
 type Phase = 'offer' | 'saving' | 'failed';
 
@@ -43,6 +50,7 @@ export default function OnboardingPaywallScreen() {
   const saveOnboarding = useMutation(api.users.saveOnboarding);
   const createHabit = useMutation(api.habits.create);
   const createGoal = useMutation(api.goals.create);
+  const signContract = useSignContract();
   const devOverrides = useQuery(api.lockouts.devOverrides, showDevTools ? {} : 'skip');
   const devGrantPro = useMutation(api.subscriptions.devGrantPro);
 
@@ -77,9 +85,9 @@ export default function OnboardingPaywallScreen() {
     started.current = true;
 
     const pending = getOnboarding().draftSaved ? null : getOnboarding().draft;
-    const save =
+    const save: Promise<ContractTarget | null> =
       pending === null
-        ? Promise.resolve()
+        ? Promise.resolve(null)
         : pending.kind === 'habit'
           ? createHabit({
               title: pending.title.trim(),
@@ -88,7 +96,7 @@ export default function OnboardingPaywallScreen() {
               ...proofInput(pending),
               ...iconInput(pending),
               stake: plainStake(pending),
-            })
+            }).then((habitId) => ({ habitId }))
           : createGoal({
               title: pending.title.trim(),
               description: pending.proof.trim(),
@@ -98,10 +106,15 @@ export default function OnboardingPaywallScreen() {
                 pending.stakeKind === 'friend'
                   ? { kind: 'friend', friend: friendInput(pending.friend) }
                   : undefined,
-            });
+            }).then((goalId) => ({ goalId }));
 
     save
-      .then(() => {
+      .then((target) => {
+        const signed = getFirstSigned();
+        if (target !== null && signed !== null) {
+          signContract(target, signed);
+          setFirstSigned(null);
+        }
         if (pending !== null) {
           track(
             'commitment created',
@@ -129,7 +142,7 @@ export default function OnboardingPaywallScreen() {
         started.current = false;
         setPhase('failed');
       });
-  }, [userId, phase, outcome, noun, draft, createHabit, createGoal]);
+  }, [userId, phase, outcome, noun, draft, createHabit, createGoal, signContract]);
 
   if (!isAuthenticated) {
     return <Redirect href="/onboarding/save" />;

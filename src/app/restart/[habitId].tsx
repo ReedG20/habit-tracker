@@ -23,6 +23,7 @@ import {
 } from '@/components/commitment/stakes-step';
 import { Icon } from '@/components/icon';
 import { ProPaywallScreen } from '@/components/pro-paywall-screen';
+import type { Signed } from '@/components/signed-contract/types';
 import { ThemedText } from '@/components/themed-text';
 import { ArrowLeft01Icon, Cancel01Icon } from '@/constants/icons';
 import { ScreenHeadingTypography, Spacing } from '@/constants/theme';
@@ -30,6 +31,7 @@ import { api } from '@/convex/_generated/api';
 import type { Doc, Id } from '@/convex/_generated/dataModel';
 import { DAILY } from '@/convex/lib/frequency';
 import type { Loss } from '@/convex/stakes';
+import { useSignContract } from '@/hooks/use-sign-contract';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useTheme } from '@/hooks/use-theme';
 import { captureError, track } from '@/lib/analytics';
@@ -126,6 +128,7 @@ function RestartFlow({
 }) {
   const restart = useMutation(api.habits.restart);
   const restartStaked = useAction(api.habits.restartStaked);
+  const signContract = useSignContract();
   const [draft, setDraft] = useState<CommitmentDraft>(() => draftFor(habit, lost));
   // Straight to the signature only when the same stakes can go on as they are.
   const [step, setStep] = useState<Step>(() => {
@@ -143,7 +146,7 @@ function RestartFlow({
     [],
   );
 
-  const lockIn = async () => {
+  const lockIn = async (signed: Signed) => {
     if (busy) return;
     setBusy(true);
     try {
@@ -165,6 +168,7 @@ function RestartFlow({
             : { reuseFromStakeId: reuse?.fromStakeId }),
         });
       }
+      signContract({ habitId: habit._id }, signed);
       track('commitment restarted', { stake_kind: draft.stakeKind, same_stakes: again });
       setStep('done');
     } catch (error: unknown) {
@@ -239,7 +243,7 @@ function RestartFlow({
           />
         ) : null}
         {step === 'sign' ? (
-          <SignStep draft={draft} busy={busy} onConfirm={() => void lockIn()} />
+          <SignStep draft={draft} busy={busy} onConfirm={(signed) => void lockIn(signed)} />
         ) : null}
         {step === 'done' ? <LockedIn draft={draft} onDone={() => router.back()} /> : null}
       </Animated.View>

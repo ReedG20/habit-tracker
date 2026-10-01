@@ -62,7 +62,7 @@ export type AnalyticsEvents = {
   'habit ending started': { notice_days: number; stake_kind: StakeKind };
   'habit ending cancelled': { days_left: number };
   /** The Kept screen for a commitment seen through, and how it was left. */
-  'kept viewed': { kind: CommitmentKind; stake_kind: StakeKind };
+  'kept viewed': { kind: CommitmentKind; stake_kind: StakeKind; has_contract: boolean };
   'kept action': { action: 'done' | 'start_another' };
 
   /** Sent for review; the verdict comes later from the server. */
@@ -77,6 +77,8 @@ export type AnalyticsEvents = {
     stake_kind: StakeKind;
     stake_status: string;
     amount_cents: number;
+    /** The signed contract was there to show. */
+    has_contract: boolean;
   };
   'stake lost action': {
     action:

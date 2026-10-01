@@ -3,6 +3,7 @@ import { useSyncExternalStore } from 'react';
 import { Platform } from 'react-native';
 
 import { upgradeDraft, type CommitmentDraft } from '@/components/commitment/draft';
+import type { Signed } from '@/components/signed-contract/types';
 import { DAILY } from '@/convex/lib/frequency';
 import type { OnboardingAnswers, OnboardingStatus } from '@/data/onboarding';
 
@@ -126,6 +127,21 @@ export function resetOnboarding() {
  */
 export function markExistingUserOnboarded() {
   if (current.status === null) update({ status: 'done' });
+}
+
+/**
+ * The first commitment's signed contract, held until there's a user to save it
+ * to. Memory only: a signature is too big for the keychain, and a relaunch
+ * losing it only costs the contract on that commitment's last screen.
+ */
+let firstSigned: Signed | null = null;
+
+export function setFirstSigned(signed: Signed | null) {
+  firstSigned = signed;
+}
+
+export function getFirstSigned(): Signed | null {
+  return firstSigned;
 }
 
 function subscribe(listener: () => void) {
