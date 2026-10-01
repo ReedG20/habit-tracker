@@ -141,7 +141,13 @@ export function receiptRuns(draft: CommitmentDraft): ContractRun[] {
   }
 
   if (draft.kind === 'habit') {
-    return [{ text: 'I will ' }, promise, { text: ', every day. If I miss a day, ' }, lock, { text: '.' }];
+    return [
+      { text: 'I will ' },
+      promise,
+      { text: ', every day. If I miss a day, ' },
+      lock,
+      { text: '.' },
+    ];
   }
 
   return [
