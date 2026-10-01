@@ -29,7 +29,12 @@ import { api } from '@/convex/_generated/api';
 import { replacedLine } from '@/data/raise';
 import { DAILY } from '@/convex/lib/frequency';
 import type { RaiseOptions } from '@/convex/lib/stakeLadder';
-import { MIN_STAKE_CENTS, type StakeKind, type StakeView } from '@/convex/lib/stakeRules';
+import {
+  MIN_STAKE_CENTS,
+  MONEY_BLOCKED_ERROR,
+  type StakeKind,
+  type StakeView,
+} from '@/convex/lib/stakeRules';
 import { useStakePayment } from '@/hooks/use-stake-payment';
 import { captureError, track } from '@/lib/analytics';
 import { formatDueAt } from '@/lib/dates';
@@ -316,12 +321,13 @@ function moneyBlockedReason({
 }: {
   supported: boolean;
   allowMoney: boolean;
-  headroom: { remainingCents: number; capCents: number } | null;
+  headroom: { remainingCents: number; capCents: number; blocked: boolean } | null;
   /** When raising: the least that counts, and the room the cap leaves for it. */
   raise: { minCents: number; roomCents: number } | null;
 }): string | null {
   if (!supported) return 'Money stakes live in the app. On the web, pick another.';
   if (!allowMoney) return 'Money comes once your account is set up.';
+  if (headroom?.blocked === true) return MONEY_BLOCKED_ERROR;
   if (headroom !== null && raise !== null && raise.roomCents < raise.minCents) {
     return `Only ${formatCents(raise.roomCents)} fits under the ${formatCents(headroom.capCents)} cap right now. Finish something else to free some up.`;
   }

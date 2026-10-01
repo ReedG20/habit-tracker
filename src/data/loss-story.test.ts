@@ -58,6 +58,15 @@ describe('loss story', () => {
     expect(story.bought).toBeNull();
   });
 
+  test('a refunded charge says the money came back, and credits it with nothing', () => {
+    const story = lossStory(habitLoss(23, { status: 'refunded' }));
+    expect(story.headline).toEqual({ kind: 'money', cents: 2500, label: 'Refunded.' });
+    expect(story.line).toBe(
+      'You missed Meditate on Tuesday, and your 23-day streak ended. The $25 charged to Visa ••4242 was refunded.',
+    );
+    expect(story.bought).toBeNull();
+  });
+
   test('a friend who was told, and a lockout, get their own words', () => {
     const friend = lossStory({
       ...habitLoss(12),

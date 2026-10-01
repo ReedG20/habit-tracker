@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ActivityList, type ActivityItem } from '@/components/commitment-detail/activity-list';
+import { ContestChargeLink } from '@/components/commitment-detail/contest-charge-link';
 import { DetailSection } from '@/components/commitment-detail/detail-section';
 import { DevResetProof } from '@/components/commitment-detail/dev-reset-proof';
 import { HabitCalendar } from '@/components/commitment-detail/habit-calendar';
@@ -179,6 +180,7 @@ export default function HabitDetailScreen() {
             stake={progress.stakeView}
             open={!ending && progress.brokenAt === undefined}
           />
+          <ContestChargeLink stake={progress.stakeView} />
         </DetailSection>
       )}
 

@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
+import { MONEY_BLOCKED_ERROR } from './lib/stakeRules';
 import { setup, signIn, type Harness } from './test.helpers';
 
 const PI = 'pi_test_123';
@@ -58,6 +59,17 @@ async function insertHabitStake(
       status: 'charging',
       ...fields,
     });
+  });
+}
+
+async function moneyProblem(t: Harness, userId: Id<'users'>) {
+  return await t.query(internal.stakes.moneyProblem, { userId, amountCents: 500, now: Date.now() });
+}
+
+async function jobArgs(t: Harness, name: string) {
+  return await t.run(async (ctx) => {
+    const jobs = await ctx.db.system.query('_scheduled_functions').collect();
+    return jobs.filter((job) => job.name === name).map((job) => job.args[0]);
   });
 }
 
@@ -256,6 +268,86 @@ describe('stripe.handleEvent', () => {
       now: Date.now(),
     });
     expect(problem).toBeNull();
+  });
+
+  test('a dispute turns money stakes off and tells support', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    await insertHabitStake(t, alice.userId, { status: 'charged', stripePaymentIntentId: PI });
+
+    await t.mutation(internal.stripe.handleEvent, {
+      eventId: 'evt_d',
+      event: { type: 'charge.dispute.created', paymentIntentId: PI, disputeId: 'dp_1' },
+    });
+
+    expect(await moneyProblem(t, alice.userId)).toBe(MONEY_BLOCKED_ERROR);
+    expect(await jobArgs(t, 'emails:sendSupportCase')).toMatchObject([{ kind: 'dispute' }]);
+  });
+
+  test('an early fraud warning refunds the charge and turns money stakes off', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    const stakeId = await insertHabitStake(t, alice.userId, {
+      status: 'charged',
+      stripePaymentIntentId: PI,
+    });
+
+    await t.mutation(internal.stripe.handleEvent, {
+      eventId: 'evt_efw',
+      event: {
+        type: 'radar.early_fraud_warning.created',
+        paymentIntentId: PI,
+        warningId: 'issfr_1',
+        actionable: true,
+      },
+    });
+
+    expect(await jobArgs(t, 'stripe:refundFraudWarning')).toEqual([
+      { paymentIntentId: PI, warningId: 'issfr_1' },
+    ]);
+    expect(await jobArgs(t, 'emails:sendSupportCase')).toMatchObject([
+      { stakeId, kind: 'fraud_warning' },
+    ]);
+    expect(await moneyProblem(t, alice.userId)).toBe(MONEY_BLOCKED_ERROR);
+  });
+
+  test('a warning on a charge already disputed or refunded refunds nothing', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    await insertHabitStake(t, alice.userId, { status: 'charged', stripePaymentIntentId: PI });
+
+    await t.mutation(internal.stripe.handleEvent, {
+      eventId: 'evt_efw',
+      event: {
+        type: 'radar.early_fraud_warning.created',
+        paymentIntentId: PI,
+        warningId: 'issfr_1',
+        actionable: false,
+      },
+    });
+
+    expect(await jobArgs(t, 'stripe:refundFraudWarning')).toEqual([]);
+  });
+
+  test('a charge names the commitment on the statement and emails a receipt it can deliver', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    const relay = await signIn(t, 'relay');
+    await t.run(async (ctx) => {
+      await ctx.db.patch('users', alice.userId, { email: 'Alice@Example.com' });
+      await ctx.db.patch('users', relay.userId, { email: 'x1@privaterelay.appleid.com' });
+    });
+    const habitStake = await insertHabitStake(t, alice.userId);
+    const relayStake = await insertHabitStake(t, relay.userId);
+
+    expect(await t.mutation(internal.stripe.claimCharge, { stakeId: habitStake })).toMatchObject({
+      kind: 'charge',
+      statementSuffix: 'MISSED HABIT',
+      receiptEmail: 'alice@example.com',
+    });
+    const relayClaim = await t.mutation(internal.stripe.claimCharge, { stakeId: relayStake });
+    expect(relayClaim).toMatchObject({ kind: 'charge' });
+    expect(relayClaim).not.toHaveProperty('receiptEmail');
   });
 
   test('an unknown goal is recorded and ignored', async () => {

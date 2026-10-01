@@ -95,7 +95,7 @@ export const sign = authedMutation({
 });
 
 /** The newest contract signed for a commitment at or before `at`: the one an outcome then answers to. */
-async function contractAsOf(
+export async function contractAsOf(
   ctx: QueryCtx,
   userId: Id<'users'>,
   commitment: { habitId?: Id<'habits'>; goalId?: Id<'goals'> },

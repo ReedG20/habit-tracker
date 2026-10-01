@@ -93,6 +93,12 @@ const app = defineApp({
     /** Overrides the sender, e.g. `Ante <hello@mail.useanteapp.com>`. */
     EMAIL_FROM: v.optional(v.string()),
     /**
+     * Where contested charges, chargebacks and fraud warnings are emailed
+     * (`emails.sendSupportCase`). Defaults to support@useanteapp.com. Set with:
+     *   bunx convex env set SUPPORT_EMAIL support@useanteapp.com
+     */
+    SUPPORT_EMAIL: v.optional(v.string()),
+    /**
      * `on` switches habits from the old re-entry fee to per-habit stakes
      * (`habitChecks.ts`). Flipped on production at cutover, alongside the
      * app release; removed once every build is past it.

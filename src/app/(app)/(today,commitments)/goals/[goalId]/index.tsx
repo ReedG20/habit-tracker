@@ -3,6 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ActivityList, type ActivityItem } from '@/components/commitment-detail/activity-list';
+import { ContestChargeLink } from '@/components/commitment-detail/contest-charge-link';
 import { DetailSection } from '@/components/commitment-detail/detail-section';
 import { DevResetProof } from '@/components/commitment-detail/dev-reset-proof';
 import { GoalNowPanel } from '@/components/commitment-detail/goal-now-panel';
@@ -140,6 +141,7 @@ export default function GoalDetailScreen() {
           stake={goal.stakeView}
           open={!done && goal.dueAt > now + RAISE_LEAD_MS}
         />
+        <ContestChargeLink stake={goal.stakeView} />
       </DetailSection>
 
       <DetailSection title="submissions">

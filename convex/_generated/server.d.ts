@@ -46,6 +46,7 @@ type Env = {
   readonly STAKES_V2: string | undefined;
   readonly STRIPE_SECRET_KEY: string;
   readonly STRIPE_WEBHOOK_SECRET: string;
+  readonly SUPPORT_EMAIL: string | undefined;
 };
 
 /**

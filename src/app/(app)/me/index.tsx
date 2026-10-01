@@ -7,6 +7,7 @@ import * as Updates from 'expo-updates';
 import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { Icon } from '@/components/icon';
+import { HelpCard } from '@/components/me/help-card';
 import { ProgressCalendar } from '@/components/progress-calendar';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { StatsPager } from '@/components/stats-pager';
@@ -216,6 +217,8 @@ export default function MeScreen() {
           <ThemedText style={styles.settingLabel}>Sign out</ThemedText>
         </Pressable>
       </ThemedView>
+
+      <HelpCard />
 
       {showDevTools ? (
         <View style={styles.devTools}>

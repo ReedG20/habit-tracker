@@ -25,14 +25,11 @@ import {
   type ProOffering,
 } from '@/lib/revenuecat';
 import { storeErrorDetails } from '@/lib/store-errors';
+import { PRIVACY_URL, TERMS_URL } from '@/lib/support';
 
 // Store errors on the paywall are for us, not customers: a debug build or
 // Reed's internal preview build shows them; the App Store build never does.
 const showDiagnostics = __DEV__ || Updates.channel === 'preview';
-
-// TODO: replace with the real URLs before the App Store listing goes live.
-const TERMS_URL = 'https://useanteapp.com/terms';
-const PRIVACY_URL = 'https://useanteapp.com/privacy';
 
 // There is no free tier: every commitment runs on Pro, so these say what Ante
 // is rather than what Pro unlocks over something smaller.

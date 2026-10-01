@@ -10,7 +10,8 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from './_generated/server';
-import { friendLimiter } from './friends';
+import { friendLimiter, normalizeEmail } from './friends';
+import { deliverableEmail } from './lib/emailCopy';
 import { getCurrentUserOrNull } from './lib/auth';
 import { authedAction, authedMutation } from './lib/customFunctions';
 import { requirePro } from './lib/entitlements';
@@ -20,6 +21,7 @@ import {
   MONEY_CAP_CENTS,
   STAKE_AMOUNT_ERROR,
   stakeView,
+  statementSuffix,
   stakeViewValidator,
   type StakeView,
 } from './lib/stakeRules';
@@ -27,6 +29,7 @@ import {
   cancelJob,
   loseStake,
   materializeGoalStake,
+  releaseStake,
   requireMoneyHeadroom,
   usedMoneyCents,
   type Run,
@@ -395,8 +398,9 @@ export const beginMoney = authedAction({
 /**
  * Runs at a staked goal's deadline. Proven in time: the stake is let go.
  * Proof still being checked: waits a few minutes for the verdict, so a photo
- * sent at the last second is judged before anything happens. Otherwise the
- * stake comes due: money is charged, a friend is told.
+ * sent at the last second is judged before anything happens. Last proof
+ * never checked (our failure): let go too. Otherwise the stake comes due:
+ * money is charged, a friend is told.
  */
 export const resolveGoal = internalMutation({
   args: { stakeId: v.id('stakes'), attempt: v.number() },
@@ -461,6 +465,12 @@ async function resolveGoalStake(
     await ctx.db.patch('stakes', stake._id, { resolveJobId });
     return;
   }
+  // The last proof never got a verdict (our error or a timeout), as with a
+  // habit's excused day: an error on our side never costs the user.
+  if (latest?.status === 'failed') {
+    await releaseStake(ctx, stake);
+    return;
+  }
 
   await loseStake(ctx, stake, Date.now());
 }
@@ -472,6 +482,8 @@ export const headroomValidator = v.object({
   capCents: v.number(),
   usedCents: v.number(),
   remainingCents: v.number(),
+  /** Money stakes are off after a chargeback or fraud warning (`lib/stakes.ts` `blockMoney`). */
+  blocked: v.boolean(),
 });
 
 /** How much more money can go on the line right now. */
@@ -485,6 +497,7 @@ export const headroom = query({
       capCents: MONEY_CAP_CENTS,
       usedCents,
       remainingCents: Math.max(0, MONEY_CAP_CENTS - usedCents),
+      blocked: user?.moneyBlocked !== undefined,
     };
   },
 });
@@ -666,6 +679,7 @@ export const settleUp = authedAction({
     const owed: {
       amountCents: number;
       title: string;
+      statementSuffix: string;
       paymentMethodId: string;
     } | null = await ctx.runQuery(internal.stakes.owedStake, {
       userId: ctx.user._id,
@@ -683,6 +697,8 @@ export const settleUp = authedAction({
       payment_method: owed.paymentMethodId,
       payment_method_types: ['card'],
       description: `Ante stake: ${owed.title}`.slice(0, 200),
+      statement_descriptor_suffix: owed.statementSuffix,
+      receipt_email: deliverableEmail(normalizeEmail(ctx.user.email)),
       metadata: { stakeId: args.stakeId, settleUp: '1' },
     });
     if (intent.client_secret === null) {
@@ -705,7 +721,12 @@ export const settleUp = authedAction({
 export const owedStake = internalQuery({
   args: { userId: v.id('users'), stakeId: v.id('stakes') },
   returns: v.union(
-    v.object({ amountCents: v.number(), title: v.string(), paymentMethodId: v.string() }),
+    v.object({
+      amountCents: v.number(),
+      title: v.string(),
+      statementSuffix: v.string(),
+      paymentMethodId: v.string(),
+    }),
     v.null(),
   ),
   handler: async (ctx, args) => {
@@ -722,6 +743,7 @@ export const owedStake = internalQuery({
     return {
       amountCents: stake.amountCents,
       title: stake.title,
+      statementSuffix: statementSuffix(stake),
       paymentMethodId: stake.stripePaymentMethodId,
     };
   },

@@ -4,11 +4,19 @@ import { v } from 'convex/values';
 import { components, internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { env, internalMutation, type MutationCtx } from './_generated/server';
+import { contractAsOf } from './contracts';
 import { firstName, normalizeEmail, suppress } from './friends';
-import { headsUpEmail, lossEmail, replyToFor, type EmailContent } from './lib/emailCopy';
+import {
+  deliverableEmail,
+  headsUpEmail,
+  lossEmail,
+  replyToFor,
+  type EmailContent,
+} from './lib/emailCopy';
 import { frequencyLabel } from './lib/frequency';
 import { notifyFriendTold } from './lib/notify';
 import { formatDueLabel } from './lib/reminderCopy';
+import { cardOnFile, supportCaseEmail, type SupportProof } from './lib/supportCopy';
 
 /**
  * Email to the friends users answer to, through the Resend component, which
@@ -18,6 +26,9 @@ import { formatDueLabel } from './lib/reminderCopy';
  */
 
 const DEFAULT_FROM = 'Ante <hello@mail.useanteapp.com>';
+const DEFAULT_SUPPORT_EMAIL = 'support@useanteapp.com';
+/** How much proof a support email shows. */
+const SUPPORT_PROOFS = 6;
 
 function resend(): Resend {
   return new Resend(components.resend, {
@@ -188,3 +199,154 @@ export const handleEmailEvent = internalMutation({
     return null;
   },
 });
+
+/**
+ * Tells support about a money charge that needs a person: a user contesting
+ * it in the app (`reviewId`), a chargeback, or an early fraud warning. Goes
+ * to `SUPPORT_EMAIL`, with Reply-To on the user when it can reach them.
+ */
+export const sendSupportCase = internalMutation({
+  args: {
+    stakeId: v.id('stakes'),
+    kind: v.union(v.literal('contest'), v.literal('dispute'), v.literal('fraud_warning')),
+    reviewId: v.optional(v.id('chargeReviews')),
+  },
+  returns: v.null(),
+  handler: async (ctx, args): Promise<null> => {
+    const stake = await ctx.db.get('stakes', args.stakeId);
+    if (stake?.kind !== 'money') return null;
+    const [user, review] = await Promise.all([
+      ctx.db.get('users', stake.userId),
+      args.reviewId === undefined ? null : ctx.db.get('chargeReviews', args.reviewId),
+    ]);
+    if (user === null) return null;
+
+    const timeZone = user.timeZone ?? 'UTC';
+    const contract = await contractAsOf(
+      ctx,
+      user._id,
+      { habitId: stake.habitId, goalId: stake.goalId },
+      stake.lostAt ?? Number.MAX_SAFE_INTEGER,
+    );
+    const run = stake.run;
+    const content = supportCaseEmail({
+      kind: args.kind,
+      userName: user.name,
+      userEmail: user.email,
+      userId: user._id,
+      stakeId: stake._id,
+      title: stake.title,
+      subject: stake.habitId !== undefined ? 'habit' : 'goal',
+      amountCents: stake.amountCents,
+      card: cardOnFile(stake),
+      status: stake.status,
+      lostLabel: stake.lostAt === undefined ? undefined : dateTimeLabel(stake.lostAt, timeZone),
+      runLabel:
+        run === undefined
+          ? undefined
+          : `${run.streak} ${run.unit}${run.streak === 1 ? '' : 's'} in a row, missed ${run.missedPeriod}`,
+      contractTerms: contract?.terms.map((term) => term.text).join(''),
+      signedLabel: contract === null ? undefined : dateTimeLabel(contract.signedAt, timeZone),
+      proofs: await recentProofs(ctx, stake, timeZone),
+      paymentUrl:
+        stake.stripePaymentIntentId === undefined
+          ? undefined
+          : `https://dashboard.stripe.com/${stripeLiveMode() ? '' : 'test/'}payments/${stake.stripePaymentIntentId}`,
+      reason: review?.reason,
+      note: review?.note,
+    });
+    await sendToSupport(ctx, content, {
+      replyTo: deliverableEmail(normalizeEmail(user.email)),
+      idempotencyKey: `support:${args.kind}:${stake._id}`,
+    });
+    return null;
+  },
+});
+
+async function sendToSupport(
+  ctx: MutationCtx,
+  content: EmailContent,
+  options: { replyTo?: string; idempotencyKey: string },
+): Promise<void> {
+  const to = env.SUPPORT_EMAIL ?? DEFAULT_SUPPORT_EMAIL;
+  if (env.EMAIL_DELIVERY !== 'on') {
+    console.log(`[email not sent] to=${to} subject="${content.subject}"\n${content.text}`);
+    return;
+  }
+  await resend().sendEmail(ctx, {
+    from: env.EMAIL_FROM ?? DEFAULT_FROM,
+    to,
+    subject: content.subject,
+    html: content.html,
+    text: content.text,
+    replyTo: options.replyTo === undefined ? undefined : [options.replyTo],
+    idempotencyKey: options.idempotencyKey,
+  });
+}
+
+/** The newest proof behind the commitment, kept past its deletion for this (`evidence.ts`). */
+async function recentProofs(
+  ctx: MutationCtx,
+  stake: Doc<'stakes'>,
+  timeZone: string,
+): Promise<SupportProof[]> {
+  const urls = async (ids: Doc<'goalSubmissions'>['photoIds']): Promise<string[]> => {
+    const found = await Promise.all(ids.map((id) => ctx.storage.getUrl(id)));
+    return found.filter((url): url is string => url !== null);
+  };
+
+  if (stake.habitId !== undefined) {
+    const habitId = stake.habitId;
+    const rows = await ctx.db
+      .query('habitVerifications')
+      .withIndex('by_habit_and_day', (q) => q.eq('habitId', habitId))
+      .order('desc')
+      .take(SUPPORT_PROOFS);
+    return await Promise.all(
+      rows.map(async (row) => ({
+        when: `${row.day} (sent ${dateTimeLabel(row.createdAt, timeZone)})`,
+        method: row.method ?? 'photo',
+        status: row.status,
+        reason: row.reason,
+        photoUrls: row.photoId === undefined ? [] : await urls([row.photoId]),
+      })),
+    );
+  }
+
+  if (stake.goalId !== undefined) {
+    const goalId = stake.goalId;
+    const rows = await ctx.db
+      .query('goalSubmissions')
+      .withIndex('by_goal', (q) => q.eq('goalId', goalId))
+      .order('desc')
+      .take(SUPPORT_PROOFS);
+    return await Promise.all(
+      rows.map(async (row) => ({
+        when: dateTimeLabel(row.createdAt, timeZone),
+        method: row.text === undefined ? 'photo' : `photo, note: “${row.text}”`,
+        status: row.status,
+        reason: row.reason,
+        photoUrls: await urls(row.photoIds),
+      })),
+    );
+  }
+
+  return [];
+}
+
+/** "Sep 30, 2026, 12:05 AM CDT", in the user's own zone. */
+function dateTimeLabel(ms: number, timeZone: string): string {
+  return new Date(ms).toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone,
+    timeZoneName: 'short',
+  });
+}
+
+function stripeLiveMode(): boolean {
+  return /^(sk|rk)_live_/.test(env.STRIPE_SECRET_KEY);
+}

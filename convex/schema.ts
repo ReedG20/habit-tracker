@@ -2,6 +2,7 @@ import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
 import { accomplishmentValidator } from './lib/accomplishmentSchema';
+import { chargeReviewValidator, moneyBlockValidator } from './lib/chargeReviewSchema';
 import { contractValidator } from './lib/contractSchema';
 import { proofMethodValidator } from './lib/proofMethods';
 import { lockoutDaysValidator, moneyStatusValidator, stakeDocValidator } from './lib/stakeSchema';
@@ -110,6 +111,8 @@ export default defineSchema({
     accountableFrom: v.optional(v.string()),
     /** Every day up to and including this one has been checked for misses. */
     lastCheckedDay: v.optional(v.string()),
+    /** Set on a chargeback or fraud warning; no new money stakes until it's cleared. */
+    moneyBlocked: v.optional(moneyBlockValidator),
   })
     .index('by_token', ['tokenIdentifier'])
     .index('by_email', ['email']),
@@ -462,4 +465,9 @@ export default defineSchema({
   contracts: defineTable(contractValidator)
     .index('by_habit', ['habitId'])
     .index('by_goal', ['goalId']),
+
+  /** Charges contested in the app (`lib/chargeReviewSchema.ts`). */
+  chargeReviews: defineTable(chargeReviewValidator)
+    .index('by_stake', ['stakeId'])
+    .index('by_user_and_status', ['userId', 'status']),
 });

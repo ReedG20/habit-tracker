@@ -27,8 +27,11 @@ const weekdayFormat = new Intl.DateTimeFormat(undefined, { weekday: 'long' });
 
 export type LossStory = {
   kicker: string;
-  /** The big line: the amount for money (the screen animates it), or a short word. */
-  headline: { kind: 'money'; cents: number } | { kind: 'words'; text: string };
+  /**
+   * The big line: the amount for money (the screen animates it), with what
+   * became of it underneath ("Gone.", "Still owed.", "Refunded."), or a short word.
+   */
+  headline: { kind: 'money'; cents: number; label: string } | { kind: 'words'; text: string };
   /** Whether the money actually left the card (a decline didn't). */
   gone: boolean;
   line: string;
@@ -72,17 +75,24 @@ export function lossStory(loss: Loss): LossStory {
     const amount = formatCents(stake.amountCents);
     const card = cardLabel(stake);
     const declined = stake.status === 'charge_failed';
+    const refunded = stake.status === 'refunded';
     const what = isHabit ? `You missed ${title}${when}${ended}.` : `No proof for ${title}${due}.`;
     return {
       kicker,
-      headline: { kind: 'money', cents: stake.amountCents },
+      headline: {
+        kind: 'money',
+        cents: stake.amountCents,
+        label: declined ? 'Still owed.' : refunded ? 'Refunded.' : 'Gone.',
+      },
       gone: !declined,
       line: declined
         ? `${what} Your card declined, so the ${amount} didn’t go through. You still owe it.`
-        : `${what} ${amount} was charged to ${card}.`,
+        : refunded
+          ? `${what} The ${amount} charged to ${card} was refunded.`
+          : `${what} ${amount} was charged to ${card}.`,
       emphasis: [title, amount],
-      // Nothing was paid on a decline, so the money can't be said to have bought anything.
-      bought: isHabit && !declined ? bought(stake.amountCents, streak, unit) : null,
+      // Nothing was kept on a decline or a refund, so the money can't be said to have bought anything.
+      bought: isHabit && !declined && !refunded ? bought(stake.amountCents, streak, unit) : null,
       note: declined
         ? 'a bet you don’t pay isn’t a bet.'
         : isHabit

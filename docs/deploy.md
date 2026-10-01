@@ -175,7 +175,8 @@ Stripe dashboard, live mode → Developers → Webhooks → add endpoint:
 
 - URL: `https://whimsical-labrador-585.convex.site/stripe/webhook`
 - Events: `payment_intent.succeeded`, `payment_intent.payment_failed`,
-  `charge.refunded`, `charge.dispute.created`
+  `charge.refunded`, `charge.dispute.created`,
+  `radar.early_fraud_warning.created`
 
 Copy its signing secret into `STRIPE_WEBHOOK_SECRET` (step 1) and the live
 publishable key `pk_live_...` for step 4.
@@ -184,7 +185,7 @@ For local development, forward test-mode events to your dev deployment
 (`cool-kiwi-961` today; check `CONVEX_DEPLOYMENT` in `.env.local`):
 
 ```bash
-stripe listen --forward-to https://cool-kiwi-961.convex.site/stripe/webhook --events payment_intent.succeeded,payment_intent.payment_failed,charge.refunded,charge.dispute.created
+stripe listen --forward-to https://cool-kiwi-961.convex.site/stripe/webhook --events payment_intent.succeeded,payment_intent.payment_failed,charge.refunded,charge.dispute.created,radar.early_fraud_warning.created
 ```
 
 The `whsec_` it prints is stable for your CLI login and is already set as
@@ -395,3 +396,87 @@ to `main`; `convex deploy` is idempotent.
 
 Never run `bunx convex deploy` from a laptop with `CONVEX_DEPLOY_KEY` set, and
 read the deployment name every command prints before confirming.
+
+## Support, contested charges and disputes
+
+Charging a saved card after someone misses is the setup most likely to end
+in chargebacks, and too many of those get a Stripe account reviewed or
+closed. So the app sends people to us first:
+
+- **Me → Contact support** opens an email to support@useanteapp.com with the
+  app version filled in. Terms and Privacy are linked there too.
+- **"Something wrong with this charge?"** sits on the loss screen and under
+  "the deal" on a commitment whose money was charged. It opens
+  `/contest/[stakeId]`, which records a `chargeReviews` row and emails support
+  the whole case: the signed contract, how the run ended, the last proof with
+  photos and verdicts, and a link to the payment in Stripe.
+- **Proof is kept** for 130 days after a money stake comes due, even if the
+  habit or goal is deleted (`convex/evidence.ts`).
+- **Our own failures don't cost money.** If a goal's last proof never got a
+  verdict (an error or a timeout), its stake is released, the same as a
+  habit's excused day.
+
+**Handling a contested charge** (the email arrives at `SUPPORT_EMAIL`):
+
+- To refund, refund the payment in Stripe. The `charge.refunded` webhook
+  marks the stake and the review refunded and pushes "Refunded" to the user.
+- To keep the charge, run `chargeReviews:decline` from the Convex dashboard
+  with `{ stakeId, response }`. The response is pushed to the user word for
+  word, so keep it short and kind. Replying to the email reaches the user too,
+  unless they signed in with Apple's private relay.
+
+**Disputes and fraud warnings** are handled by the webhook:
+
+- On `charge.dispute.created` the stake becomes `disputed`, money stakes are
+  turned off for that user (`users.moneyBlocked`), and support gets the case.
+  Answer the dispute in Stripe with what the email contains.
+- On `radar.early_fraud_warning.created` the charge is refunded straight away,
+  since that costs less than losing the chargeback that would follow. Money
+  stakes are turned off and support gets the case.
+- To turn money back on for a user, clear `moneyBlocked` on their `users` row
+  in the Convex dashboard.
+
+**One-time setup:**
+
+- [x] A support@useanteapp.com mailbox (2026-10-01). `SUPPORT_EMAIL`
+      overrides it per deployment. Emails only leave where
+      `EMAIL_DELIVERY=on`; elsewhere they're logged.
+- [x] Stripe → Settings → Public details: public business name `Ante` and
+      support email support@useanteapp.com (set 2026-10-01). The statement descriptor is
+      `USEANTEAPP.COM` with a shortened descriptor of `ANTE APP`; charges add
+      `MISSED HABIT` or `MISSED GOAL`, so the statement reads
+      "ANTE APP\* MISSED HABIT", exactly Stripe's 22-character limit. Keep the
+      shortened descriptor at 8 characters or fewer.
+- [x] Stripe → Settings → Customer emails: successful payments and refunds
+      are on (2026-10-01). Charges carry `receipt_email` unless the address is
+      Apple's private relay, which drops Stripe's mail.
+- [x] `radar.early_fraud_warning.created` added to the live endpoint
+      (2026-10-01). Dev uses `stripe listen` (see step 3), so there's no
+      test-mode endpoint to update.
+- [ ] Stripe → Settings → Business details: describe Ante accurately, e.g.
+      "Habit app where users pre-authorize a penalty charge, set by them, if
+      they miss a commitment they made." A surprise review is how accounts get
+      frozen.
+- [ ] A support page at useanteapp.com/support. App Store Connect requires a
+      Support URL (guideline 1.5). Put a refund and contest policy in the
+      Terms.
+- [x] RevenueCat → Lifecycle → Refund Control: the default policy is "Send
+      consumption data only" (2026-10-01). It answers Apple's refund requests
+      for Ante Pro with delivery data and no preference; blanket declines are
+      discounted by Apple and push people toward chargebacks. It relies on
+      App Store Connect → App Information → App Store Server Notifications
+      (production and sandbox) pointing at RevenueCat, set the same day.
+- [ ] Privacy policy: say that purchase and delivery details are shared with
+      Apple when a user asks Apple for a refund. RevenueCat tells Apple the
+      user consented (`customerConsented`).
+
+**App Review notes (draft):**
+
+> Ante is a habit and goal tracker with optional stakes. When a user creates a
+> commitment they may choose a money stake: an amount they set (from $1, up to $250 in
+> total), charged to their own card through Stripe only if they miss the
+> commitment. It is a penalty the user sets for themselves. Nobody wins money,
+> nothing is paid out, and the charge unlocks no digital content or feature.
+> Ante Pro, the subscription that unlocks the app, is sold through In-App
+> Purchase. Users can contest any charge in the app ("Something wrong with
+> this charge?") and reach support from Me → Contact support.
