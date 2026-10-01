@@ -252,6 +252,16 @@ describe('the reminder chain', () => {
     await runUntil(t, '2026-09-23T00:00:00Z');
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  test('delivery off: the test push says it went nowhere', async () => {
+    vi.stubEnv('PUSH_DELIVERY', '');
+    const t = setupWithLimiter();
+    const alice = await signIn(t, 'alice');
+    expect(await alice.as.mutation(api.push.sendTest, {})).toEqual({
+      devices: 1,
+      delivering: false,
+    });
+  });
 });
 
 describe('devices', () => {
@@ -286,7 +296,10 @@ describe('devices', () => {
     const t = setupWithLimiter();
     const alice = await signIn(t, 'alice');
     for (let count = 0; count < 3; count += 1) {
-      expect(await alice.as.mutation(api.push.sendTest, {})).toBe(1);
+      expect(await alice.as.mutation(api.push.sendTest, {})).toEqual({
+        devices: 1,
+        delivering: true,
+      });
     }
     await expect(alice.as.mutation(api.push.sendTest, {})).rejects.toThrow();
   });
