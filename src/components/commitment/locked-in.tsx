@@ -19,7 +19,7 @@ import {
 } from '@/constants/theme';
 import { DAILY, frequencyLabel } from '@/convex/lib/frequency';
 import { useTheme } from '@/hooks/use-theme';
-import { formatDueAt } from '@/lib/dates';
+import { describeWeekSpan, formatDueAt, todayKey } from '@/lib/dates';
 import { formatCents } from '@/lib/money';
 
 export type LockedInProps = {
@@ -66,8 +66,8 @@ export function LockedIn({ draft, onDone, title = 'It’s on.', note }: LockedIn
             label="When"
             value={
               daily
-                ? 'Every day, before midnight'
-                : `${frequencyLabel(draft.timesPerWeek)}, any days, Monday to Sunday`
+                ? 'Every day, by 3\u00a0AM'
+                : `${frequencyLabel(draft.timesPerWeek)}, any days, ${describeWeekSpan(todayKey())}`
             }
           />
         )}

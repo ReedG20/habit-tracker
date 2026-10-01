@@ -55,7 +55,7 @@ export const runValidator = v.object({
   completions: v.number(),
   /** The first day this stake could count. */
   sinceDay: v.string(),
-  /** The day missed, or the Monday of the week that came up short. */
+  /** The day missed, or the first day of the week that came up short. */
   missedPeriod: v.string(),
 });
 

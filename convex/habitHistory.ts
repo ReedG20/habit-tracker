@@ -4,7 +4,7 @@ import type { Doc, Id } from './_generated/dataModel';
 import { query, type QueryCtx } from './_generated/server';
 import { frozenDaysBetween } from './freezes';
 import { getCurrentUserOrNull } from './lib/auth';
-import { dayOfWeek, daysBefore, nextDay, weekStart } from './lib/days';
+import { dayOfWeek, daysBefore, nextDay } from './lib/days';
 import { DAILY, targetPerWeek } from './lib/frequency';
 import { authedQuery } from './lib/customFunctions';
 import {
@@ -15,6 +15,7 @@ import {
   type HistoryDayState,
   type HistoryWeekState,
 } from './lib/habitHistory';
+import { firstJudgedWeek, weekStartsOn } from './lib/habitWeek';
 import { localDay } from './lib/lockout';
 import { proofMethodValidator } from './lib/proofMethods';
 
@@ -106,7 +107,8 @@ export const recent = query({
     const user = await getCurrentUserOrNull(ctx);
     if (user === null) return [];
 
-    const from = daysBefore(weekStart(args.today), (HISTORY_WEEKS - 1) * 7);
+    // Far enough back for the oldest week of any habit, whatever weekday it starts on.
+    const from = daysBefore(args.today, HISTORY_WEEKS * 7);
 
     const habits = await ctx.db
       .query('habits')
@@ -182,24 +184,27 @@ export const recent = query({
 });
 
 /**
- * The days that count against `habit`: never the day it was made (or
- * restarted), nor before the user was last let back in; and none after it
- * ended or broke.
+ * The days that count against `habit`: for a daily habit never the day it was
+ * made (or restarted), nor before the user was last let back in; for a weekly
+ * one its weeks from `firstJudgedWeek`. None after it ended or broke.
  */
 function countedWindow(
   user: Doc<'users'>,
   habit: Doc<'habits'>,
-): { firstDay: string; lastDay?: string } {
+): { firstDay: string; firstWeek: string; startsOn: number; lastDay?: string } {
   const timeZone = user.timeZone ?? 'UTC';
   const started = habit.startDay ?? localDay(habit._creationTime, timeZone);
   let firstDay = nextDay(started);
   if (user.accountableFrom !== undefined && user.accountableFrom > firstDay) {
     firstDay = user.accountableFrom;
   }
+  const anchored = { startDay: started };
+  const startsOn = weekStartsOn(anchored);
+  const firstWeek = firstJudgedWeek(anchored, user.accountableFrom ?? started);
   const ends: string[] = [];
   if (habit.endsAfter !== undefined) ends.push(habit.endsAfter);
   if (habit.brokenAt !== undefined) ends.push(localDay(habit.brokenAt, timeZone));
-  return { firstDay, lastDay: ends.sort()[0] };
+  return { firstDay, firstWeek, startsOn, lastDay: ends.sort()[0] };
 }
 
 function groupDays(rows: { habitId: Id<'habits'>; day: string }[]) {
@@ -232,7 +237,7 @@ export const detail = authedQuery({
       .withIndex('by_habit_and_day', (q) => q.eq('habitId', habit._id))
       .order('desc')
       .take(MAX_ROWS);
-    const windowStart = daysBefore(weekStart(args.today), DETAIL_WEEKS * 7);
+    const windowStart = daysBefore(args.today, (DETAIL_WEEKS + 1) * 7);
     const verifications = await ctx.db
       .query('habitVerifications')
       .withIndex('by_habit_and_day', (q) => q.eq('habitId', habit._id).gte('day', windowStart))
@@ -251,7 +256,7 @@ export const detail = authedQuery({
     const input = historyInput(ctx.user, habit, args.today, done, verifications, frozen);
     const target = targetPerWeek(habit);
     const daily = target >= DAILY;
-    // Whole weeks, so the calendar lines up under its weekday headings.
+    // Whole calendar weeks, so a daily habit's grid lines up under its Monday-first headings.
     const calendarDays = 4 * 7 + dayOfWeek(args.today) + 1;
 
     const activity = await recentActivity(ctx, completions, verifications);
@@ -260,7 +265,7 @@ export const detail = authedQuery({
       days: daily ? dayHistory(input, calendarDays) : [],
       weeks: daily ? [] : weekHistory({ ...input, target }, DETAIL_WEEKS),
       total: completions.length,
-      best: bestStreak(done, target, frozen),
+      best: bestStreak(done, target, input.startsOn, frozen),
       activity: activity.slice(0, ACTIVITY_LIMIT),
       moreActivity: activity.length > ACTIVITY_LIMIT,
     };

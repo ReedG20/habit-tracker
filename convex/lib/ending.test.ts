@@ -28,6 +28,13 @@ describe('noticeLastDay', () => {
   });
 });
 
+test('a weekly habit ends with one of its own weeks', () => {
+  // Made Thursday 2026-09-24: weeks run Thursday to Wednesday.
+  const weekly = habit({ timesPerWeek: 3, startDay: '2026-09-24' });
+  expect(noticeLastDay(weekly, '2026-09-24')).toBe('2026-09-30');
+  expect(noticeLastDay(weekly, '2026-09-28')).toBe('2026-10-07');
+});
+
 describe('endingPlan', () => {
   test('a live stake means a week’s notice', () => {
     expect(plan({ startDay: '2026-09-10' }, '2026-09-22')).toEqual({
@@ -53,14 +60,27 @@ describe('endingPlan', () => {
       kind: 'now',
       reason: 'not-started',
     });
-    // Weekly, made midweek: its first full week hasn't begun.
+    // Weekly, with its week under way when the user was let back in on the 25th.
+    expect(
+      endingPlan({
+        habit: habit({ startDay: '2026-09-23', timesPerWeek: 3 }),
+        stakeLive: true,
+        today: '2026-09-26',
+        accountableFrom: '2026-09-26',
+      }),
+    ).toEqual({ kind: 'now', reason: 'not-started' });
+  });
+
+  test('a weekly habit counts from the day it is made, so ending it takes notice', () => {
+    // Made Wednesday the 23rd: its week runs to Tuesday the 29th, 4 days out.
     expect(plan({ startDay: '2026-09-23', timesPerWeek: 3 }, '2026-09-26')).toEqual({
-      kind: 'now',
-      reason: 'not-started',
+      kind: 'notice',
+      lastDay: '2026-09-29',
     });
+    // On Monday the 28th, the Tuesday nearest a week out: 9 days.
     expect(plan({ startDay: '2026-09-23', timesPerWeek: 3 }, '2026-09-28')).toEqual({
       kind: 'notice',
-      lastDay: '2026-10-04',
+      lastDay: '2026-10-06',
     });
   });
 });

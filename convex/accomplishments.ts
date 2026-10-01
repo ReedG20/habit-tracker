@@ -7,6 +7,7 @@ import { keptRunValidator } from './lib/accomplishmentSchema';
 import { authedMutation } from './lib/customFunctions';
 import { daysBefore, streakLength, weeklyStreak } from './lib/days';
 import { DAILY, targetPerWeek } from './lib/frequency';
+import { weekStartsOn } from './lib/habitWeek';
 import { localDay, requireDevOverrides } from './lib/lockout';
 import { stakeView, stakeViewValidator } from './lib/stakeRules';
 
@@ -53,7 +54,7 @@ export async function recordKeptHabit(
     unit: daily ? 'day' : 'week',
     streak: daily
       ? streakLength(done, lastDay, frozenDays)
-      : weeklyStreak(done, lastDay, target, frozenDays),
+      : weeklyStreak(done, lastDay, target, weekStartsOn(habit), frozenDays),
     completions: rows.length,
     sinceDay,
     lastDay,

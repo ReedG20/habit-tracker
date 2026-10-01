@@ -95,13 +95,13 @@ describe('migrations', () => {
       await ctx.db.insert('lockouts', {
         userId: alice.userId,
         status: 'active',
-        lockedAt: at('2026-09-21', 1).getTime(),
+        lockedAt: at('2026-09-21', 4).getTime(),
         misses: [],
       });
       await ctx.db.insert('lockouts', {
         userId: bob.userId,
         status: 'active',
-        lockedAt: at('2026-09-14', 1).getTime(),
+        lockedAt: at('2026-09-14', 4).getTime(),
         misses: [],
       });
     });

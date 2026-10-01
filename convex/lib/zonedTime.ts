@@ -5,6 +5,8 @@
  * Day keys are `YYYY-MM-DD`, the same keys `lib/days.ts` does arithmetic on.
  */
 
+import { DAY_ENDS_AT_HOUR, previousDay } from './days';
+
 const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
 
@@ -56,9 +58,20 @@ function dayKey({ year, month, day }: LocalParts): string {
   return `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
-/** The local calendar day at `at`, as a `YYYY-MM-DD` key. */
+/** The local calendar day at `at`, as a `YYYY-MM-DD` key: midnight to midnight. */
 export function zonedDay(at: number, timeZone: string): string {
   return dayKey(localParts(at, timeZone));
+}
+
+/**
+ * The habit day at `at`: the calendar day, except that the small hours before
+ * `DAY_ENDS_AT_HOUR` still belong to the day before. Read off the wall clock,
+ * so a DST night moves the boundary with the clocks.
+ */
+export function habitDay(at: number, timeZone: string): string {
+  const parts = localParts(at, timeZone);
+  const day = dayKey(parts);
+  return parts.hour < DAY_ENDS_AT_HOUR ? previousDay(day) : day;
 }
 
 /** Minutes since local midnight at `at`: 0 to 1439. */
@@ -89,23 +102,23 @@ export function zonedInstant(day: string, hour: number, minute: number, timeZone
 }
 
 /**
- * The first instant after `now` that falls on a later local day: when a
- * habit's day is up. Searched rather than computed, because some zones skip
- * local midnight on their DST day, and days run 23 to 25 hours.
+ * The first instant after `now` that falls on a later habit day: when a
+ * habit's day is up, at `DAY_ENDS_AT_HOUR`. Searched rather than computed,
+ * because a DST jump can skip the hour, and days run 23 to 25 hours.
  */
-export function nextLocalMidnight(now: number, timeZone: string): number {
-  const today = zonedDay(now, timeZone);
+export function nextDayEnd(now: number, timeZone: string): number {
+  const today = habitDay(now, timeZone);
 
   // Whole minutes: every real zone changes offset on a minute boundary.
   let low = Math.floor(now / MINUTE_MS);
   let high = low + 26 * 60;
-  while (zonedDay(high * MINUTE_MS, timeZone) === today) {
+  while (habitDay(high * MINUTE_MS, timeZone) === today) {
     high += 24 * 60;
   }
 
   while (high - low > 1) {
     const middle = Math.floor((low + high) / 2);
-    if (zonedDay(middle * MINUTE_MS, timeZone) === today) {
+    if (habitDay(middle * MINUTE_MS, timeZone) === today) {
       low = middle;
     } else {
       high = middle;

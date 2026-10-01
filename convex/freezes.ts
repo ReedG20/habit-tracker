@@ -5,7 +5,7 @@ import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { getCurrentUserOrNull } from './lib/auth';
 import { authedMutation } from './lib/customFunctions';
-import { daysBefore, daysBetween, nextDay } from './lib/days';
+import { DAY_ENDS_AT_HOUR, daysBefore, daysBetween, nextDay } from './lib/days';
 import { localDay, requireDevOverrides } from './lib/lockout';
 import { notifyFrozen, notifyThawed, touchReminders } from './lib/notify';
 import type { LockoutDays } from './lib/stakeRules';
@@ -16,7 +16,7 @@ import { zonedInstant } from './lib/zonedTime';
  * Freezes: what a lockout stake does when its habit's streak breaks. Every
  * habit is frozen for the days the user chose (1, 3 or 7): nothing can be
  * logged and nothing is judged, and streaks bridge across the gap. Goals keep
- * running. A freeze lifts on its own at the local midnight after its last day.
+ * running. A freeze lifts on its own when the local day after its last one begins (`DAY_ENDS_AT_HOUR`).
  */
 
 /** How far back a check or streak looks for freezes; far more than any run spans. */
@@ -87,7 +87,7 @@ export async function startOrExtendFreeze(
   if (existing !== null && existing.endDay >= endDay) {
     freezeId = existing._id;
   } else {
-    const endsAt = zonedInstant(nextDay(endDay), 0, 0, timeZone);
+    const endsAt = zonedInstant(nextDay(endDay), DAY_ENDS_AT_HOUR, 0, timeZone);
     if (existing !== null) {
       await cancelJob(ctx, existing.liftJobId);
       freezeId = existing._id;
@@ -124,7 +124,7 @@ function untilLabel(freeze: Doc<'freezes'>, timeZone: string): string {
   );
 }
 
-/** Runs at the local midnight after the last frozen day. */
+/** Runs when the last frozen day ends. */
 export const lift = internalMutation({
   args: { freezeId: v.id('freezes') },
   returns: v.null(),

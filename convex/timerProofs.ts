@@ -7,7 +7,7 @@ import type { MutationCtx } from './_generated/server';
 import type { AuthedCtx } from './habits';
 import { authedMutation } from './lib/customFunctions';
 import { logCompletion, requireCanProve } from './lib/proof';
-import { nextLocalMidnight } from './lib/zonedTime';
+import { nextDayEnd } from './lib/zonedTime';
 
 /**
  * Timer proof: the habit counts once a timer of its length runs out with Ante
@@ -31,8 +31,8 @@ const FINISH_TOLERANCE_MS = 1500;
  */
 const FINISH_GRACE_MS = 5 * 60 * 1000;
 
-/** A run has to end at least this long before midnight, so finishing it never crosses into tomorrow. */
-const MIDNIGHT_MARGIN_MS = 2 * 60 * 1000;
+/** A run has to end at least this long before the day does, so finishing it never crosses into tomorrow. */
+const DAY_END_MARGIN_MS = 2 * 60 * 1000;
 
 /** Each cut-short run leaves a rejected check behind, so starting is bounded. */
 const rateLimiter = new RateLimiter(components.rateLimiter, {
@@ -58,10 +58,10 @@ export const start = authedMutation({
     const durationMs = habit.timerMinutes * MINUTE_MS;
     const now = Date.now();
 
-    // A run never straddles midnight, so the nightly check never has to wait on one.
+    // A run never straddles the end of the day, so the nightly check never has to wait on one.
     if (
       ctx.user.timeZone !== undefined &&
-      now + durationMs + MIDNIGHT_MARGIN_MS > nextLocalMidnight(now, ctx.user.timeZone)
+      now + durationMs + DAY_END_MARGIN_MS > nextDayEnd(now, ctx.user.timeZone)
     ) {
       throw new ConvexError(
         `There isn’t enough of today left for a ${habit.timerMinutes}-minute timer.`,

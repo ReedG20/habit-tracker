@@ -94,7 +94,7 @@ export async function settleVerification(
 
 /**
  * Uses the day stored on the verification, not "now", so a verdict that lands
- * after midnight still counts for the day the proof was taken.
+ * after the day ends still counts for the day the proof was taken.
  */
 export async function logCompletion(
   ctx: MutationCtx,

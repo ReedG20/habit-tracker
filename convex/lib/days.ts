@@ -1,8 +1,19 @@
 /**
  * `YYYY-MM-DD` arithmetic. Deliberately not `Date`-based: these keys represent
- * the user's local calendar day, so re-parsing them into a timestamp would
- * reintroduce the timezone the key exists to avoid.
+ * the user's local day, so re-parsing them into a timestamp would reintroduce
+ * the timezone the key exists to avoid.
+ *
+ * A day runs from `DAY_ENDS_AT_HOUR` to `DAY_ENDS_AT_HOUR` local time, not
+ * midnight to midnight, so a log at 1am before bed still counts for the day
+ * the user is finishing. A week is any seven days in a row: each habit's
+ * weeks start on the weekday it was made (`habitWeek.ts`).
  */
+
+/**
+ * The local hour a day ends: 3am, so late nights count for the day before.
+ * Copy names the hour ("by 3 AM"), so grep for "3 AM" and "3am" if it changes.
+ */
+export const DAY_ENDS_AT_HOUR = 3;
 
 /** How far back `habits.list` reads completions to compute a streak. */
 export const STREAK_WINDOW_DAYS = 60;
@@ -61,7 +72,7 @@ export function streakLength(
   return streak;
 }
 
-/** 0 for Monday through 6 for Sunday: weeks run Monday to Sunday. */
+/** 0 for Monday through 6 for Sunday, on the calendar. */
 export function dayOfWeek(day: string): number {
   const [year, month, date] = day.split('-').map(Number);
   const sundayFirst = new Date(Date.UTC(year, month - 1, date)).getUTCDay();
@@ -69,24 +80,32 @@ export function dayOfWeek(day: string): number {
   return (sundayFirst + 6) % 7;
 }
 
-/** The Monday that starts the week `day` falls in. */
-export function weekStart(day: string): string {
-  return daysBefore(day, dayOfWeek(day));
+/**
+ * How far into its week `day` is, from 0 to 6, for weeks that start on the
+ * weekday `startsOn` (0 for Monday through 6 for Sunday, as `dayOfWeek`).
+ */
+function weekIndex(day: string, startsOn: number): number {
+  return (dayOfWeek(day) - startsOn + 7) % 7;
 }
 
-/** The Sunday that ends the week `day` falls in. */
-export function weekEnd(day: string): string {
-  return daysBefore(weekStart(day), -6);
+/** The first day of the week `day` falls in, for weeks starting on `startsOn`. */
+export function weekStart(day: string, startsOn: number): string {
+  return daysBefore(day, weekIndex(day, startsOn));
 }
 
-/** Days still open this week, counting `day` itself: 7 on a Monday, 1 on a Sunday. */
-export function daysLeftInWeek(day: string): number {
-  return 7 - dayOfWeek(day);
+/** The last day of the week `day` falls in, for weeks starting on `startsOn`. */
+export function weekEnd(day: string, startsOn: number): string {
+  return daysBefore(weekStart(day, startsOn), -6);
+}
+
+/** Days still open this week, counting `day` itself: 7 on its first day, 1 on its last. */
+export function daysLeftInWeek(day: string, startsOn: number): number {
+  return 7 - weekIndex(day, startsOn);
 }
 
 /** How many of `days` fall in the same week as `today`, up to and including it. */
-export function countThisWeek(days: Set<string>, today: string): number {
-  const start = weekStart(today);
+export function countThisWeek(days: Set<string>, today: string, startsOn: number): number {
+  const start = weekStart(today, startsOn);
   let count = 0;
   for (const day of days) {
     if (day >= start && day <= today) count += 1;
@@ -107,20 +126,21 @@ export function weeklyStreak(
   days: Set<string>,
   today: string,
   target: number,
+  startsOn: number,
   bridged: Set<string> = new Set(),
 ): number {
   const logsByWeek = new Map<string, number>();
   for (const day of days) {
     if (day > today) continue;
-    const week = weekStart(day);
+    const week = weekStart(day, startsOn);
     logsByWeek.set(week, (logsByWeek.get(week) ?? 0) + 1);
   }
   const bridgedWeeks = new Set<string>();
-  for (const day of bridged) bridgedWeeks.add(weekStart(day));
+  for (const day of bridged) bridgedWeeks.add(weekStart(day, startsOn));
 
   const met = (week: string) => (logsByWeek.get(week) ?? 0) >= target;
 
-  const thisWeek = weekStart(today);
+  const thisWeek = weekStart(today, startsOn);
   let cursor = met(thisWeek) || bridgedWeeks.has(thisWeek) ? thisWeek : daysBefore(thisWeek, 7);
 
   let streak = 0;

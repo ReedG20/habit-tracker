@@ -1,4 +1,4 @@
-import { previousDay } from './days';
+import { DAY_ENDS_AT_HOUR, previousDay } from './days';
 import {
   goalOffsets,
   PRESET_RULES,
@@ -7,7 +7,7 @@ import {
   type ReminderPreset,
   type ReminderSettings,
 } from './reminderPresets';
-import { localClock, MINUTE_MS, zonedDay, zonedInstant } from './zonedTime';
+import { HOUR_MS, localClock, MINUTE_MS, zonedDay, zonedInstant } from './zonedTime';
 
 /**
  * When the nudges for one deadline land. Pure and free of Convex imports, so
@@ -91,11 +91,16 @@ export function goalSlotTimes(
   return tidy(shifted);
 }
 
-/** Tonight's nudges for habits, from the preset's offsets before midnight. */
-export function habitSlotTimes(midnight: number, preset: ReminderPreset): RawSlot[] {
+/**
+ * Tonight's nudges for habits whose day ends at `dayEnd`. The day runs on to
+ * `DAY_ENDS_AT_HOUR` so a late log still counts, but nobody wants a nudge at
+ * 2 AM: the preset's offsets count back from the midnight before it instead.
+ */
+export function habitSlotTimes(dayEnd: number, preset: ReminderPreset): RawSlot[] {
   const { offsets } = PRESET_RULES[preset];
+  const bedtime = dayEnd - DAY_ENDS_AT_HOUR * HOUR_MS;
   return offsets.map((offset, index) => ({
-    at: midnight - offset,
+    at: bedtime - offset,
     final: index === offsets.length - 1,
   }));
 }

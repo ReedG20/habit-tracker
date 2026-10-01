@@ -2,8 +2,9 @@ import { describe, expect, test } from 'vitest';
 
 import { pickPreviewSubject, previewPushes, SAMPLE_SUBJECT } from './reminder-preview';
 
-const midnight = Date.parse('2026-09-22T00:00:00Z');
-const context = { midnight, timeZone: 'UTC' };
+// The day ends at 3 AM; habit nudges still count back from the midnight before.
+const dayEnd = Date.parse('2026-09-22T03:00:00Z');
+const context = { dayEnd, timeZone: 'UTC' };
 
 describe('previewPushes', () => {
   test('a habit on firm: one nudge, then a time-sensitive last call', () => {

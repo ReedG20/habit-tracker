@@ -35,14 +35,14 @@ export const SAMPLE_SUBJECT: PreviewSubject = { kind: 'habit', title: 'Morning r
 export function previewPushes(
   subject: PreviewSubject,
   settings: Pick<ReminderSettings, 'preset' | 'breakThroughFocus'>,
-  context: { midnight: number; timeZone: string },
+  context: { dayEnd: number; timeZone: string },
 ): PreviewPush[] {
   if (subject.kind === 'habit') {
-    return habitSlotTimes(context.midnight, settings.preset).map((slot, step) => ({
+    return habitSlotTimes(context.dayEnd, settings.preset).map((slot, step) => ({
       ...reminderCopy({
         kind: 'habits',
         habits: [{ title: subject.title }],
-        msLeft: context.midnight - slot.at,
+        msLeft: context.dayEnd - slot.at,
         final: slot.final,
         seed: 'preview:habits',
         step,

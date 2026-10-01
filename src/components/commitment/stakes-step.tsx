@@ -32,7 +32,7 @@ import type { RaiseOptions } from '@/convex/lib/stakeLadder';
 import { MIN_STAKE_CENTS, type StakeKind, type StakeView } from '@/convex/lib/stakeRules';
 import { useStakePayment } from '@/hooks/use-stake-payment';
 import { captureError, track } from '@/lib/analytics';
-import { formatDueAt } from '@/lib/dates';
+import { describeWeekSpan, formatDueAt, todayKey } from '@/lib/dates';
 import { cardLabel, formatCents } from '@/lib/money';
 import { userErrorMessage } from '@/lib/user-errors';
 
@@ -401,8 +401,8 @@ function consequences(draft: CommitmentDraft, raise: StakesRaise | undefined): s
     draft.kind === 'goal'
       ? `Before ${formatDueAt(draft.dueAt)}, submit a photo. AI checks it against what you wrote.`
       : daily
-        ? `Every day, ${proofAction(draft)} before midnight.${raise === undefined ? ' The day you start is free.' : ''}`
-        : `Any ${days} a week, ${proofAction(draft)}. Weeks run Monday to Sunday${raise === undefined ? ', from the first full one' : ''}.`;
+        ? `Every day, ${proofAction(draft)} by 3\u00a0AM.${raise === undefined ? ' The day you start is free.' : ''}`
+        : `Any ${days} a week, ${proofAction(draft)}. ${raise === undefined ? `Week one starts today, so weeks run ${describeWeekSpan(todayKey())}.` : 'Its weeks stay as they are.'}`;
   const saved =
     moneyRaisedInPlace(raise) !== null
       ? 'Same card as before. Nothing is charged today.'
@@ -417,7 +417,7 @@ function consequences(draft: CommitmentDraft, raise: StakesRaise | undefined): s
   // Stakes can't be walked away from on a bad night: ending gives a week's notice.
   const exit = daily
     ? 'Want out later? Ending takes a week’s notice, and it keeps counting till then.'
-    : 'Want out later? Ending takes about a week’s notice, to the nearest Sunday, and it keeps counting till then.';
+    : 'Want out later? Ending takes about a week’s notice, to the end of one of its weeks, and it keeps counting till then.';
   const name = friendName(draft);
   const them = name === 'my friend' ? 'them' : name;
   const they = name === 'my friend' ? 'they' : name;

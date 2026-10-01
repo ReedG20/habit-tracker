@@ -16,6 +16,8 @@ function input(fields: Partial<HistoryInput> = {}): HistoryInput {
   return {
     today: TODAY,
     firstDay: '2026-09-01',
+    firstWeek: '2026-09-01',
+    startsOn: 0,
     done: new Set(),
     excused: new Set(),
     pending: new Set(),
@@ -70,7 +72,7 @@ describe('dayHistory', () => {
 
 describe('weekHistory', () => {
   test('covers the last eight weeks, ending with this one', () => {
-    const weeks = weekHistory({ ...input({ firstDay: '2026-07-01' }), target: 3 });
+    const weeks = weekHistory({ ...input({ firstWeek: '2026-07-06' }), target: 3 });
     expect(weeks).toHaveLength(HISTORY_WEEKS);
     expect(weeks.at(-1)?.weekStart).toBe('2026-09-28');
     expect(weeks[0].weekStart).toBe('2026-08-10');
@@ -79,7 +81,7 @@ describe('weekHistory', () => {
   test('judges each week against the target', () => {
     const weeks = weekHistory({
       ...input({
-        firstDay: '2026-07-01',
+        firstWeek: '2026-07-06',
         done: new Set(['2026-09-21', '2026-09-22', '2026-09-24', '2026-09-15', TODAY]),
         excused: new Set(['2026-09-16']),
         frozen: new Set(['2026-09-09']),
@@ -94,25 +96,31 @@ describe('weekHistory', () => {
     expect(byWeek.get('2026-08-31')).toMatchObject({ count: 0, state: 'short' });
   });
 
-  test('only whole weeks after the start count', () => {
-    // Started on a Wednesday: that week is free, the next Monday is the first judged.
-    const weeks = weekHistory({ ...input({ firstDay: '2026-09-16' }), target: 2 });
-    const byWeek = new Map(weeks.map((week) => [week.weekStart, week.state]));
-    expect(byWeek.get('2026-09-14')).toBe('off');
-    expect(byWeek.get('2026-09-21')).toBe('short');
+  test('weeks start on the weekday the habit was made, and its first one counts', () => {
+    // Made on Wednesday 2026-09-16: weeks run Wednesday to Tuesday.
+    const weeks = weekHistory({
+      ...input({ firstWeek: '2026-09-16', startsOn: 2, done: new Set(['2026-09-16']) }),
+      target: 2,
+    });
+    const byWeek = new Map(weeks.map((week) => [week.weekStart, week]));
+    expect(weeks.at(-1)?.weekStart).toBe(TODAY);
+    expect(byWeek.get('2026-09-09')?.state).toBe('off');
+    expect(byWeek.get('2026-09-16')).toMatchObject({ count: 1, state: 'short' });
+    expect(byWeek.get('2026-09-23')?.state).toBe('short');
+    expect(byWeek.get(TODAY)?.state).toBe('open');
   });
 });
 
 describe('bestStreak', () => {
   test('finds the longest run of days, not the latest', () => {
     const done = new Set(['2026-09-01', '2026-09-02', '2026-09-03', '2026-09-10', '2026-09-11']);
-    expect(bestStreak(done, 7, new Set())).toBe(3);
+    expect(bestStreak(done, 7, 0, new Set())).toBe(3);
   });
 
   test('frozen days bridge a daily run without adding to it', () => {
     const done = new Set(['2026-09-01', '2026-09-02', '2026-09-05']);
-    expect(bestStreak(done, 7, new Set(['2026-09-03', '2026-09-04']))).toBe(3);
-    expect(bestStreak(done, 7, new Set(['2026-09-03']))).toBe(2);
+    expect(bestStreak(done, 7, 0, new Set(['2026-09-03', '2026-09-04']))).toBe(3);
+    expect(bestStreak(done, 7, 0, new Set(['2026-09-03']))).toBe(2);
   });
 
   test('counts weeks that hit the target for a weekly habit', () => {
@@ -126,11 +134,11 @@ describe('bestStreak', () => {
       '2026-09-28',
       '2026-09-29',
     ]);
-    expect(bestStreak(done, 2, new Set())).toBe(2);
-    expect(bestStreak(done, 1, new Set())).toBe(4);
+    expect(bestStreak(done, 2, 0, new Set())).toBe(2);
+    expect(bestStreak(done, 1, 0, new Set())).toBe(4);
   });
 
   test('is zero with nothing logged', () => {
-    expect(bestStreak(new Set(), 7, new Set())).toBe(0);
+    expect(bestStreak(new Set(), 7, 0, new Set())).toBe(0);
   });
 });

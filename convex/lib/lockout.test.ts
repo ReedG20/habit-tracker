@@ -118,19 +118,43 @@ describe('findMisses: weekly', () => {
     expect(check({ habits: [thrice()], done, from: '2026-09-27', to: '2026-09-27' })).toEqual([]);
   });
 
-  test('only full weeks after the start count', () => {
-    // Made on a Wednesday: that week is free, the next one is not.
+  test('weeks start on the weekday it was made, and the first one counts', () => {
+    // Made on Wednesday 2026-09-23: weeks run Wednesday to Tuesday.
     const made = thrice({ startDay: '2026-09-23' });
-    expect(check({ habits: [made], from: '2026-09-27', to: '2026-09-27' })).toEqual([]);
-    expect(check({ habits: [made], from: '2026-10-04', to: '2026-10-04' })).toMatchObject([
-      { period: '2026-09-28' },
+    expect(check({ habits: [made], from: '2026-09-27', to: '2026-09-28' })).toEqual([]);
+    expect(check({ habits: [made], from: '2026-09-29', to: '2026-09-29' })).toMatchObject([
+      { kind: 'week', period: '2026-09-23' },
     ]);
   });
 
-  test('made on a Sunday, the following Monday starts the first week', () => {
+  test('the day it is made counts toward week one', () => {
+    const made = thrice({ startDay: '2026-09-23' });
+    const done = ['2026-09-23', '2026-09-25', '2026-09-29'];
+    expect(check({ habits: [made], done, from: '2026-09-29', to: '2026-09-29' })).toEqual([]);
+  });
+
+  test('a day made free by signing up does not cost week one', () => {
+    // Signed up and made it the same day: accountableFrom is the day after.
+    const made = thrice({ startDay: '2026-09-23' });
+    expect(
+      check({ habits: [made], accountableFrom: '2026-09-24', from: '2026-09-29', to: '2026-09-29' }),
+    ).toMatchObject([{ period: '2026-09-23' }]);
+  });
+
+  test('a week already under way when the user was let back in is free', () => {
+    const made = thrice({ startDay: '2026-09-23' });
+    // Back in on Friday the 25th: that week is free, the next one counts.
+    expect(
+      check({ habits: [made], accountableFrom: '2026-09-26', from: '2026-09-29', to: '2026-10-06' }),
+    ).toMatchObject([{ period: '2026-09-30' }]);
+  });
+
+  test('restarting re-anchors the weeks', () => {
+    // Restarted on Sunday 2026-09-27: weeks now run Sunday to Saturday.
     const made = thrice({ startDay: '2026-09-27' });
-    expect(check({ habits: [made], from: '2026-10-04', to: '2026-10-04' })).toMatchObject([
-      { period: '2026-09-28' },
+    expect(check({ habits: [made], from: '2026-09-29', to: '2026-10-02' })).toEqual([]);
+    expect(check({ habits: [made], from: '2026-10-03', to: '2026-10-03' })).toMatchObject([
+      { period: '2026-09-27' },
     ]);
   });
 
@@ -152,6 +176,11 @@ describe('isOwed', () => {
   test('a daily habit is owed until today is logged', () => {
     expect(isOwed(habit(), new Set(), '2026-09-22', '2026-09-01')).toBe(true);
     expect(isOwed(habit(), new Set(['2026-09-22']), '2026-09-22', '2026-09-01')).toBe(false);
+  });
+
+  test('a weekly habit made today is owed from today', () => {
+    const weekly = habit({ timesPerWeek: 2, startDay: '2026-09-23' });
+    expect(isOwed(weekly, new Set(), '2026-09-23', '2026-09-24')).toBe(true);
   });
 
   test('a habit made today owes nothing yet', () => {

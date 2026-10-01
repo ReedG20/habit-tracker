@@ -7,6 +7,7 @@ import {
   daysLeftInWeek,
   previousDay,
   streakLength,
+  weekEnd,
   weekStart,
   weeklyStreak,
 } from './days';
@@ -62,26 +63,37 @@ describe('weeks', () => {
   test('run Monday to Sunday', () => {
     expect(dayOfWeek('2026-09-21')).toBe(0);
     expect(dayOfWeek('2026-09-27')).toBe(6);
-    expect(weekStart('2026-09-21')).toBe('2026-09-21');
-    expect(weekStart('2026-09-27')).toBe('2026-09-21');
-    expect(weekStart('2026-09-28')).toBe('2026-09-28');
+    expect(weekStart('2026-09-21', 0)).toBe('2026-09-21');
+    expect(weekStart('2026-09-27', 0)).toBe('2026-09-21');
+    expect(weekStart('2026-09-28', 0)).toBe('2026-09-28');
   });
 
   test('cross a year boundary', () => {
     expect(dayOfWeek('2026-01-01')).toBe(3);
-    expect(weekStart('2026-01-01')).toBe('2025-12-29');
+    expect(weekStart('2026-01-01', 0)).toBe('2025-12-29');
   });
 
   test('count the days left, today included', () => {
-    expect(daysLeftInWeek('2026-09-21')).toBe(7);
-    expect(daysLeftInWeek('2026-09-26')).toBe(2);
-    expect(daysLeftInWeek('2026-09-27')).toBe(1);
+    expect(daysLeftInWeek('2026-09-21', 0)).toBe(7);
+    expect(daysLeftInWeek('2026-09-26', 0)).toBe(2);
+    expect(daysLeftInWeek('2026-09-27', 0)).toBe(1);
+  });
+
+  test('can start on any weekday', () => {
+    // A habit made on Thursday 2026-09-24 runs Thursday to Wednesday.
+    const thursday = 3;
+    expect(weekStart('2026-09-24', thursday)).toBe('2026-09-24');
+    expect(weekStart('2026-09-30', thursday)).toBe('2026-09-24');
+    expect(weekStart('2026-10-01', thursday)).toBe('2026-10-01');
+    expect(weekEnd('2026-09-27', thursday)).toBe('2026-09-30');
+    expect(daysLeftInWeek('2026-09-24', thursday)).toBe(7);
+    expect(daysLeftInWeek('2026-09-30', thursday)).toBe(1);
   });
 
   test('count only this week’s logs up to today', () => {
     const days = new Set(['2026-09-20', '2026-09-21', '2026-09-22', '2026-09-25']);
-    expect(countThisWeek(days, '2026-09-22')).toBe(2);
-    expect(countThisWeek(days, '2026-09-27')).toBe(3);
+    expect(countThisWeek(days, '2026-09-22', 0)).toBe(2);
+    expect(countThisWeek(days, '2026-09-27', 0)).toBe(3);
   });
 });
 
@@ -98,26 +110,34 @@ describe('weeklyStreak', () => {
   ];
 
   test('is zero with no completions', () => {
-    expect(weeklyStreak(new Set(), '2026-09-24', 3)).toBe(0);
+    expect(weeklyStreak(new Set(), '2026-09-24', 3, 0)).toBe(0);
   });
 
   test('keeps the streak alive while this week is still short', () => {
-    expect(weeklyStreak(new Set(base), '2026-09-24', 3)).toBe(2);
+    expect(weeklyStreak(new Set(base), '2026-09-24', 3, 0)).toBe(2);
   });
 
   test('counts this week once it hits the target', () => {
     const days = new Set([...base, '2026-09-22', '2026-09-23']);
-    expect(weeklyStreak(days, '2026-09-24', 3)).toBe(3);
+    expect(weeklyStreak(days, '2026-09-24', 3, 0)).toBe(3);
   });
 
   test('breaks on a week that ended short', () => {
     const days = new Set(base.filter((day) => day !== '2026-09-10'));
-    expect(weeklyStreak(days, '2026-09-24', 3)).toBe(1);
+    expect(weeklyStreak(days, '2026-09-24', 3, 0)).toBe(1);
+  });
+
+  test('groups weeks by the weekday they start on', () => {
+    // Thursday-to-Wednesday weeks: 09-17..09-23 has two logs, 09-24..09-30 has two.
+    const days = new Set(['2026-09-17', '2026-09-23', '2026-09-24', '2026-09-30']);
+    expect(weeklyStreak(days, '2026-09-30', 2, 3)).toBe(2);
+    // The same logs in Monday weeks: 09-14..20 one, 09-21..27 two, 09-28.. one.
+    expect(weeklyStreak(days, '2026-09-30', 2, 0)).toBe(1);
   });
 
   test('counts across a year boundary', () => {
     const days = new Set(['2025-12-23', '2025-12-30', '2026-01-02', '2026-01-05']);
-    expect(weeklyStreak(days, '2026-01-06', 1)).toBe(3);
+    expect(weeklyStreak(days, '2026-01-06', 1, 0)).toBe(3);
   });
 });
 
@@ -140,7 +160,7 @@ describe('frozen days', () => {
       '2026-09-29',
     ]);
     const frozen = new Set(['2026-09-23']);
-    expect(weeklyStreak(done, '2026-09-29', 2)).toBe(1);
-    expect(weeklyStreak(done, '2026-09-29', 2, frozen)).toBe(3);
+    expect(weeklyStreak(done, '2026-09-29', 2, 0)).toBe(1);
+    expect(weeklyStreak(done, '2026-09-29', 2, 0, frozen)).toBe(3);
   });
 });

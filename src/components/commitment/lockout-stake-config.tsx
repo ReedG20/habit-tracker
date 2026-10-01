@@ -9,6 +9,7 @@ import { Cancel01Icon, LockIcon, Tick02Icon } from '@/constants/icons';
 import { PillRadius, Spacing } from '@/constants/theme';
 import { isLockoutDays, LOCKOUT_DAYS, type LockoutDays } from '@/convex/lib/stakeRules';
 import { useTheme } from '@/hooks/use-theme';
+import { fromDayKey, todayKey } from '@/lib/dates';
 
 type DayState = 'done' | 'missed' | 'frozen' | 'back';
 
@@ -34,7 +35,8 @@ export type LockoutStakeConfigProps = {
 export function LockoutStakeConfig({ draft, onChange, minDays = 1 }: LockoutStakeConfigProps) {
   const theme = useTheme();
   const states = strip(draft.lockoutDays);
-  const today = new Date();
+  // The habit day, so at 1 AM the strip starts on the day still running.
+  const today = fromDayKey(todayKey());
   const lengths = LOCKOUT_DAYS.filter((days) => days >= minDays);
 
   return (

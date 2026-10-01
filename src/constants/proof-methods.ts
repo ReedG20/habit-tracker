@@ -48,7 +48,7 @@ export const PROOF_METHODS: Record<ProofMethod, ProofMethodInfo> = {
     howItWorks: [
       'Take it in Ante when you do it, so it can’t be an old one.',
       'AI checks it against what you write below.',
-      'Rejected? Retake it as often as you like until midnight.',
+      'Rejected? Retake it as often as you like until 3\u00a0AM.',
     ],
   },
   location: {
@@ -80,7 +80,7 @@ export const PROOF_METHODS: Record<ProofMethod, ProofMethodInfo> = {
     howItWorks: [
       'Start it in Ante and keep Ante on screen until it runs out.',
       'Leaving the app or locking your phone ends the run. Start over any time, no penalty.',
-      'It has to finish before midnight.',
+      'It has to finish before 3\u00a0AM.',
     ],
   },
 };

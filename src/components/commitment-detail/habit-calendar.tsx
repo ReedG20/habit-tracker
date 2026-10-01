@@ -46,11 +46,12 @@ type Day = HabitDetailHistory['days'][number];
 
 function DayGrid({ days, today }: { days: Day[]; today: string }) {
   const theme = useTheme();
-  // Pad to Sunday, so this week's row is whole; days to come stay blank.
+  // A daily habit's grid is a plain Monday-first calendar. Pad to Sunday, so
+  // this week's row is whole; days to come stay blank.
   const cells: { day: string; mark: CalendarMark; state?: Day['state'] }[] = days.map(
     ({ day, state }) => ({ day, mark: dayMark(state), state }),
   );
-  for (let day = nextDay(today); day <= weekEnd(today); day = nextDay(day)) {
+  for (let day = nextDay(today); day <= weekEnd(today, 0); day = nextDay(day)) {
     cells.push({ day, mark: 'future' });
   }
   const weeks = [];

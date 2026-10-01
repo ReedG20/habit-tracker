@@ -1,5 +1,6 @@
-import { daysBetween, weekEnd } from '@/convex/lib/days';
+import { daysBetween } from '@/convex/lib/days';
 import { targetPerWeek } from '@/convex/lib/frequency';
+import { habitWeekEnd } from '@/convex/lib/habitWeek';
 import type { StakeView } from '@/convex/lib/stakeRules';
 import { isDaily, type HabitWithProgress } from '@/data/habits';
 import { skipConsequence, stakeCost } from '@/data/stakes';
@@ -14,7 +15,7 @@ import { formatCents } from '@/lib/money';
 
 type EndingHabit = Pick<
   HabitWithProgress,
-  'endsAfter' | 'timesPerWeek' | 'completedToday' | 'weekCount'
+  'endsAfter' | 'timesPerWeek' | 'startDay' | 'completedToday' | 'weekCount'
 >;
 
 export type EndingStatus = {
@@ -47,7 +48,7 @@ export function endingStatus(habit: EndingHabit, today: string): EndingStatus | 
   const daysLeft = daysBetween(today, lastDay).length;
   const finalPeriodDone = isDaily(habit)
     ? daysLeft === 1 && habit.completedToday
-    : weekEnd(today) >= lastDay && habit.weekCount >= targetPerWeek(habit);
+    : habitWeekEnd(habit, today) >= lastDay && habit.weekCount >= targetPerWeek(habit);
   const finished = daysLeft === 0 || finalPeriodDone;
 
   let label: string;
@@ -63,11 +64,11 @@ export function endingStatus(habit: EndingHabit, today: string): EndingStatus | 
 
 /**
  * What the notice asks for, as concretely as it can: "Log it every day
- * through Tue, Oct 7.", "Log it 2 more times by Sun, Oct 4.", or, with a
- * week still to come, "Hit 3 this week and 3 next, through Sun, Oct 11."
+ * through Tue, Oct 7.", "Log it 2 more times by Wed, Oct 7.", or, with a
+ * week still to come, "Hit 3 this week and 3 next, through Wed, Oct 14."
  */
 export function noticeRequirement(
-  habit: Pick<HabitWithProgress, 'timesPerWeek' | 'weekCount'>,
+  habit: Pick<HabitWithProgress, 'timesPerWeek' | 'startDay' | 'weekCount'>,
   lastDay: string,
   today: string,
 ): string {
@@ -75,7 +76,7 @@ export function noticeRequirement(
   if (isDaily(habit)) return `Log it every day through ${through}.`;
 
   const target = targetPerWeek(habit);
-  if (weekEnd(today) < lastDay)
+  if (habitWeekEnd(habit, today) < lastDay)
     return `Hit ${target} this week and ${target} next, through ${through}.`;
 
   const left = target - habit.weekCount;

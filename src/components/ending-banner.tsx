@@ -6,7 +6,8 @@ import { ThemedText } from './themed-text';
 
 import { CheckmarkCircle02Icon, HourglassIcon, Tick02Icon } from '@/constants/icons';
 import { CardRadius, Spacing } from '@/constants/theme';
-import { daysBetween, weekEnd } from '@/convex/lib/days';
+import { daysBetween } from '@/convex/lib/days';
+import { habitWeekEnd } from '@/convex/lib/habitWeek';
 import { targetPerWeek } from '@/convex/lib/frequency';
 import {
   endingStatus,
@@ -117,7 +118,7 @@ function NoticePips({
   }
 
   const target = targetPerWeek(habit);
-  const moreWeeks = weekEnd(today) < lastDay;
+  const moreWeeks = habitWeekEnd(habit, today) < lastDay;
   return (
     <View style={styles.weekRow}>
       <View style={styles.pips} accessibilityLabel={`${habit.weekCount} of ${target} this week`}>

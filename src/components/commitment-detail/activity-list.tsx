@@ -8,7 +8,8 @@ import { ThemedView } from '@/components/themed-view';
 import { Alert02Icon, Cancel01Icon, CheckmarkCircle02Icon, Clock01Icon } from '@/constants/icons';
 import { BorderRadius, CardRadius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { toDayKey } from '@/lib/dates';
+import { previousDay } from '@/convex/lib/days';
+import { dayKeyAt, fromDayKey, todayKey } from '@/lib/dates';
 
 export type ActivityStatus = 'pending' | 'approved' | 'rejected' | 'failed';
 
@@ -40,14 +41,16 @@ const dateFormat = new Intl.DateTimeFormat(undefined, {
   day: 'numeric',
 });
 
-/** "Today", "Yesterday", or "Mon, Sep 28". */
+/**
+ * "Today", "Yesterday", or "Mon, Sep 28": the day it counted for, so a 1 AM
+ * check-in reads as the night before, the way it was judged.
+ */
 function dayLabel(at: number): string {
-  const day = toDayKey(new Date(at));
-  const today = new Date();
-  if (day === toDayKey(today)) return 'Today';
-  const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
-  if (day === toDayKey(yesterday)) return 'Yesterday';
-  return dateFormat.format(new Date(at));
+  const day = dayKeyAt(at);
+  const today = todayKey();
+  if (day === today) return 'Today';
+  if (day === previousDay(today)) return 'Yesterday';
+  return dateFormat.format(fromDayKey(day));
 }
 
 /** Every attempt at a commitment, newest first, kept or not, with the reason it was judged so. */

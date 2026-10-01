@@ -18,11 +18,12 @@ import { formatLastDay } from '@/data/ending';
 import { type Habit } from '@/data/habits';
 import { describeGoalStake, freezeLength } from '@/data/stakes';
 import {
+  dayKeyAt,
   describeTimeLeft,
+  describeWeekSpan,
   formatDayKey,
   formatDueAt,
   formatShortDate,
-  toDayKey,
 } from '@/lib/dates';
 import { cardLabel, formatCents } from '@/lib/money';
 
@@ -45,7 +46,7 @@ export function habitTerms(habit: Habit & { stakeView: StakeView | null }, today
     habitProofTerm(habit),
     habitScheduleTerm(habit),
     stakeTerm(habit.stakeView, missPhrase(habit)),
-    startedTerm(habit.startDay ?? toDayKey(new Date(habit._creationTime)), today),
+    startedTerm(habit.startDay ?? dayKeyAt(habit._creationTime), today),
   ];
 }
 
@@ -131,7 +132,9 @@ function habitProofTerm(habit: Habit): Term {
 function habitScheduleTerm(habit: Habit): Term {
   const target = targetPerWeek(habit);
   const rule =
-    target >= DAILY ? 'Log it before midnight, every day.' : 'Any days you like, Monday to Sunday.';
+    target >= DAILY
+      ? 'Log it by 3\u00a0AM, every day.'
+      : `Any days you like, ${describeWeekSpan(habit.startDay ?? dayKeyAt(habit._creationTime))}.`;
   return {
     key: 'schedule',
     icon: RepeatIcon,

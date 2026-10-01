@@ -4,7 +4,7 @@ import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, type MutationCtx } from './_generated/server';
 import { authedMutation, authedQuery } from './lib/customFunctions';
-import { weekStart } from './lib/days';
+import { daysBefore } from './lib/days';
 import { isPro } from './lib/entitlements';
 import { activeFreeze } from './freezes';
 import { activeLockout, stakesV2Enabled } from './lib/lockout';
@@ -31,7 +31,7 @@ import {
   type Slot,
 } from './lib/reminderPlan';
 import { PRESET_RULES, type ReminderSettings } from './lib/reminderPresets';
-import { zonedDay } from './lib/zonedTime';
+import { habitDay } from './lib/zonedTime';
 
 /**
  * Deadline reminders, one self-rescheduling run per user. Each run rebuilds the
@@ -145,8 +145,9 @@ async function loadPlanInput(
   // Without Ante Pro habits are paused (`lockouts.checkUser`): nothing to remind about.
   if (!(await isPro(ctx, user._id, now))) return input;
 
-  const today = zonedDay(now, user.timeZone);
-  const from = weekStart(today);
+  const today = habitDay(now, user.timeZone);
+  // Far enough back for the week of any habit, whatever weekday it starts on.
+  const from = daysBefore(today, 6);
   // A broken habit isn't judged until it's restarted, so there's nothing to nag about.
   const habitRows = (
     await ctx.db
@@ -337,7 +338,7 @@ export const runUser = internalMutation({
       return null;
     }
 
-    const today = zonedDay(now, timeZone);
+    const today = habitDay(now, timeZone);
     const { due, sentThrough, sentToday } = selectDue(
       plan.slots,
       state,

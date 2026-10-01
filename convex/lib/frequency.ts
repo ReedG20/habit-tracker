@@ -1,6 +1,7 @@
 /**
- * How often a habit is due: some number of days in each Monday-to-Sunday week,
- * on any days, with 7 meaning every day. Shared by the backend and the app so
+ * How often a habit is due: some number of days in each of its weeks (seven
+ * days in a row from the weekday it was made, `habitWeek.ts`), on any days,
+ * with 7 meaning every day. Shared by the backend and the app so
  * the rule and the words for it never drift apart.
  */
 

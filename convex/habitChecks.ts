@@ -9,11 +9,10 @@ import {
   previousDay,
   streakLength,
   STREAK_WINDOW_DAYS,
-  weekEnd,
   weeklyStreak,
-  weekStart,
 } from './lib/days';
 import { DAILY, targetPerWeek } from './lib/frequency';
+import { weekStartsOn } from './lib/habitWeek';
 import { findMisses, localDay, type Miss } from './lib/lockout';
 import { loseStake, type Run } from './lib/stakes';
 import { isSubscriptionActive } from './lib/entitlements';
@@ -63,8 +62,8 @@ export async function checkUser(ctx: MutationCtx, user: Doc<'users'>, now: numbe
   const oldest = daysBefore(to, STREAK_WINDOW_DAYS);
   const next = nextDay(lastCheckedDay);
   const from = next < oldest ? oldest : next;
-  // A weekly habit is judged on its Sunday, over logs from its Monday on.
-  const readFrom = weekStart(from);
+  // A weekly habit is judged on its week's last day, over logs from six days before.
+  const readFrom = daysBefore(from, 6);
 
   const verifications = await ctx.db
     .query('habitVerifications')
@@ -175,10 +174,12 @@ async function runSnapshot(
   timeZone: string,
 ): Promise<Run> {
   const sinceDay = localDay(stake.createdAt, timeZone);
+  // A weekly miss's period is the first day of the week that came up short.
+  const periodEnd = daysBefore(miss.period, -6);
   const rows = await ctx.db
     .query('habitCompletions')
     .withIndex('by_habit_and_day', (q) =>
-      q.eq('habitId', habit._id).gte('day', sinceDay).lte('day', weekEnd(miss.period)),
+      q.eq('habitId', habit._id).gte('day', sinceDay).lte('day', periodEnd),
     )
     .take(MAX_RUN_DAYS);
   const done = new Set(rows.map((row) => row.day));
@@ -195,13 +196,14 @@ async function runSnapshot(
         new Set([...done].filter((day) => day < miss.period)),
         previousDay(miss.period),
         target,
+        weekStartsOn(habit),
         frozenDays,
       );
 
   return {
     streak,
     unit: daily ? 'day' : 'week',
-    completions: rows.filter((row) => row.day <= (daily ? miss.period : weekEnd(miss.period)))
+    completions: rows.filter((row) => row.day <= (daily ? miss.period : periodEnd))
       .length,
     sinceDay,
     missedPeriod: miss.period,

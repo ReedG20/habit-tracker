@@ -103,7 +103,7 @@ export default function RemindersScreen() {
 
   const subject = pickPreviewSubject(habits, goals, now);
   const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const pushes = previewPushes(subject, settings, { midnight: endOfDay(todayKey()), timeZone });
+  const pushes = previewPushes(subject, settings, { dayEnd: endOfDay(todayKey()), timeZone });
 
   const test = async () => {
     setTestStatus('Sending…');
