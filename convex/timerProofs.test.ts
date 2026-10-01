@@ -6,7 +6,7 @@ import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import { grantPro, setup as baseSetup, type Harness } from './test.helpers';
 
-// 2026-09-21 is a Monday. Everyone here lives in UTC, so local midnight is 00:00Z.
+// 2026-09-21 is a Monday. Everyone here lives in UTC, so the local day ends at 03:00Z.
 const at = (day: string, hour = 12, minute = 0) =>
   new Date(`${day}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00Z`);
 
@@ -134,12 +134,28 @@ describe('running a timer', () => {
     expect(completion).toBeNull();
   });
 
-  test('a run that would pass midnight is refused', async () => {
+  test('a late-night run still counts for the day before', async () => {
     const t = setup();
     const alice = await signIn(t, 'alice');
     const habitId = await timerHabit(alice.as);
 
-    vi.setSystemTime(at('2026-09-21', 23, 45));
+    // 12:30 AM on Tuesday: Monday's day runs until 3 AM.
+    vi.setSystemTime(at('2026-09-22', 0, 30));
+    const run = await alice.as.mutation(api.timerProofs.start, { habitId, day: '2026-09-22' });
+    vi.setSystemTime(at('2026-09-22', 0, 50));
+    expect(await alice.as.mutation(api.timerProofs.finish, { runId: run.runId })).toEqual({
+      logged: true,
+    });
+    const { completion } = await dayState(t, habitId, '2026-09-21');
+    expect(completion).not.toBeNull();
+  });
+
+  test('a run that would pass the end of the day at 3 AM is refused', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    const habitId = await timerHabit(alice.as);
+
+    vi.setSystemTime(at('2026-09-22', 2, 45));
     await expect(
       alice.as.mutation(api.timerProofs.start, { habitId, day: '2026-09-21' }),
     ).rejects.toThrow('There isn’t enough of today left for a 20-minute timer');
@@ -163,16 +179,16 @@ describe('running a timer', () => {
     );
   });
 
-  test('a run has to end a couple of minutes before midnight', async () => {
+  test('a run has to end a couple of minutes before the day does', async () => {
     const t = setup();
     const alice = await signIn(t, 'alice');
     const habitId = await timerHabit(alice.as);
 
-    vi.setSystemTime(at('2026-09-21', 23, 39));
+    vi.setSystemTime(at('2026-09-22', 2, 39));
     await expect(
       alice.as.mutation(api.timerProofs.start, { habitId, day: '2026-09-21' }),
     ).rejects.toThrow('There isn’t enough of today left');
-    vi.setSystemTime(at('2026-09-21', 23, 37));
+    vi.setSystemTime(at('2026-09-22', 2, 37));
     await expect(
       alice.as.mutation(api.timerProofs.start, { habitId, day: '2026-09-21' }),
     ).resolves.toBeDefined();

@@ -1,11 +1,12 @@
 import type { Id } from '../_generated/dataModel';
 import { countThisWeek, daysLeftInWeek } from './days';
 import { DAILY, targetPerWeek } from './frequency';
+import { weekStartsOn } from './habitWeek';
 import { isOwed, type CheckedHabit } from './lockout';
 import type { HabitStakeLine } from './reminderCopy';
 import { LINEUP_TIME, type ReminderSettings } from './reminderPresets';
 import { goalSlotTimes, habitSlotTimes, MERGE_MS, type RawSlot } from './reminderTimes';
-import { MINUTE_MS, nextLocalMidnight, zonedDay, zonedInstant } from './zonedTime';
+import { habitDay, MINUTE_MS, nextDayEnd, zonedInstant } from './zonedTime';
 
 export { goalSlotTimes };
 
@@ -14,9 +15,9 @@ export { goalSlotTimes };
  * a database. `reminders.runUser` feeds it a snapshot of one user, sends what
  * `selectDue` picks, and sleeps until `nextWake`.
  *
- * Every open commitment has a deadline: a goal's `dueAt`, or tonight's local
- * midnight for a habit still owed today. Deadlines shared by several items
- * become one group, so everything due at midnight is one push, not five.
+ * Every open commitment has a deadline: a goal's `dueAt`, or the end of the
+ * local day (`DAY_ENDS_AT_HOUR`) for a habit still owed today. Deadlines shared
+ * by several items become one group, so every habit due tonight is one push, not five.
  * Nothing here decides whether an item is still owed at send time: the plan is
  * rebuilt from fresh data on every run, so a finished item simply drops out.
  */
@@ -80,10 +81,10 @@ export type Plan = {
   groups: Map<string, Group>;
   /** Every slot for every open deadline, past and future, earliest first. */
   slots: Slot[];
-  /** Whether a new local day could bring new reminders, so it's worth waking at midnight. */
-  wakeAtMidnight: boolean;
-  /** The next local midnight, when habits are known; else `null`. */
-  midnight: number | null;
+  /** Whether a new local day could bring new reminders, so it's worth waking when this one ends. */
+  wakeAtDayEnd: boolean;
+  /** When the local day ends, when habits are known; else `null`. */
+  dayEnd: number | null;
 };
 
 /**
@@ -113,8 +114,9 @@ export function owedHabits(
       continue;
     }
 
-    const needed = target - countThisWeek(habit.done, today);
-    if (needed === daysLeftInWeek(today)) {
+    const startsOn = weekStartsOn(habit);
+    const needed = target - countThisWeek(habit.done, today, startsOn);
+    if (needed === daysLeftInWeek(today, startsOn)) {
       due.push({
         habitId: habit._id,
         title: habit.title,
@@ -149,13 +151,14 @@ export function planReminders(input: PlanInput): Plan {
     add(key, dueAt, goalSlotTimes(dueAt, createdAt, settings, timeZone));
   }
 
-  let midnight: number | null = null;
-  let wakeAtMidnight = false;
+  let dayEnd: number | null = null;
+  let wakeAtDayEnd = false;
   // Without a zone there is no "tonight", and the lockout never judges them anyway.
   // While locked, habits can't be logged; unlocking makes today free and re-plans.
   if (timeZone !== undefined) {
-    midnight = nextLocalMidnight(now, timeZone);
-    const today = zonedDay(now, timeZone);
+    const end = nextDayEnd(now, timeZone);
+    dayEnd = end;
+    const today = habitDay(now, timeZone);
     const habitsCount = accountableFrom !== undefined && !input.locked ? input.habits.length : 0;
     const dueHabits =
       habitsCount > 0 && accountableFrom !== undefined
@@ -164,29 +167,29 @@ export function planReminders(input: PlanInput): Plan {
 
     if (dueHabits.length > 0) {
       const key = `habits:${today}`;
-      groups.set(key, { kind: 'habits', deadline: midnight, day: today, habits: dueHabits });
-      add(key, midnight, habitSlotTimes(midnight, settings.preset));
+      groups.set(key, { kind: 'habits', deadline: end, day: today, habits: dueHabits });
+      add(key, end, habitSlotTimes(end, settings.preset));
     }
 
-    const goalsToday = input.goals.filter((goal) => goal.dueAt > now && goal.dueAt <= midnight!);
+    const goalsToday = input.goals.filter((goal) => goal.dueAt > now && goal.dueAt <= end);
     if (settings.morningLineup && (dueHabits.length > 0 || goalsToday.length > 0)) {
       const key = `lineup:${today}`;
       const at = zonedInstant(today, LINEUP_TIME.hour, LINEUP_TIME.minute, timeZone);
       groups.set(key, {
         kind: 'lineup',
-        deadline: midnight,
+        deadline: end,
         day: today,
         habits: dueHabits,
         goals: goalsToday,
       });
-      add(key, midnight, [{ at, final: false }]);
+      add(key, end, [{ at, final: false }]);
     }
 
-    wakeAtMidnight = habitsCount > 0 || (settings.morningLineup && input.goals.length > 0);
+    wakeAtDayEnd = habitsCount > 0 || (settings.morningLineup && input.goals.length > 0);
   }
 
   slots.sort((a, b) => a.at - b.at);
-  return { groups, slots, wakeAtMidnight, midnight };
+  return { groups, slots, wakeAtDayEnd, dayEnd };
 }
 
 export type SendState = {
@@ -244,8 +247,8 @@ export function selectDue(
 }
 
 /**
- * When to run next: the first slot still ahead, or just after midnight when a
- * new day could owe something. Never more than a day out, so a long-range
+ * When to run next: the first slot still ahead, or just after the day ends
+ * when a new day could owe something. Never more than a day out, so a long-range
  * goal is re-planned daily. `null` when there is nothing left to watch.
  */
 export function nextWake(plan: Plan, sentThrough: number, now: number): number | null {
@@ -256,9 +259,9 @@ export function nextWake(plan: Plan, sentThrough: number, now: number): number |
       break;
     }
   }
-  if (plan.wakeAtMidnight && plan.midnight !== null) {
-    const afterMidnight = plan.midnight + MINUTE_MS;
-    next = next === null ? afterMidnight : Math.min(next, afterMidnight);
+  if (plan.wakeAtDayEnd && plan.dayEnd !== null) {
+    const afterDayEnd = plan.dayEnd + MINUTE_MS;
+    next = next === null ? afterDayEnd : Math.min(next, afterDayEnd);
   }
   const anyGoals = [...plan.groups.values()].some((group) => group.kind === 'goals');
   if (next === null && anyGoals) next = now + 24 * 60 * MINUTE_MS;

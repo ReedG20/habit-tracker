@@ -52,7 +52,7 @@ export default function RemindersStepScreen() {
           stakeCents: null,
         };
   const pushes = previewPushes(subject, DEFAULT_REMINDER_SETTINGS, {
-    midnight: endOfDay(todayKey()),
+    dayEnd: endOfDay(todayKey()),
     timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   });
 

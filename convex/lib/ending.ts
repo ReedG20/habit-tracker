@@ -1,6 +1,7 @@
-import { daysBefore, weekEnd } from './days';
+import { daysBefore } from './days';
 import { DAILY, targetPerWeek } from './frequency';
-import { firstCountedDay, firstFullWeek, type CheckedHabit } from './lockout';
+import { firstJudgedWeek, habitWeekEnd } from './habitWeek';
+import { firstCountedDay, type CheckedHabit } from './lockout';
 
 /**
  * Ending a habit with something live on the line takes a week's notice: it
@@ -20,13 +21,16 @@ export type EndingPlan =
 
 /**
  * The last day a habit ended on `today` still counts: a week out, counting
- * today. Weekly habits are only judged in whole weeks, so theirs is the
- * Sunday nearest a week out, which leaves 4 to 10 days.
+ * today. Weekly habits are only judged in whole weeks, so theirs is the end
+ * of the habit's week nearest a week out, which leaves 4 to 10 days.
  */
-export function noticeLastDay(habit: Pick<CheckedHabit, 'timesPerWeek'>, today: string): string {
+export function noticeLastDay(
+  habit: Pick<CheckedHabit, 'timesPerWeek' | 'startDay'>,
+  today: string,
+): string {
   const weekOut = daysBefore(today, -(NOTICE_DAYS - 1));
   if (targetPerWeek(habit) >= DAILY) return weekOut;
-  return weekEnd(daysBefore(weekOut, 3));
+  return habitWeekEnd(habit, daysBefore(weekOut, 3));
 }
 
 /**
@@ -49,8 +53,10 @@ export function endingPlan({
     return { kind: 'now', reason: 'nothing-on-the-line' };
   }
 
-  const first = firstCountedDay(habit, accountableFrom);
-  const counting = targetPerWeek(habit) >= DAILY ? first <= today : firstFullWeek(first) <= today;
+  const counting =
+    targetPerWeek(habit) >= DAILY
+      ? firstCountedDay(habit, accountableFrom) <= today
+      : firstJudgedWeek(habit, accountableFrom) <= today;
   if (!counting) return { kind: 'now', reason: 'not-started' };
 
   return { kind: 'notice', lastDay: noticeLastDay(habit, today) };

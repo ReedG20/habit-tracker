@@ -10,9 +10,10 @@ import {
   type Streak,
 } from '@/data/habits';
 import { skipConsequence, stakeCost } from '@/data/stakes';
-import { dayOfWeek, daysBetween, nextDay, weekEnd } from '@/convex/lib/days';
+import { DAY_ENDS_AT_HOUR, daysBetween, nextDay } from '@/convex/lib/days';
 import { targetPerWeek } from '@/convex/lib/frequency';
-import { endOfDay, formatShortDate, fromDayKey, toDayKey } from '@/lib/dates';
+import { firstJudgedWeek, habitWeekEnd, habitWeekStart } from '@/convex/lib/habitWeek';
+import { dayKeyAt, endOfDay, formatShortDate, fromDayKey } from '@/lib/dates';
 import { formatCents } from '@/lib/money';
 
 /**
@@ -25,8 +26,11 @@ const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
-/** Inside this window before midnight, the clock itself becomes the headline. */
-export const LAST_CALL_MS = 3 * HOUR;
+/**
+ * Inside this window before the day ends, the clock itself becomes the
+ * headline: from 9 PM, three hours before midnight, though the day runs on to 3 AM.
+ */
+export const LAST_CALL_MS = (3 + DAY_ENDS_AT_HOUR) * HOUR;
 /** Inside this window a goal's deadline beats everything but a retake. */
 export const GOAL_CRUNCH_MS = 3 * HOUR;
 /** A shorter run is not worth leading with; the stake lands harder. */
@@ -92,7 +96,7 @@ export const MARGIN_NOTES = {
   stakes: ['it’s cheaper to just do it.', 'showing up is the cheap option.'],
   frozen: ['rest up. it all counts again soon.', 'the lock is the point.'],
   done: ['that’s the trick. again tomorrow.', 'nice. same time tomorrow.'],
-  week: ['plenty of week left. use it.', 'early logs make sundays easy.'],
+  week: ['plenty of week left. use it.', 'early logs make the last day easy.'],
   practiceWeek: ['free week. build the habit anyway.'],
   dayBack: ['free day. it all counts tomorrow.'],
   firstDay: ['first day’s free. use it anyway.'],
@@ -135,7 +139,7 @@ const weekdayFormat = new Intl.DateTimeFormat(undefined, { weekday: 'long' });
 
 /** "at 6:00 PM", "tomorrow", "Friday", "Oct 3": when a goal is due, as it reads after "due". */
 function describeDue(dueAt: number, now: number, today: string): string {
-  const day = toDayKey(new Date(dueAt));
+  const day = dayKeyAt(dueAt);
   if (day === today) return `at ${timeFormat.format(new Date(dueAt))}`;
   if (day === nextDay(today)) return 'tomorrow';
   if (dueAt - now < 6 * DAY) return weekdayFormat.format(new Date(dueAt));
@@ -143,16 +147,20 @@ function describeDue(dueAt: number, now: number, today: string): string {
 }
 
 /**
- * Whether missing `habit` today can lock anything, mirroring `firstCountedDay`
- * in `convex/lib/lockout.ts`: the day a habit is made is free, as is every day
- * before `accountableFrom` (the day back from a lock), and a weekly habit only
- * counts from its first whole week.
+ * Whether missing `habit` today can lock anything, mirroring `findMisses` in
+ * `convex/lib/lockout.ts`: a daily habit's first day is free, as is every day
+ * before `accountableFrom` (the day back from a lock); a weekly habit counts
+ * from its first week (`firstJudgedWeek`), which is usually the one it was made in.
  */
 function countsToday(
   habit: HabitWithProgress,
   today: string,
   accountableFrom: string | null,
 ): boolean {
+  if (!isDaily(habit)) {
+    if (accountableFrom === null) return habit.startDay === undefined || today >= habit.startDay;
+    return habitWeekStart(habit, today) >= firstJudgedWeek(habit, accountableFrom);
+  }
   const afterStart = habit.startDay === undefined ? null : nextDay(habit.startDay);
   const first =
     afterStart === null
@@ -160,10 +168,7 @@ function countsToday(
       : accountableFrom === null || afterStart > accountableFrom
         ? afterStart
         : accountableFrom;
-  if (first === null) return true;
-  if (isDaily(habit)) return today >= first;
-  const firstWeek = dayOfWeek(first) === 0 ? first : nextDay(weekEnd(first));
-  return today >= firstWeek;
+  return first === null || today >= first;
 }
 
 /**
@@ -267,8 +272,8 @@ export function pickTodayMoment({
   );
   if (habits.length === 0 && openGoals.length === 0 && pendingGoals.length === 0) return null;
 
-  const midnight = endOfDay(today);
-  const leftToday = midnight - now;
+  const dayEnd = endOfDay(today);
+  const leftToday = dayEnd - now;
   const clock = formatHoursMinutes(leftToday);
   // Frozen, nothing can be logged or missed: no habit is owed.
   const owed =
@@ -309,8 +314,8 @@ export function pickTodayMoment({
       tone: 'urgent',
       kicker: `Your ${setback.title} ${retry.kicker}`,
       figure: { kind: 'time', text: clock },
-      sentence: `${retry.sentence} before midnight.${alive}`,
-      emphasis: run === null ? ['before midnight'] : ['before midnight', run],
+      sentence: `${retry.sentence} before 3\u00a0AM.${alive}`,
+      emphasis: run === null ? ['before 3\u00a0AM'] : ['before 3\u00a0AM', run],
       also: also({ clock: true, streak: true }),
       note: pickNote(retry.note, today),
     };
@@ -379,7 +384,7 @@ export function pickTodayMoment({
     return {
       kind: 'lastCall',
       tone: 'urgent',
-      kicker: `${cost.short} at midnight`,
+      kicker: `${cost.short} at 3\u00a0AM`,
       figure: { kind: 'time', text: clock },
       sentence: one
         ? `${owed[0].title}’s still open. Skip it and ${outcome}.`
@@ -391,7 +396,7 @@ export function pickTodayMoment({
   }
 
   // 5. A staked goal settles before tonight's habits do.
-  const dueToday = openGoals.find((goal) => goal.dueAt < midnight && stakeCents(goal) !== null);
+  const dueToday = openGoals.find((goal) => goal.dueAt < dayEnd && stakeCents(goal) !== null);
   if (dueToday !== undefined) {
     return {
       kind: 'goalToday',
@@ -490,7 +495,8 @@ export function pickTodayMoment({
       : habits
           .filter((habit) => habit.brokenAt === undefined && !isDaily(habit) && !isWeekDone(habit))
           .sort((a, b) => targetPerWeek(b) - b.weekCount - (targetPerWeek(a) - a.weekCount))[0];
-  // A weekly habit made midweek only counts from its first whole week.
+  // A weekly habit whose week began before the user's day back from a lock
+  // only counts from its next week.
   const practiceWeek = tallied !== undefined && !countsToday(tallied, today, accountableFrom);
 
   const figure: MomentFigure | null =
@@ -553,11 +559,12 @@ export function pickTodayMoment({
     emphasis = [goalInFigure.title];
   } else if (tallied !== undefined) {
     const left = targetPerWeek(tallied) - tallied.weekCount;
-    const days = daysBetween(today, weekEnd(today)).length;
+    const days = daysBetween(today, habitWeekEnd(tallied, today)).length;
     const window = `${days} ${days === 1 ? 'day' : 'days'}`;
     if (practiceWeek) {
-      sentence = `${tallied.title} this week. It counts from Monday, so this one’s practice.`;
-      emphasis = [tallied.title, 'Monday'];
+      const from = weekdayFormat.format(fromDayKey(nextDay(habitWeekEnd(tallied, today))));
+      sentence = `${tallied.title} this week. It counts from ${from}, so this one’s practice.`;
+      emphasis = [tallied.title, from];
     } else {
       sentence = `${tallied.title} this week, with ${window} left to fit in ${left} more.`;
       emphasis = [tallied.title, window];

@@ -1,7 +1,11 @@
+import { DAY_ENDS_AT_HOUR } from '@/convex/lib/days';
+
 /**
- * Day keys are `YYYY-MM-DD` in the device's local calendar. The client is the
+ * Day keys are `YYYY-MM-DD` in the device's local time. The client is the
  * only place they are minted, so the day boundary always matches what the user
- * sees on their clock rather than UTC.
+ * sees on their clock rather than UTC. A habit day ends at `DAY_ENDS_AT_HOUR`
+ * (3 AM), not midnight: `todayKey` and `dayKeyAt` know that, `toDayKey` is the
+ * plain calendar date.
  */
 
 export function toDayKey(date: Date): string {
@@ -12,9 +16,26 @@ export function toDayKey(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-export function todayKey(): string {
-  return toDayKey(new Date());
+/** The habit day at `at`: the small hours before 3 AM still belong to the day before. */
+export function dayKeyAt(at: number): string {
+  const date = new Date(at);
+  if (date.getHours() < DAY_ENDS_AT_HOUR) date.setDate(date.getDate() - 1);
+  return toDayKey(date);
 }
+
+export function todayKey(): string {
+  return dayKeyAt(Date.now());
+}
+
+/** "Thursday to Wednesday": the days a weekly habit started on `startDay` runs, week after week. */
+export function describeWeekSpan(startDay: string): string {
+  const first = fromDayKey(startDay);
+  const last = fromDayKey(startDay);
+  last.setDate(last.getDate() + 6);
+  return `${weekdayName.format(first)} to ${weekdayName.format(last)}`;
+}
+
+const weekdayName = new Intl.DateTimeFormat(undefined, { weekday: 'long' });
 
 /** Midday, so DST shifts can't roll the date backwards when formatting. */
 export function fromDayKey(day: string): Date {
@@ -45,11 +66,11 @@ export function formatDayKey(day: string): string {
   return dayFormat.format(fromDayKey(day));
 }
 
-/** The first instant of the following day, i.e. the deadline for anything due on `day`. */
+/** When `day` ends, at 3 AM the next morning: the deadline for anything due on `day`. */
 export function endOfDay(day: string): number {
   const [year, month, date] = day.split('-').map(Number);
 
-  return new Date(year, month - 1, date + 1).getTime();
+  return new Date(year, month - 1, date + 1, DAY_ENDS_AT_HOUR).getTime();
 }
 
 const MINUTE = 60_000;

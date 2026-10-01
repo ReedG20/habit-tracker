@@ -84,7 +84,8 @@ export const submissionStatusValidator = v.union(
 /**
  * Days are stored as `YYYY-MM-DD` rather than timestamps. The client computes
  * the key from the device clock, so "did I do this today" follows the user's
- * local midnight instead of UTC, and it stays a plain index lookup.
+ * local day (which ends at 3 AM, `DAY_ENDS_AT_HOUR`) instead of UTC, and it
+ * stays a plain index lookup.
  */
 export default defineSchema({
   users: defineTable({
@@ -131,7 +132,7 @@ export default defineSchema({
     startDay: v.optional(v.string()),
     /**
      * Set when it is deleted while still owed: the last day (daily) or the
-     * Sunday (weekly) that still counts. The lockout check removes it after that.
+     * last day of one of its weeks (weekly) that still counts. The lockout check removes it after that.
      */
     endsAfter: v.optional(v.string()),
     /** The stake it runs on now; none means just the user's word. */
@@ -317,7 +318,7 @@ export default defineSchema({
         habitId: v.id('habits'),
         title: v.string(),
         kind: v.union(v.literal('day'), v.literal('week')),
-        /** The missed day, or the Monday of the week that ended short. */
+        /** The missed day, or the first day of the week that ended short. */
         period: v.string(),
       }),
     ),
@@ -399,7 +400,7 @@ export default defineSchema({
     userId: v.id('users'),
     startDay: v.string(),
     endDay: v.string(),
-    /** The local midnight after `endDay`, when `freezes.lift` runs. */
+    /** When `endDay` ends locally (`DAY_ENDS_AT_HOUR` the next morning), and `freezes.lift` runs. */
     endsAt: v.number(),
     days: lockoutDaysValidator,
     status: v.union(v.literal('active'), v.literal('lifted')),

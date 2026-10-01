@@ -44,6 +44,7 @@ import type * as lib_ending from "../lib/ending.js";
 import type * as lib_entitlements from "../lib/entitlements.js";
 import type * as lib_frequency from "../lib/frequency.js";
 import type * as lib_habitHistory from "../lib/habitHistory.js";
+import type * as lib_habitWeek from "../lib/habitWeek.js";
 import type * as lib_lockout from "../lib/lockout.js";
 import type * as lib_notify from "../lib/notify.js";
 import type * as lib_openrouter from "../lib/openrouter.js";
@@ -120,6 +121,7 @@ declare const fullApi: ApiFromModules<{
   "lib/entitlements": typeof lib_entitlements;
   "lib/frequency": typeof lib_frequency;
   "lib/habitHistory": typeof lib_habitHistory;
+  "lib/habitWeek": typeof lib_habitWeek;
   "lib/lockout": typeof lib_lockout;
   "lib/notify": typeof lib_notify;
   "lib/openrouter": typeof lib_openrouter;

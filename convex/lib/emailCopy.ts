@@ -26,7 +26,7 @@ export type LossInput = {
   /** Habits: the run that ended, and in what unit. */
   streak?: number;
   unit?: 'day' | 'week';
-  /** Habits: the day missed, or the Monday of the week that came up short. */
+  /** Habits: the day missed, or the first day of the week that came up short. */
   missedPeriod?: string;
   /** Goals: when it was due. */
   dueLabel?: string;
@@ -142,7 +142,7 @@ export function lossEmail(input: LossInput): EmailContent {
   };
 }
 
-/** "on Tuesday", or "the week of Sep 21" for a weekly habit that came up short. */
+/** "on Tuesday", or "the week starting Sep 21" for a weekly habit that came up short. */
 function missedLabel(period: string | undefined, unit: 'day' | 'week'): string {
   if (period === undefined) return unit === 'day' ? 'a day' : 'a week';
   if (unit === 'week') {
@@ -151,7 +151,7 @@ function missedLabel(period: string | undefined, unit: 'day' | 'week'): string {
       month: 'short',
       timeZone: 'UTC',
     });
-    return `their target the week of ${monthName} ${day}`;
+    return `their target for the week starting ${monthName} ${day}`;
   }
   return `on ${WEEKDAYS[dayOfWeek(period)]}`;
 }

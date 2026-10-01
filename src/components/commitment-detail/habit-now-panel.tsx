@@ -4,11 +4,12 @@ import { HabitActionButton } from '@/components/habit-action-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { ActionCardRadius, Spacing } from '@/constants/theme';
-import { daysLeftInWeek } from '@/convex/lib/days';
+import { daysLeftInWeek, nextDay } from '@/convex/lib/days';
 import { targetPerWeek } from '@/convex/lib/frequency';
+import { habitWeekEnd, weekStartsOn } from '@/convex/lib/habitWeek';
 import { endingStatus } from '@/data/ending';
 import { isDaily, isWeekDone, mustLogToday, type HabitWithProgress } from '@/data/habits';
-import { describeCountdown, endOfDay } from '@/lib/dates';
+import { describeCountdown, endOfDay, fromDayKey } from '@/lib/dates';
 
 export type HabitNowPanelProps = {
   habit: HabitWithProgress;
@@ -83,7 +84,7 @@ function describeNow(
       note: `Every habit is frozen until ${weekday.format(new Date(frozenUntil + 60 * 60 * 1000))}. Nothing counts against you till then.`,
     };
   }
-  // Its last log is in: no "tomorrow" or "Monday" to point to. The ending
+  // Its last log is in: no "tomorrow" or next week to point to. The ending
   // banner above says when it wraps up.
   if (endingStatus(habit, today)?.finished === true) {
     return daily
@@ -93,7 +94,7 @@ function describeNow(
   if (isWeekDone(habit)) {
     return {
       headline: 'Done for the week',
-      note: `${target} of ${target}. It starts again Monday.`,
+      note: `${target} of ${target}. It starts again ${weekday.format(fromDayKey(nextDay(habitWeekEnd(habit, today))))}.`,
     };
   }
   if (habit.completedToday) {
@@ -121,17 +122,17 @@ function describeNow(
         }
       : {
           headline: 'Free this week',
-          note: 'It counts from Monday. Log it anyway to get going.',
+          note: `It counts from ${weekday.format(fromDayKey(nextDay(habitWeekEnd(habit, today))))}. Log it anyway to get going.`,
         };
   }
   if (daily) {
     return {
       headline: 'Not done yet today',
-      note: tonight === null ? 'Due by midnight.' : `Due by midnight, ${tonight}.`,
+      note: tonight === null ? 'Due by 3\u00a0AM.' : `Due by 3\u00a0AM, ${tonight}.`,
       urgent: habit.verification?.status === 'rejected',
     };
   }
-  const days = daysLeftInWeek(today);
+  const days = daysLeftInWeek(today, weekStartsOn(habit));
   return {
     headline: `${left} more this week`,
     note: mustLogToday(habit, today)

@@ -8,7 +8,7 @@ import { checkUser as checkUserStakes, pausedFromDay } from './habitChecks';
 import { deleteHabit } from './habits';
 import { getCurrentUserOrNull } from './lib/auth';
 import { authedAction, authedMutation } from './lib/customFunctions';
-import { daysBefore, nextDay, previousDay, STREAK_WINDOW_DAYS, weekStart } from './lib/days';
+import { daysBefore, nextDay, previousDay, STREAK_WINDOW_DAYS } from './lib/days';
 import {
   activeLockout,
   devOverridesEnabled,
@@ -149,8 +149,8 @@ export async function checkUser(ctx: MutationCtx, user: Doc<'users'>, now: numbe
   const oldest = daysBefore(to, STREAK_WINDOW_DAYS);
   const next = nextDay(lastCheckedDay);
   const from = next < oldest ? oldest : next;
-  // A weekly habit is judged on its Sunday, over logs from its Monday on.
-  const readFrom = weekStart(from);
+  // A weekly habit is judged on its week's last day, over logs from six days before.
+  const readFrom = daysBefore(from, 6);
 
   const verifications = await ctx.db
     .query('habitVerifications')

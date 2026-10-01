@@ -85,8 +85,8 @@ describe('owedHabits', () => {
     ).toHaveLength(1);
   });
 
-  describe('3× a week, week of Mon 2026-09-21', () => {
-    const weekly = (done: string[]) => habit({ timesPerWeek: 3, done });
+  describe('3× a week, made on a Monday, week of Mon 2026-09-21', () => {
+    const weekly = (done: string[]) => habit({ timesPerWeek: 3, startDay: '2026-09-14', done });
 
     test('Friday with one logged still has slack', () => {
       expect(owedHabits([weekly(['2026-09-21'])], '2026-09-25', '2026-09-21')).toEqual([]);
@@ -108,9 +108,13 @@ describe('owedHabits', () => {
       ).toEqual([]);
     });
 
-    test('the first partial week is free', () => {
+    test('a habit made midweek runs its own weeks, from the day it was made', () => {
+      // Made Wednesday the 23rd: its week runs to Tuesday the 29th.
       const late = habit({ timesPerWeek: 3, startDay: '2026-09-23' });
       expect(owedHabits([late], '2026-09-26', '2026-09-21')).toEqual([]);
+      expect(owedHabits([late], '2026-09-27', '2026-09-21')).toMatchObject([
+        { title: 'Run', weeklyNeeded: 3 },
+      ]);
     });
   });
 });
@@ -126,6 +130,16 @@ describe('planReminders', () => {
       ['2026-09-22T19:00:00.000Z', false],
       ['2026-09-22T22:30:00.000Z', true],
     ]);
+  });
+
+  test('after midnight the day is still open till 3 AM, with no nudges left in it', () => {
+    const now = at('2026-09-23T01:00:00Z');
+    const plan = planReminders(input({ now, habits: [habit()] }));
+    expect(plan.groups.get('habits:2026-09-22')).toMatchObject({
+      deadline: at('2026-09-23T03:00:00Z'),
+    });
+    expect(plan.slots.every((slot) => slot.at < now)).toBe(true);
+    expect(iso(nextWake(plan, now, now)!)).toBe('2026-09-23T03:01:00.000Z');
   });
 
   test('each preset times habits differently', () => {
@@ -281,11 +295,11 @@ describe('selectDue', () => {
 });
 
 describe('nextWake', () => {
-  test('the next slot, or just after midnight to plan a new day', () => {
+  test('the next slot, or just after the day ends at 3 AM to plan a new one', () => {
     const now = at('2026-09-22T08:00:00Z');
     const plan = planReminders(input({ now, habits: [habit()] }));
     expect(iso(nextWake(plan, now, now)!)).toBe('2026-09-22T19:00:00.000Z');
-    expect(iso(nextWake(plan, at('2026-09-22T22:30:00Z'), now)!)).toBe('2026-09-23T00:01:00.000Z');
+    expect(iso(nextWake(plan, at('2026-09-22T22:30:00Z'), now)!)).toBe('2026-09-23T03:01:00.000Z');
   });
 
   test('a goal days away is re-planned daily; nothing open means no wake', () => {

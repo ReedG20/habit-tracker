@@ -20,6 +20,7 @@ import {
   weeklyStreak,
 } from './lib/days';
 import { DAILY, isValidTimesPerWeek, targetPerWeek } from './lib/frequency';
+import { weekStartsOn } from './lib/habitWeek';
 import { requirePro } from './lib/entitlements';
 import { endingPlan, type EndingPlan } from './lib/ending';
 import {
@@ -81,7 +82,7 @@ const verificationSummaryValidator = v.object({
 const habitWithProgressValidator = v.object({
   ...habitValidator.fields,
   completedToday: v.boolean(),
-  /** Logs so far this week (Monday to today); what weekly habits count toward. */
+  /** Logs so far this week (from the habit's week start to today); what weekly habits count toward. */
   weekCount: v.number(),
   /** In days for daily habits, in weeks for the rest; see `habitStreak`. */
   streak: v.number(),
@@ -132,7 +133,7 @@ function habitStreak(
   const target = targetPerWeek(habit);
   return target >= DAILY
     ? streakLength(counted, today, frozen)
-    : weeklyStreak(counted, today, target, frozen);
+    : weeklyStreak(counted, today, target, weekStartsOn(habit), frozen);
 }
 
 async function getOwnedHabitOrNull(
@@ -231,7 +232,7 @@ export const list = query({
         return {
           ...habit,
           completedToday,
-          weekCount: countThisWeek(days, args.today),
+          weekCount: countThisWeek(days, args.today, weekStartsOn(habit)),
           streak: habitStreak(habit, days, args.today, frozen),
           verification:
             completedToday || latest === undefined

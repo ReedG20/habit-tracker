@@ -48,12 +48,12 @@ export type LossStory = {
   note: string;
 };
 
-/** "on Tuesday", "the week of Sep 21". */
+/** "on Tuesday", "the week starting Sep 21". */
 function missedWhen(period: string | undefined, unit: 'day' | 'week' | undefined): string {
   if (period === undefined) return '';
   const [year, month, day] = period.split('-').map(Number);
   if (unit === 'week')
-    return ` the week of ${monthDay.format(new Date(Date.UTC(year, month - 1, day)))}`;
+    return ` the week starting ${monthDay.format(new Date(Date.UTC(year, month - 1, day)))}`;
   return ` on ${WEEKDAYS[dayOfWeek(period)]}`;
 }
 

@@ -2,6 +2,7 @@ import type { Doc } from '@/convex/_generated/dataModel';
 import { daysLeftInWeek } from '@/convex/lib/days';
 import type { StakeView } from '@/convex/lib/stakeRules';
 import { DAILY, targetPerWeek } from '@/convex/lib/frequency';
+import { weekStartsOn } from '@/convex/lib/habitWeek';
 
 export type Habit = Doc<'habits'>;
 export type HabitCompletion = Doc<'habitCompletions'>;
@@ -47,7 +48,7 @@ export function mustLogToday(habit: HabitWithProgress, today: string): boolean {
   if (isDaily(habit) || isDoneForToday(habit)) return false;
 
   const needed = targetPerWeek(habit) - habit.weekCount;
-  return needed >= daysLeftInWeek(today);
+  return needed >= daysLeftInWeek(today, weekStartsOn(habit));
 }
 
 /** Daily habits count streaks in days, weekly ones in weeks that hit the target. */

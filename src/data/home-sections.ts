@@ -1,6 +1,6 @@
 import { isMissed, type GoalWithStatus } from '@/data/goals';
 import { isDaily, isDoneForToday, mustLogToday, type HabitWithProgress } from '@/data/habits';
-import { weekEnd } from '@/convex/lib/days';
+import { habitWeekEnd } from '@/convex/lib/habitWeek';
 import { endOfDay } from '@/lib/dates';
 
 /** `deadlineAt` is set on urgent habits only: the card counts down to it. */
@@ -36,7 +36,7 @@ function byDeadline(entries: Sorted[]): HomeItem[] {
 /**
  * The home list is ordered by what needs thinking about now, not by kind:
  *
- * - today: what has to happen before midnight. Setbacks lead, then everything
+ * - today: what has to happen before the day ends (3 AM). Setbacks lead, then everything
  *   else by deadline, so a goal due at 6 pm sits above tonight's habits.
  * - coming up: weekly habits that still have slack, and goals due later.
  * - done: done for today or the week, plus proof waiting on review (the
@@ -53,8 +53,7 @@ export function groupIntoHomeSections(
   now: number,
   { paused = false }: { paused?: boolean } = {},
 ): HomeSection[] {
-  const midnight = endOfDay(today);
-  const sunday = endOfDay(weekEnd(today));
+  const dayEnd = endOfDay(today);
   const dueToday: Sorted[] = [];
   const upcoming: Sorted[] = [];
   const done: HomeItem[] = [];
@@ -67,13 +66,14 @@ export function groupIntoHomeSections(
     } else if (isDoneForToday(habit) || isPending(habit)) {
       done.push({ kind: 'habit', habit });
     } else if (isSetback(habit)) {
-      dueToday.push({ item: { kind: 'habit', habit, deadlineAt: midnight }, key: -Infinity });
+      dueToday.push({ item: { kind: 'habit', habit, deadlineAt: dayEnd }, key: -Infinity });
     } else if (mustLogToday(habit, today)) {
-      dueToday.push({ item: { kind: 'habit', habit, deadlineAt: midnight }, key: midnight });
+      dueToday.push({ item: { kind: 'habit', habit, deadlineAt: dayEnd }, key: dayEnd });
     } else if (isDaily(habit)) {
-      dueToday.push({ item: { kind: 'habit', habit }, key: midnight });
+      dueToday.push({ item: { kind: 'habit', habit }, key: dayEnd });
     } else {
-      upcoming.push({ item: { kind: 'habit', habit }, key: sunday });
+      // Each weekly habit's week ends on its own weekday.
+      upcoming.push({ item: { kind: 'habit', habit }, key: endOfDay(habitWeekEnd(habit, today)) });
     }
   }
 
@@ -85,7 +85,7 @@ export function groupIntoHomeSections(
     } else if (goal.submission?.status === 'pending') {
       done.push(item);
     } else {
-      (goal.dueAt < midnight ? dueToday : upcoming).push({ item, key: goal.dueAt });
+      (goal.dueAt < dayEnd ? dueToday : upcoming).push({ item, key: goal.dueAt });
     }
   }
 

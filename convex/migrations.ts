@@ -2,7 +2,7 @@ import { v } from 'convex/values';
 
 import { internal } from './_generated/api';
 import { internalMutation, internalQuery } from './_generated/server';
-import { daysBefore, nextDay } from './lib/days';
+import { DAY_ENDS_AT_HOUR, daysBefore, nextDay } from './lib/days';
 import { localDay } from './lib/lockout';
 import { touchReminders } from './lib/notify';
 import { DEFAULT_LOCKOUT_DAYS } from './lib/stakeRules';
@@ -102,7 +102,7 @@ export const feeLockoutsToFreezes = internalMutation({
       const endDay = daysBefore(lockDay, -(DEFAULT_LOCKOUT_DAYS - 1));
 
       if (lockout.lockedAt + DEFAULT_LOCKOUT_DAYS * DAY_MS > now && endDay >= today) {
-        const endsAt = zonedInstant(nextDay(endDay), 0, 0, timeZone);
+        const endsAt = zonedInstant(nextDay(endDay), DAY_ENDS_AT_HOUR, 0, timeZone);
         const freezeId = await ctx.db.insert('freezes', {
           userId: user._id,
           startDay: lockDay,
