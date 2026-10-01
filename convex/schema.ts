@@ -334,7 +334,9 @@ export default defineSchema({
     environment: v.union(v.literal('SANDBOX'), v.literal('PRODUCTION')),
     receivedAt: v.number(),
     lockoutId: v.optional(v.id('lockouts')),
-  }).index('by_transaction_id', ['transactionId']),
+  })
+    .index('by_transaction_id', ['transactionId'])
+    .index('by_user', ['userId']),
 
   /** Same role as `stripeEvents`: RevenueCat retries until 2xx and may deliver twice. */
   revenuecatEvents: defineTable({
@@ -461,5 +463,6 @@ export default defineSchema({
   /** Signed contracts (`lib/contractSchema.ts`), held back up on the Kept and loss screens. */
   contracts: defineTable(contractValidator)
     .index('by_habit', ['habitId'])
-    .index('by_goal', ['goalId']),
+    .index('by_goal', ['goalId'])
+    .index('by_user', ['userId']),
 });
