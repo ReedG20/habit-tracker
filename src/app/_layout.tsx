@@ -11,13 +11,16 @@ import { useEffect } from 'react';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { StripeProvider } from '@/components/stripe-provider';
+import { UpdateRequiredScreen } from '@/components/update-required-screen';
 import { noteFontFamily, titleFontFamily, wisdomFontFamily } from '@/constants/custom-fonts';
 import { sheetScreenOptions } from '@/constants/sheet-screen-options';
 import { shouldShowOnboarding } from '@/data/onboarding';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useForegroundUpdates } from '@/hooks/use-foreground-updates';
 import { useNotifications } from '@/hooks/use-notifications';
 import { useScreenTracking } from '@/hooks/use-screen-tracking';
 import { useSignedInSession } from '@/hooks/use-signed-in-session';
+import { useUpdateRequired } from '@/hooks/use-update-required';
 import { loadOnboarding, markExistingUserOnboarded, useOnboarding } from '@/lib/onboarding';
 import { configureRevenueCat } from '@/lib/revenuecat';
 import { loadThemePreference } from '@/lib/theme-preference';
@@ -94,6 +97,8 @@ function RootNavigator() {
   useSignedInSession(isAuthenticated);
   useNotifications({ ready: !isLoading && isAuthenticated && !onboarding });
   useScreenTracking(!isLoading);
+  useForegroundUpdates();
+  const updateRequired = useUpdateRequired();
 
   useEffect(() => {
     if (!isLoading) {
@@ -109,6 +114,11 @@ function RootNavigator() {
   // session is still being restored from SecureStore.
   if (isLoading) {
     return null;
+  }
+
+  // An unsupported build gets nothing but the way to the App Store.
+  if (updateRequired) {
+    return <UpdateRequiredScreen {...updateRequired} />;
   }
 
   return (

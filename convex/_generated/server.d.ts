@@ -36,6 +36,7 @@ type Env = {
   readonly EMAIL_FROM: string | undefined;
   readonly EXPO_ACCESS_TOKEN: string | undefined;
   readonly GOOGLE_PLACES_API_KEY: string | undefined;
+  readonly MIN_IOS_BUILD: string | undefined;
   readonly OPENROUTER_API_KEY: string;
   readonly PUSH_DELIVERY: string | undefined;
   readonly RESEND_API_KEY: string | undefined;

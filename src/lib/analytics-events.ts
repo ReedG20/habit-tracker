@@ -95,6 +95,10 @@ export type AnalyticsEvents = {
   'pro purchased': ProPurchaseProperties;
   'pro purchase cancelled': ProPurchaseProperties;
   'pro restored': { found: boolean };
+
+  /** This build is below `MIN_IOS_BUILD`, so the app is replaced by "Time to update". */
+  'update required shown': { build: number; minimum: number };
+  'update required tapped': { build: number; minimum: number };
 };
 
 export type SignInMethod = 'apple' | 'google';
