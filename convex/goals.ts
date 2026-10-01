@@ -13,6 +13,7 @@ import { authedAction, authedMutation, authedQuery } from './lib/customFunctions
 import { requirePro } from './lib/entitlements';
 import { requireDevOverrides, requireUnlocked } from './lib/lockout';
 import { touchReminders } from './lib/notify';
+import { requireRoomFor } from './limits';
 import {
   isStakeLive as isStakeViewLive,
   stakeView,
@@ -243,6 +244,7 @@ export const create = authedMutation({
   handler: async (ctx, args): Promise<Id<'goals'>> => {
     await requireUnlocked(ctx, ctx.user._id);
     await requirePro(ctx, ctx.user._id);
+    await requireRoomFor(ctx, ctx.user._id, 'goal');
     requireLead(args.dueAt);
     requireCommitmentText(args.title, args.description);
     const icon = requireNewIcon(args);
@@ -336,6 +338,7 @@ export const insertStaked = internalMutation({
   handler: async (ctx, args): Promise<Id<'goals'>> => {
     await requireUnlocked(ctx, args.userId);
     await requirePro(ctx, args.userId);
+    await requireRoomFor(ctx, args.userId, 'goal');
     requireLead(args.dueAt);
     const { userId, title, description, dueAt, icon, iconChosen, ...card } = args;
 

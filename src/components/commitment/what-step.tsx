@@ -28,6 +28,8 @@ export type WhatStepProps = {
   onPhaseChange: (phase: WhatPhase) => void;
   /** Presets shown as chips under the name, per kind; onboarding fills them from the survey. */
   suggestions?: Record<CommitmentKind, { title: string; proof: string }[]>;
+  /** Why no more of the chosen kind can be made right now, or null. */
+  full?: string | null;
 };
 
 /**
@@ -43,6 +45,7 @@ export function WhatStep({
   phase,
   onPhaseChange,
   suggestions,
+  full,
 }: WhatStepProps) {
   const nameCheck = useNameCheck(draft.kind, draft.timesPerWeek);
   const wording = useWordingCheck();
@@ -85,6 +88,7 @@ export function WhatStep({
           nameCheck={nameCheck}
           onNext={nameChecked}
           suggestions={suggestions}
+          full={full}
         />
       ) : (
         <ProofPage

@@ -22,7 +22,7 @@ export const MAX_STAKE_CENTS = 5000;
 export const DEFAULT_STAKE_CENTS = 1000;
 
 /** The most money one user can have armed at once, across every goal and habit. */
-export const MONEY_CAP_CENTS = 15000;
+export const MONEY_CAP_CENTS = 25000;
 
 export type LockoutDays = Infer<typeof lockoutDaysValidator>;
 export const LOCKOUT_DAYS: readonly LockoutDays[] = [1, 3, 7];

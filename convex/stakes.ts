@@ -10,6 +10,7 @@ import {
   type MutationCtx,
   type QueryCtx,
 } from './_generated/server';
+import { friendLimiter } from './friends';
 import { getCurrentUserOrNull } from './lib/auth';
 import { authedAction, authedMutation } from './lib/customFunctions';
 import { requirePro } from './lib/entitlements';
@@ -99,7 +100,13 @@ export async function armStake(
       });
       break;
     }
-    case 'friend':
+    case 'friend': {
+      // Taken here rather than when the email goes out, so a friend is never
+      // promised a heads-up that the limit then quietly drops.
+      const limit = await friendLimiter.limit(ctx, 'headsUp', { key: subject.userId });
+      if (!limit.ok) {
+        throw new ConvexError('That’s a lot of friends emailed for one day. Try again tomorrow.');
+      }
       stakeId = await ctx.db.insert('stakes', {
         kind: 'friend',
         ...common,
@@ -110,6 +117,7 @@ export async function armStake(
       });
       await ctx.scheduler.runAfter(0, internal.emails.sendHeadsUp, { stakeId });
       break;
+    }
     case 'lockout':
       if ('goal' in target) throw new ConvexError('A lockout only goes on a habit');
       stakeId = await ctx.db.insert('stakes', {

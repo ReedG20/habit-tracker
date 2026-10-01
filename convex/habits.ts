@@ -29,6 +29,7 @@ import {
   stakesV2Enabled,
 } from './lib/lockout';
 import { touchReminders } from './lib/notify';
+import { requireRoomFor } from './limits';
 import { proofMethodValidator, requireProofSettings, type ProofMethod } from './lib/proofMethods';
 import {
   DEFAULT_LOCKOUT_DAYS,
@@ -366,6 +367,7 @@ async function requireNewHabit(
 ): Promise<ValidHabitFields> {
   await requireUnlocked(ctx, user._id);
   await requirePro(ctx, user._id);
+  await requireRoomFor(ctx, user._id, 'habit');
   requireCommitmentText(args.title, args.description);
   const timesPerWeek = args.timesPerWeek ?? DAILY;
   if (!isValidTimesPerWeek(timesPerWeek)) {
@@ -536,7 +538,12 @@ async function requireRestartable(
   if (habit === null || habit.userId !== user._id) throw new Error('Habit not found');
   if (habit.endsAfter !== undefined) throw new ConvexError('This habit is ending');
   await requirePro(ctx, user._id);
-  if (habit.brokenAt !== undefined || habit.stakeId === undefined) return habit;
+  // A broken habit isn't counted as active, so picking it back up needs a slot.
+  if (habit.brokenAt !== undefined) {
+    await requireRoomFor(ctx, user._id, 'habit');
+    return habit;
+  }
+  if (habit.stakeId === undefined) return habit;
 
   const stake = await ctx.db.get('stakes', habit.stakeId);
   if (stake !== null && isStakeLive(stake)) {
@@ -746,6 +753,8 @@ export const keepGoing = authedMutation({
     if (timeZone !== undefined && habit.endsAfter < localDay(Date.now(), timeZone)) {
       throw new ConvexError('This habit has already ended');
     }
+    // An ending habit gave up its slot; another may have taken it since.
+    if (habit.brokenAt === undefined) await requireRoomFor(ctx, ctx.user._id, 'habit');
 
     await ctx.db.patch('habits', args.habitId, { endsAfter: undefined });
     await touchReminders(ctx, ctx.user._id);

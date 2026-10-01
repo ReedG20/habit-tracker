@@ -4,7 +4,7 @@ import { v } from 'convex/values';
 import { components, internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { env, internalMutation, type MutationCtx } from './_generated/server';
-import { firstName, friendLimiter, normalizeEmail, suppress } from './friends';
+import { firstName, normalizeEmail, suppress } from './friends';
 import { headsUpEmail, lossEmail, replyToFor, type EmailContent } from './lib/emailCopy';
 import { frequencyLabel } from './lib/frequency';
 import { notifyFriendTold } from './lib/notify';
@@ -105,13 +105,8 @@ export const sendHeadsUp = internalMutation({
   handler: async (ctx, args): Promise<null> => {
     const loaded = await loadFriendStake(ctx, args.stakeId);
     if (loaded === null || loaded.stake.status !== 'armed') return null;
+    // The daily limit was taken when the stake was armed (`stakes.armStake`).
     const { stake, friend, user } = loaded;
-
-    const limit = await friendLimiter.limit(ctx, 'headsUp', { key: user._id });
-    if (!limit.ok) {
-      console.warn(`Heads-up email to a friend of ${user._id} skipped: over the daily limit`);
-      return null;
-    }
 
     let cadence: string;
     if (stake.habitId !== undefined) {
