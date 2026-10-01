@@ -29,6 +29,7 @@ export type AnalyticsEvents = {
   'signed up': { method: SignInMethod };
   'signed in': { method: SignInMethod };
   'signed out': undefined;
+  'account deleted': undefined;
 
   'commitment created': {
     kind: CommitmentKind;

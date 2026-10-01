@@ -254,7 +254,10 @@ export default defineSchema({
     reason: v.optional(v.string()),
     createdAt: v.number(),
     resolvedAt: v.optional(v.number()),
-  }).index('by_goal', ['goalId']),
+  })
+    .index('by_goal', ['goalId'])
+    // Proof kept after its goal was deleted (`evidence.ts`) is found by user.
+    .index('by_user', ['userId']),
 
   /**
    * Every Stripe webhook event we have acted on, by Stripe's event id. Stripe
@@ -337,7 +340,9 @@ export default defineSchema({
     environment: v.union(v.literal('SANDBOX'), v.literal('PRODUCTION')),
     receivedAt: v.number(),
     lockoutId: v.optional(v.id('lockouts')),
-  }).index('by_transaction_id', ['transactionId']),
+  })
+    .index('by_transaction_id', ['transactionId'])
+    .index('by_user', ['userId']),
 
   /** Same role as `stripeEvents`: RevenueCat retries until 2xx and may deliver twice. */
   revenuecatEvents: defineTable({
@@ -464,7 +469,8 @@ export default defineSchema({
   /** Signed contracts (`lib/contractSchema.ts`), held back up on the Kept and loss screens. */
   contracts: defineTable(contractValidator)
     .index('by_habit', ['habitId'])
-    .index('by_goal', ['goalId']),
+    .index('by_goal', ['goalId'])
+    .index('by_user', ['userId']),
 
   /** Charges contested in the app (`lib/chargeReviewSchema.ts`). */
   chargeReviews: defineTable(chargeReviewValidator)

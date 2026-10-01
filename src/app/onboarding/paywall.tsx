@@ -186,7 +186,7 @@ export default function OnboardingPaywallScreen() {
       ) : phase === 'offer' ? (
         <ProPaywall
           source="onboarding"
-          header={
+          header={({ trialEligible }) => (
             <View style={styles.proHeader}>
               <View style={styles.proTitleRow}>
                 <Icon icon={SparklesIcon} size={24} themeColor="primary" />
@@ -195,10 +195,11 @@ export default function OnboardingPaywallScreen() {
                 </ThemedText>
               </View>
               <ThemedText themeColor="textSecondary">
-                Your {noun ?? 'plan'} starts the moment you do. Try a week free on the yearly plan.
+                Your {noun ?? 'plan'} starts the moment you do.
+                {trialEligible ? ' Try a week free on the yearly plan.' : ''}
               </ThemedText>
             </View>
-          }
+          )}
           // Only reachable already subscribed (a restore, or a relaunch after buying).
           onDismiss={() => start('restored')}
           doneLabel="Continue"
