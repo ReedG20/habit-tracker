@@ -1,6 +1,7 @@
+import { HOUR, RateLimiter } from '@convex-dev/rate-limiter';
 import { ConvexError, v } from 'convex/values';
 
-import { internal } from './_generated/api';
+import { components, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import { internalAction, internalMutation } from './_generated/server';
 import { authedMutation, authedQuery } from './lib/customFunctions';
@@ -22,6 +23,11 @@ import {
  * `resolve`s the row. `expire` is the safety net for the rare action that never
  * reports back, so a card cannot sit on "verifying" for the rest of the day.
  */
+
+/** A rejected photo can be retaken right away, so attempts are bounded. */
+const rateLimiter = new RateLimiter(components.rateLimiter, {
+  photoProof: { kind: 'token bucket', rate: 12, period: HOUR, capacity: 6 },
+});
 
 const resolvedStatusValidator = v.union(
   v.literal('approved'),
@@ -65,6 +71,11 @@ export const submit = authedMutation({
     const file = await ctx.db.system.get('_storage', args.photoId);
     if (file === null || !IMAGE_CONTENT_TYPES.has(file.contentType ?? '')) {
       throw new ConvexError('The uploaded file is not a supported image');
+    }
+
+    const limit = await rateLimiter.limit(ctx, 'photoProof', { key: ctx.user._id });
+    if (!limit.ok) {
+      throw new ConvexError('That’s a lot of photos. Give it a few minutes and try again.');
     }
 
     const verificationId = await ctx.db.insert('habitVerifications', {
