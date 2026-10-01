@@ -8,6 +8,7 @@ import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { DeleteAccountRow } from '@/components/delete-account-row';
 import { Icon } from '@/components/icon';
+import { HelpCard } from '@/components/me/help-card';
 import { ProgressCalendar } from '@/components/progress-calendar';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { StatsPager } from '@/components/stats-pager';
@@ -217,6 +218,8 @@ export default function MeScreen() {
           <ThemedText style={styles.settingLabel}>Sign out</ThemedText>
         </Pressable>
       </ThemedView>
+
+      <HelpCard />
 
       <DeleteAccountRow />
 

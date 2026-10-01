@@ -146,6 +146,10 @@ function RootNavigator() {
           options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
         />
         <Stack.Screen name="restart/[habitId]" options={{ presentation: 'fullScreenModal' }} />
+        <Stack.Screen
+          name="contest/[stakeId]"
+          options={{ ...sheetScreenOptions, sheetAllowedDetents: [0.9] }}
+        />
         <Stack.Screen name="raise" options={{ presentation: 'fullScreenModal' }} />
         {/* Its counterpart for a commitment seen through: a moment, answered with a tap. */}
         <Stack.Screen

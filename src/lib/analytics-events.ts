@@ -1,3 +1,4 @@
+import type { ContestReason } from '@/convex/lib/chargeReviewSchema';
 import type { ProofMethod } from '@/convex/lib/proofMethods';
 import type { StakeKind } from '@/convex/lib/stakeRules';
 import type { FocusArea, History, Motivator } from '@/data/onboarding';
@@ -90,9 +91,11 @@ export type AnalyticsEvents = {
       | 'change_stakes'
       | 'text_friend'
       | 'not_now'
-      | 'done';
+      | 'done'
+      | 'contest';
   };
   'stake settled': { result: 'settled' | 'pending' | 'canceled' };
+  'charge contested': { reason: ContestReason; has_note: boolean };
 
   'paywall viewed': { source: PaywallSource };
   'pro purchased': ProPurchaseProperties;

@@ -5,6 +5,7 @@ import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx, QueryCtx } from '../_generated/server';
 import {
   countsTowardCap,
+  MONEY_BLOCKED_ERROR,
   MONEY_CAP_CENTS,
   MONEY_CAP_ERROR,
   stakeView,
@@ -58,17 +59,36 @@ export async function usedMoneyCents(
 }
 
 /**
- * Refuses a new money stake that would go over the cap. An unsettled decline
- * doesn't block it: it's still owed, but paying up is left to the user.
+ * Refuses a new money stake that would go over the cap, or from a user whose
+ * money stakes are off (a chargeback or fraud warning, `blockMoney`). An
+ * unsettled decline doesn't block it: it's still owed, but paying up is left
+ * to the user.
  */
 export async function requireMoneyHeadroom(
   ctx: QueryCtx | MutationCtx,
   userId: Id<'users'>,
   amountCents: number,
 ): Promise<void> {
+  const user = await ctx.db.get('users', userId);
+  if (user?.moneyBlocked !== undefined) throw new ConvexError(MONEY_BLOCKED_ERROR);
   if ((await usedMoneyCents(ctx, userId)) + amountCents > MONEY_CAP_CENTS) {
     throw new ConvexError(MONEY_CAP_ERROR);
   }
+}
+
+/**
+ * Turns money stakes off for a user after a chargeback or a fraud warning:
+ * charging their card again would only invite another. Stakes already armed
+ * stay as they are. Cleared by hand, from the dashboard, once it's sorted out.
+ */
+export async function blockMoney(
+  ctx: MutationCtx,
+  userId: Id<'users'>,
+  reason: 'dispute' | 'fraud_warning',
+): Promise<void> {
+  const user = await ctx.db.get('users', userId);
+  if (user === null || user.moneyBlocked !== undefined) return;
+  await ctx.db.patch('users', userId, { moneyBlocked: { at: Date.now(), reason } });
 }
 
 /** Cancels a scheduled job. `cancel` throws once the job ran, which is the case where there's nothing to cancel. */

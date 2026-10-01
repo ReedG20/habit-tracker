@@ -97,6 +97,8 @@ export type EventMessage =
       streak?: number;
     }
   | { kind: 'declined'; title: string; amountCents: number }
+  | { kind: 'refunded'; title: string; amountCents: number; card: string }
+  | { kind: 'contestDeclined'; title: string; response: string }
   | { kind: 'friendTold'; title: string; friendName: string }
   | { kind: 'friendGone'; title: string; friendName: string; why: 'opted_out' | 'bounced' }
   | { kind: 'frozen'; title: string; untilLabel: string }
@@ -407,6 +409,13 @@ export function eventCopy(message: EventMessage): PushCopy {
         title: `${message.title}: your card declined`,
         body: `The ${formatMoney(message.amountCents)} didn’t go through. You still owe it, so settle up in Ante.`,
       };
+    case 'refunded':
+      return {
+        title: `${message.title}: refunded`,
+        body: `${formatMoney(message.amountCents)} is on its way back to ${message.card}. Banks take 5–10 days to show it.`,
+      };
+    case 'contestDeclined':
+      return { title: `About the ${message.title} charge`, body: message.response };
     case 'friendTold':
       return {
         title: `${message.friendName} knows`,

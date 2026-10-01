@@ -246,6 +246,26 @@ const STEPS: PurgeStep[] = [
       await ctx.db.delete('stakes', stake._id);
     },
   ),
+  // Proof outliving a deleted goal (`evidence.ts`), which the step above can't reach.
+  plain(
+    (ctx, userId, limit) =>
+      ctx.db
+        .query('goalSubmissions')
+        .withIndex('by_user', (q) => q.eq('userId', userId))
+        .take(limit),
+    async (ctx, submission) => {
+      for (const photoId of submission.photoIds) await ctx.storage.delete(photoId);
+      await ctx.db.delete('goalSubmissions', submission._id);
+    },
+  ),
+  plain(
+    (ctx, userId, limit) =>
+      ctx.db
+        .query('chargeReviews')
+        .withIndex('by_user_and_status', (q) => q.eq('userId', userId))
+        .take(limit),
+    (ctx, row) => ctx.db.delete('chargeReviews', row._id),
+  ),
   plain(
     (ctx, userId, limit) =>
       ctx.db

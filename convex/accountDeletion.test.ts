@@ -29,6 +29,7 @@ async function seed(t: Harness, userId: Id<'users'>, name: string): Promise<Seed
     const photo = () => ctx.storage.store(new Blob([name], { type: 'image/jpeg' }));
     const habitPhoto = await photo();
     const goalPhoto = await photo();
+    const keptPhoto = await photo();
 
     await ctx.db.patch('users', userId, { stripeCustomerId: `cus_${name}` });
 
@@ -104,6 +105,42 @@ async function seed(t: Harness, userId: Id<'users'>, name: string): Promise<Seed
       friendEmail: `sam+${name}@example.com`,
     });
 
+    // A goal charged and then deleted: its proof is held (`evidence.ts`), and the charge contested.
+    const deletedGoalId = await ctx.db.insert('goals', {
+      userId,
+      title: 'Gone',
+      dueAt: 0,
+      order: 1,
+    });
+    await ctx.db.insert('goalSubmissions', {
+      userId,
+      goalId: deletedGoalId,
+      photoIds: [keptPhoto],
+      status: 'rejected',
+      createdAt: 0,
+    });
+    const chargedStakeId = await ctx.db.insert('stakes', {
+      kind: 'money',
+      userId,
+      goalId: deletedGoalId,
+      title: 'Gone',
+      createdAt: 0,
+      lostAt: 0,
+      status: 'charged',
+      chargedAt: 0,
+      amountCents: 500,
+      stripeCustomerId: `cus_${name}`,
+      stripePaymentMethodId: 'pm_test',
+    });
+    await ctx.db.delete('goals', deletedGoalId);
+    await ctx.db.insert('chargeReviews', {
+      userId,
+      stakeId: chargedStakeId,
+      reason: 'proof_should_count',
+      status: 'open',
+      createdAt: 0,
+    });
+
     await ctx.db.insert('contracts', {
       userId,
       kind: 'habit',
@@ -150,7 +187,7 @@ async function seed(t: Harness, userId: Id<'users'>, name: string): Promise<Seed
     });
     await ctx.db.insert('reminderState', { userId, generation: 0, sentThrough: 0, sentToday: 0 });
 
-    return { photos: [habitPhoto, goalPhoto], armedStakeId, resolveJobId };
+    return { photos: [habitPhoto, goalPhoto, keptPhoto], armedStakeId, resolveJobId };
   });
 }
 
@@ -190,7 +227,7 @@ describe('users.deleteAccount', () => {
     expect(stripe.customers.del).toHaveBeenCalledExactlyOnceWith('cus_alice');
 
     expect(await ownedRows(t, bob.userId)).toEqual(bobBefore);
-    expect(await photosLeft(t, bobData.photos)).toBe(2);
+    expect(await photosLeft(t, bobData.photos)).toBe(bobData.photos.length);
     await t.run(async (ctx) => {
       expect((await ctx.db.get('stakes', bobData.armedStakeId))?.status).toBe('armed');
     });

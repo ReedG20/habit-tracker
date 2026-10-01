@@ -2,6 +2,7 @@ import { defineSchema, defineTable } from 'convex/server';
 import { v } from 'convex/values';
 
 import { accomplishmentValidator } from './lib/accomplishmentSchema';
+import { chargeReviewValidator, moneyBlockValidator } from './lib/chargeReviewSchema';
 import { contractValidator } from './lib/contractSchema';
 import { proofMethodValidator } from './lib/proofMethods';
 import { lockoutDaysValidator, moneyStatusValidator, stakeDocValidator } from './lib/stakeSchema';
@@ -111,6 +112,8 @@ export default defineSchema({
     accountableFrom: v.optional(v.string()),
     /** Every day up to and including this one has been checked for misses. */
     lastCheckedDay: v.optional(v.string()),
+    /** Set on a chargeback or fraud warning; no new money stakes until it's cleared. */
+    moneyBlocked: v.optional(moneyBlockValidator),
   })
     .index('by_token', ['tokenIdentifier'])
     .index('by_email', ['email']),
@@ -252,7 +255,10 @@ export default defineSchema({
     reason: v.optional(v.string()),
     createdAt: v.number(),
     resolvedAt: v.optional(v.number()),
-  }).index('by_goal', ['goalId']),
+  })
+    .index('by_goal', ['goalId'])
+    // Proof kept after its goal was deleted (`evidence.ts`) is found by user.
+    .index('by_user', ['userId']),
 
   /**
    * Every Stripe webhook event we have acted on, by Stripe's event id. Stripe
@@ -466,4 +472,9 @@ export default defineSchema({
     .index('by_habit', ['habitId'])
     .index('by_goal', ['goalId'])
     .index('by_user', ['userId']),
+
+  /** Charges contested in the app (`lib/chargeReviewSchema.ts`). */
+  chargeReviews: defineTable(chargeReviewValidator)
+    .index('by_stake', ['stakeId'])
+    .index('by_user_and_status', ['userId', 'status']),
 });

@@ -5,6 +5,7 @@ import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { recordKeptGoal } from './accomplishments';
 import { newIconFields, repickIconOnRename, requireNewIcon } from './commitmentIcons';
+import { holdEvidence } from './evidence';
 import { friendInputValidator, resolveFriend } from './friends';
 import { getCurrentUserOrNull } from './lib/auth';
 import { requireCommitmentIcon } from './lib/commitmentIcons';
@@ -441,11 +442,13 @@ export const remove = authedMutation({
       await dropGoalStake(ctx, stake);
     }
 
+    const keepProof = await holdEvidence(ctx, { goalId: args.goalId });
     const submissions = await ctx.db
       .query('goalSubmissions')
       .withIndex('by_goal', (q) => q.eq('goalId', args.goalId))
       .take(100);
     for (const submission of submissions) {
+      if (keepProof && submission.status !== 'pending') continue;
       for (const photoId of submission.photoIds) {
         await ctx.storage.delete(photoId);
       }

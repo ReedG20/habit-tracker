@@ -5,6 +5,7 @@ import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { newIconFields, repickIconOnRename, requireNewIcon } from './commitmentIcons';
+import { holdEvidence } from './evidence';
 import { frozenDaysBetween } from './freezes';
 import { friendInputValidator, resolveFriend } from './friends';
 import { getCurrentUserOrNull } from './lib/auth';
@@ -765,7 +766,8 @@ export const keepGoing = authedMutation({
 
 /**
  * The habit and everything logged against it, photos included. Its stake is
- * let go (the habit ended before it came due) and kept as a record.
+ * let go (the habit ended before it came due) and kept as a record. Proof
+ * behind money that came due is held a while longer (`evidence.ts`).
  */
 export async function deleteHabit(ctx: MutationCtx, habitId: Id<'habits'>): Promise<void> {
   const habit = await ctx.db.get('habits', habitId);
@@ -773,6 +775,7 @@ export async function deleteHabit(ctx: MutationCtx, habitId: Id<'habits'>): Prom
     const stake = await ctx.db.get('stakes', habit.stakeId);
     if (stake !== null) await releaseStake(ctx, stake);
   }
+  const keepProof = await holdEvidence(ctx, { habitId });
 
   const completions = await ctx.db
     .query('habitCompletions')
@@ -789,6 +792,8 @@ export async function deleteHabit(ctx: MutationCtx, habitId: Id<'habits'>): Prom
     .collect();
 
   for (const verification of verifications) {
+    // A pending check is no evidence, and would hold up the nightly check.
+    if (keepProof && verification.status !== 'pending') continue;
     if (verification.photoId !== undefined) await ctx.storage.delete(verification.photoId);
     await ctx.db.delete('habitVerifications', verification._id);
   }

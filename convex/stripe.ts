@@ -4,9 +4,12 @@ import Stripe from 'stripe';
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
 import { internalAction, internalMutation, type MutationCtx } from './_generated/server';
-import { notifyCharged, notifyDeclined } from './lib/notify';
-import { chargeIdempotencyKey } from './lib/stakeRules';
-import { materializeGoalStake } from './lib/stakes';
+import { normalizeEmail } from './friends';
+import { deliverableEmail } from './lib/emailCopy';
+import { notifyCharged, notifyDeclined, notifyRefunded } from './lib/notify';
+import { chargeIdempotencyKey, statementSuffix } from './lib/stakeRules';
+import { blockMoney, materializeGoalStake } from './lib/stakes';
+import { resolveRefundedReview } from './chargeReviews';
 import { stripeClient } from './lib/stripe';
 
 /**
@@ -32,6 +35,9 @@ const claimValidator = v.union(
     customerId: v.string(),
     paymentMethodId: v.string(),
     title: v.string(),
+    statementSuffix: v.string(),
+    /** Stripe emails a receipt here; absent when it couldn't reach them. */
+    receiptEmail: v.optional(v.string()),
     idempotencyKey: v.string(),
     metadata: v.record(v.string(), v.string()),
   }),
@@ -74,6 +80,8 @@ export const chargeStake = internalAction({
           off_session: true,
           confirm: true,
           description: `Ante stake: ${claim.title}`.slice(0, 200),
+          statement_descriptor_suffix: claim.statementSuffix,
+          receipt_email: claim.receiptEmail,
           metadata: claim.metadata,
         },
         { idempotencyKey: claim.idempotencyKey },
@@ -128,6 +136,32 @@ export const chargeStake = internalAction({
   },
 });
 
+/**
+ * Refunds a charge Stripe flagged with an early fraud warning. The webhook
+ * (`charge.refunded`) moves the stake to `refunded` and tells the user.
+ */
+export const refundFraudWarning = internalAction({
+  args: { paymentIntentId: v.string(), warningId: v.string() },
+  returns: v.null(),
+  handler: async (_ctx, args): Promise<null> => {
+    try {
+      await stripeClient().refunds.create(
+        { payment_intent: args.paymentIntentId, reason: 'fraudulent' },
+        { idempotencyKey: `efw-refund-${args.warningId}` },
+      );
+    } catch (error: unknown) {
+      if (
+        error instanceof Stripe.errors.StripeInvalidRequestError &&
+        error.code === 'charge_already_refunded'
+      ) {
+        return null;
+      }
+      throw error;
+    }
+    return null;
+  },
+});
+
 /** Hands the action what to charge, only while the stake is still claimed for it. */
 export const claimCharge = internalMutation({
   args: { stakeId: v.id('stakes') },
@@ -141,6 +175,7 @@ export const claimCharge = internalMutation({
     const metadata: Record<string, string> = { stakeId: stake._id };
     if (stake.goalId !== undefined) metadata.goalId = stake.goalId;
     if (stake.habitId !== undefined) metadata.habitId = stake.habitId;
+    const user = await ctx.db.get('users', stake.userId);
 
     return {
       kind: 'charge',
@@ -148,6 +183,8 @@ export const claimCharge = internalMutation({
       customerId: stake.stripeCustomerId,
       paymentMethodId: stake.stripePaymentMethodId,
       title: stake.title,
+      statementSuffix: statementSuffix(stake),
+      receiptEmail: user === null ? undefined : deliverableEmail(normalizeEmail(user.email)),
       idempotencyKey: chargeIdempotencyKey(stake),
       metadata,
     };
@@ -293,6 +330,13 @@ export const webhookEventValidator = v.union(
     paymentIntentId: v.optional(v.string()),
     disputeId: v.string(),
   }),
+  v.object({
+    type: v.literal('radar.early_fraud_warning.created'),
+    paymentIntentId: v.optional(v.string()),
+    warningId: v.string(),
+    /** False once the charge was disputed or fully refunded: nothing left to head off. */
+    actionable: v.boolean(),
+  }),
 );
 
 /**
@@ -349,6 +393,10 @@ export const handleEvent = internalMutation({
               }
             : { refundedCents: event.amountRefundedCents },
         );
+        if (event.fullyRefunded && stake.status === 'charged') {
+          await resolveRefundedReview(ctx, stake._id);
+          await notifyRefunded(ctx, stake);
+        }
         break;
       case 'charge.dispute.created':
         if (stake.status !== 'charged' && stake.status !== 'refunded') break;
@@ -356,6 +404,28 @@ export const handleEvent = internalMutation({
           status: 'disputed',
           stripeDisputeId: event.disputeId,
           disputedAt: Date.now(),
+        });
+        await blockMoney(ctx, stake.userId, 'dispute');
+        await ctx.scheduler.runAfter(0, internal.emails.sendSupportCase, {
+          stakeId: stake._id,
+          kind: 'dispute',
+        });
+        break;
+      case 'radar.early_fraud_warning.created':
+        // The card's owner told their bank they didn't make this charge. Paying
+        // it back now costs the same as losing the chargeback that would follow,
+        // without the fee or the mark on the account.
+        if (stake.status !== 'charged') break;
+        await blockMoney(ctx, stake.userId, 'fraud_warning');
+        if (event.actionable && event.paymentIntentId !== undefined) {
+          await ctx.scheduler.runAfter(0, internal.stripe.refundFraudWarning, {
+            paymentIntentId: event.paymentIntentId,
+            warningId: event.warningId,
+          });
+        }
+        await ctx.scheduler.runAfter(0, internal.emails.sendSupportCase, {
+          stakeId: stake._id,
+          kind: 'fraud_warning',
         });
         break;
     }

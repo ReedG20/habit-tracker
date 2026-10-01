@@ -173,7 +173,7 @@ function LossBody({
       {story.headline.kind === 'money' ? (
         <StruckAmount
           cents={story.headline.cents}
-          gone={story.gone}
+          label={story.headline.label}
           reduceMotion={reduceMotion}
           compact={compact}
         />
@@ -240,6 +240,9 @@ function LossBody({
         entering={FadeIn.delay(delay(actionsAt))}
         style={[styles.actions, compact && styles.actionsCompact]}>
         <Actions loss={loss} onLeave={onLeave} compact={compact} />
+        {loss.stake.kind === 'money' && loss.stake.status === 'charged' ? (
+          <ContestLink stakeId={loss.stake._id} />
+        ) : null}
         {/* The line over the contract says it now. */}
         {compact ? null : <Text style={styles.note}>{story.note}</Text>}
       </Animated.View>
@@ -253,12 +256,13 @@ function LossBody({
  */
 function StruckAmount({
   cents,
-  gone,
+  label,
   reduceMotion,
   compact,
 }: {
   cents: number;
-  gone: boolean;
+  /** "Gone.", "Still owed." or "Refunded." */
+  label: string;
   reduceMotion: boolean;
   /** Smaller, with "Gone." beside the amount, to leave room for the contract. */
   compact: boolean;
@@ -282,7 +286,7 @@ function StruckAmount({
     <View
       style={[styles.amountBlock, compact && styles.amountRow]}
       accessible
-      accessibilityLabel={`${formatCents(cents)} ${gone ? 'lost' : 'still owed'}`}>
+      accessibilityLabel={`${formatCents(cents)}, ${label}`}>
       <View style={styles.struck}>
         <Animated.Text
           style={[styles.amount, compact && styles.amountCompact, amountStyle]}
@@ -294,7 +298,7 @@ function StruckAmount({
       <Animated.Text
         entering={FadeIn.delay(reduceMotion ? 0 : BEAT.gone).duration(500)}
         style={[styles.gone, compact && styles.goneCompact]}>
-        {gone ? 'Gone.' : 'Still owed.'}
+        {label}
       </Animated.Text>
     </View>
   );
@@ -473,6 +477,34 @@ function Actions({
       />
       {secondary('Not now', () => leave('not_now'))}
     </>
+  );
+}
+
+/**
+ * The quiet way to say the charge was wrong (`/contest/[stakeId]`), so it
+ * reaches us before it reaches the bank. Once sent, it says where it stands.
+ */
+function ContestLink({ stakeId }: { stakeId: Id<'stakes'> }) {
+  const review = useQuery(api.chargeReviews.forStake, { stakeId });
+  if (review === undefined) return null;
+
+  const label =
+    review === null
+      ? 'Something wrong with this charge?'
+      : review.status === 'open'
+        ? 'Under review. We’ll get back to you.'
+        : 'See what we found';
+  return (
+    <Pressable
+      accessibilityRole="link"
+      onPress={() => {
+        track('stake lost action', { action: 'contest' });
+        router.push(`/contest/${stakeId}` as Href);
+      }}
+      hitSlop={Spacing.two}
+      style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}>
+      <Text style={styles.contestText}>{label}</Text>
+    </Pressable>
   );
 }
 
@@ -680,6 +712,11 @@ const styles = StyleSheet.create({
     color: INK.soft,
     fontSize: 16,
     fontWeight: '600',
+  },
+  contestText: {
+    color: INK.soft,
+    fontSize: 14,
+    textDecorationLine: 'underline',
   },
   note: {
     fontFamily: Fonts.note,

@@ -6,6 +6,7 @@ import type { MutationCtx, QueryCtx } from '../_generated/server';
 import type { outgoingPushValidator } from '../push';
 import { eventCopy, type EventMessage, type PushCopy } from './reminderCopy';
 import { DEFAULT_REMINDER_SETTINGS, type ReminderSettings } from './reminderPresets';
+import { cardOnFile } from './supportCopy';
 import { habitDay, nextDayEnd } from './zonedTime';
 
 /**
@@ -272,6 +273,44 @@ export async function notifyDeclined(ctx: MutationCtx, stake: Doc<'stakes'>): Pr
       threadId: 'receipt',
       quiet: false,
       expiresAt: Date.now() + 72 * HOUR_MS,
+    }),
+  ]);
+}
+
+/** Money came back: a refund from support, or the automatic one on a fraud warning. */
+export async function notifyRefunded(ctx: MutationCtx, stake: Doc<'stakes'>): Promise<void> {
+  if (stake.kind !== 'money') return;
+  const message: EventMessage = {
+    kind: 'refunded',
+    title: stake.title,
+    amountCents: stake.amountCents,
+    card: cardOnFile(stake),
+  };
+  await deliver(ctx, stake.userId, [
+    eventPush(eventCopy(message), {
+      data: { kind: 'receipt', ...stakeLink(stake) },
+      collapseId: stakeCollapseId(stake),
+      threadId: 'receipt',
+      quiet: false,
+      expiresAt: Date.now() + 72 * HOUR_MS,
+    }),
+  ]);
+}
+
+/** Support looked at a contested charge and is keeping it; `response` says why. */
+export async function notifyContestDeclined(
+  ctx: MutationCtx,
+  stake: Doc<'stakes'>,
+  response: string,
+): Promise<void> {
+  const message: EventMessage = { kind: 'contestDeclined', title: stake.title, response };
+  await deliver(ctx, stake.userId, [
+    eventPush(eventCopy(message), {
+      data: { kind: 'receipt', ...stakeLink(stake) },
+      collapseId: stakeCollapseId(stake),
+      threadId: 'receipt',
+      quiet: false,
+      expiresAt: Date.now() + 7 * 24 * HOUR_MS,
     }),
   ]);
 }

@@ -588,6 +588,42 @@ describe('ending a habit', () => {
     expect(await t.run(async (ctx) => await ctx.db.get('habits', habitId))).toBeNull();
   });
 
+  test('proof behind lost money outlives the habit, until the dispute window closes', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    const habitId = await moneyHabit(t, alice.userId);
+    const photoId = await imageId(t);
+    await t.run(async (ctx) => {
+      await ctx.db.insert('habitVerifications', {
+        userId: alice.userId,
+        habitId,
+        day: '2026-09-22',
+        photoId,
+        status: 'rejected',
+        reason: 'No shoes in the photo.',
+        createdAt: Date.now(),
+      });
+    });
+    vi.setSystemTime(at('2026-09-22'));
+    await alice.as.mutation(api.habits.remove, { habitId });
+
+    await runCheck(t, '2026-09-23');
+
+    const kept = await t.run(async (ctx) => ({
+      rows: await ctx.db.query('habitVerifications').collect(),
+      photo: await ctx.storage.getUrl(photoId),
+    }));
+    expect(kept.rows).toMatchObject([{ habitId, status: 'rejected' }]);
+    expect(kept.photo).not.toBeNull();
+    expect(await scheduled(t, 'evidence:purge')).toHaveLength(1);
+
+    await t.mutation(internal.evidence.purge, { habitId });
+    expect(await t.run(async (ctx) => await ctx.db.query('habitVerifications').collect())).toEqual(
+      [],
+    );
+    expect(await t.run(async (ctx) => await ctx.storage.getUrl(photoId))).toBeNull();
+  });
+
   test('a habit on just their word goes right away', async () => {
     const t = setup();
     const alice = await signIn(t, 'alice');
@@ -659,5 +695,32 @@ describe('goals', () => {
       ['Ship', 'told'],
       ['Write', 'released'],
     ]);
+  });
+  test('a deadline whose last proof was never checked costs nothing', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    const goalId = await alice.as.mutation(api.goals.create, {
+      title: 'Ship',
+      dueAt: at('2026-09-22').getTime(),
+      stake: { kind: 'friend', friend: { name: 'Sam', email: 'sam@example.com' } },
+    });
+    await t.run(async (ctx) => {
+      await ctx.db.insert('goalSubmissions', {
+        userId: alice.userId,
+        goalId,
+        photoIds: [],
+        status: 'failed',
+        reason: 'Verification timed out. Try again.',
+        createdAt: Date.now(),
+      });
+    });
+
+    vi.setSystemTime(at('2026-09-22', 13));
+    const goal = await t.run(async (ctx) => await ctx.db.get('goals', goalId));
+    await t.mutation(internal.stakes.resolveGoal, { stakeId: goal!.stakeId!, attempt: 0 });
+
+    expect(await t.run(async (ctx) => await ctx.db.get('stakes', goal!.stakeId!))).toMatchObject({
+      status: 'released',
+    });
   });
 });

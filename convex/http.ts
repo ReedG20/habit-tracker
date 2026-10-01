@@ -102,6 +102,15 @@ function narrowEvent(event: Stripe.Event): WebhookEvent | null {
         disputeId: dispute.id,
       };
     }
+    case 'radar.early_fraud_warning.created': {
+      const warning = event.data.object;
+      return {
+        type: event.type,
+        paymentIntentId: idOf(warning.payment_intent),
+        warningId: warning.id,
+        actionable: warning.actionable,
+      };
+    }
     default:
       return null;
   }

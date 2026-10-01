@@ -44,6 +44,10 @@ export const STAKE_AMOUNT_ERROR = `A stake has to be between $${MIN_STAKE_CENTS 
 
 export const MONEY_CAP_ERROR = `That would put more than $${MONEY_CAP_CENTS / 100} on the line at once`;
 
+/** Money stakes are off after a chargeback or fraud warning (`lib/stakes.ts` `blockMoney`). */
+export const MONEY_BLOCKED_ERROR =
+  'Money stakes are off for this account. Email support@useanteapp.com to sort it out.';
+
 /** Every stake view carries these; `lostAt` is set once the commitment was missed. */
 const viewCommon = {
   _id: v.id('stakes'),
@@ -133,4 +137,13 @@ export function countsTowardCap(stake: Pick<Doc<'stakes'>, 'kind' | 'status'>): 
  */
 export function chargeIdempotencyKey(stake: Pick<Doc<'stakes'>, '_id' | 'goalId'>): string {
   return stake.goalId !== undefined ? `goal-settle-${stake.goalId}` : `stake-charge-${stake._id}`;
+}
+
+/**
+ * What the bank statement says after the account's shortened descriptor:
+ * "ANTE APP* MISSED HABIT", exactly Stripe's 22-character limit, so neither
+ * side can grow. A charge nobody recognizes is the commonest chargeback.
+ */
+export function statementSuffix(stake: Pick<Doc<'stakes'>, 'habitId'>): string {
+  return stake.habitId !== undefined ? 'MISSED HABIT' : 'MISSED GOAL';
 }
