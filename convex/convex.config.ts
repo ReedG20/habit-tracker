@@ -98,6 +98,13 @@ const app = defineApp({
      * app release; removed once every build is past it.
      */
     STAKES_V2: v.optional(v.string()),
+    /**
+     * The lowest iOS build number (CFBundleVersion) allowed to run. Older
+     * builds show "Time to update" instead of the app (`appVersion.ts`). Unset
+     * means no gate. Only raise it once that build is live in the App Store:
+     *   bunx convex env set MIN_IOS_BUILD 42
+     */
+    MIN_IOS_BUILD: v.optional(v.string()),
   },
 });
 

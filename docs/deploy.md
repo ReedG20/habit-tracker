@@ -70,6 +70,31 @@ If the release refuses because no production build has the commit's native
 code, the change needs a store build: Deploy started one on merge, and it
 already contains that code, so ship it through TestFlight instead.
 
+### How updates reach phones
+
+An OTA update is downloaded on a cold start or when the app comes back to the
+foreground (at most every 10 minutes, `src/hooks/use-foreground-updates.ts`).
+It is applied on the next cold start, or the next time the app comes back after
+15 minutes or more away, unless a flow is open (writing a commitment,
+onboarding, raising stakes, a restart, the paywall).
+
+### Forcing an update
+
+A store build can't be updated over the air past its native code, and old
+builds keep talking to the live backend. To stop builds older than `N`:
+
+```bash
+bunx convex env set MIN_IOS_BUILD N --prod    # from the main checkout
+bunx convex env remove MIN_IOS_BUILD --prod   # lift the gate
+```
+
+Every iOS build below `N` (the CFBundleVersion, which production builds
+auto-increment; see App Store Connect → TestFlight) shows "Time to update" with
+a link to the App Store in place of the app, before and after sign-in, within
+seconds for anyone with it open. Only raise it once build `N` is **live in the
+App Store**, or people are stopped with nothing to update to. Unset, garbage
+or zero means no gate, and the app fails open while offline.
+
 `convex/_generated/` is committed and CI typechecks against it. After changing
 functions, keep `bunx convex dev` running (it regenerates on save) or run
 `bunx convex codegen` before committing; it needs a configured deployment, so
