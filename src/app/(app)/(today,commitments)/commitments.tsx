@@ -136,7 +136,12 @@ const styles = StyleSheet.create({
     marginTop: -Spacing.four,
     marginBottom: Spacing.four,
   },
-  title: ScreenHeadingTypography,
+  // Comico sits high in its line box, so the line's empty bottom already
+  // spaces it from the subtitle; this tucks the subtitle up under it.
+  title: {
+    ...ScreenHeadingTypography,
+    marginBottom: -(Spacing.one + Spacing.half),
+  },
   sections: {
     gap: Spacing.four,
   },
