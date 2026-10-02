@@ -41,11 +41,15 @@ export type Term = {
   accent?: boolean;
 };
 
-export function habitTerms(habit: Habit & { stakeView: StakeView | null }, today: string): Term[] {
+export function habitTerms(
+  habit: Habit & { stakeView: StakeView | null },
+  today: string,
+  friendEmail?: string,
+): Term[] {
   return [
     habitProofTerm(habit),
     habitScheduleTerm(habit),
-    stakeTerm(habit.stakeView, missPhrase(habit)),
+    stakeTerm(habit.stakeView, missPhrase(habit), friendEmail),
     startedTerm(habit.startDay ?? dayKeyAt(habit._creationTime), today),
   ];
 }
@@ -65,6 +69,7 @@ function startedTerm(startDay: string, today: string): Term {
 export function goalTerms(
   goal: Doc<'goals'> & { stakeView: StakeView | null },
   now: number,
+  friendEmail?: string,
 ): Term[] {
   const description = goal.description?.trim() ?? '';
   const done = goal.completedAt !== undefined;
@@ -83,7 +88,7 @@ export function goalTerms(
       value: formatDueAt(goal.dueAt),
       note: done ? undefined : describeTimeLeft(goal.dueAt, now),
     },
-    stakeTerm(goal.stakeView, 'miss the deadline'),
+    stakeTerm(goal.stakeView, 'miss the deadline', friendEmail),
     {
       key: 'started',
       icon: Calendar03Icon,
@@ -158,7 +163,7 @@ type Stake<Kind extends StakeView['kind']> = Extract<StakeView, { kind: Kind }>;
 
 const STAKE_TERM = { key: 'stake', label: 'On the line' };
 
-function stakeTerm(stake: StakeView | null, miss: string): Term {
+function stakeTerm(stake: StakeView | null, miss: string, friendEmail?: string): Term {
   if (stake === null) {
     return {
       ...STAKE_TERM,
@@ -171,7 +176,7 @@ function stakeTerm(stake: StakeView | null, miss: string): Term {
     case 'money':
       return moneyTerm(stake, miss);
     case 'friend':
-      return friendTerm(stake, miss);
+      return friendTerm(stake, miss, friendEmail);
     case 'lockout':
       return lockoutTerm(stake, miss);
   }
@@ -195,14 +200,20 @@ function moneyTerm(stake: Stake<'money'>, miss: string): Term {
   };
 }
 
-function friendTerm(stake: Stake<'friend'>, miss: string): Term {
+/** `email`, when known, is where the news goes: shown so a typo can be caught. */
+function friendTerm(stake: Stake<'friend'>, miss: string, email?: string): Term {
   const name = stake.friendName;
   const term = { ...STAKE_TERM, icon: UserIcon };
+  const at = email === undefined ? '' : ` at ${email}`;
   switch (stake.status) {
     case 'armed':
-      return { ...term, value: name, note: `Hears about it if you ${miss}.`, accent: true };
+      return { ...term, value: name, note: `Hears about it${at} if you ${miss}.`, accent: true };
     case 'told':
-      return { ...term, value: `${name} was told` };
+      return {
+        ...term,
+        value: `${name} was told`,
+        ...(email !== undefined && { note: `Emailed at ${email}.` }),
+      };
     case 'released':
       return { ...term, value: `${name} is off the hook` };
     case 'void':

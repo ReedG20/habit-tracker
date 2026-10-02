@@ -2,7 +2,12 @@ import { useEffect, useRef } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import type { CommitmentDraft, CommitmentKind } from './draft';
+import {
+  bestFitPatch,
+  type CommitmentDraft,
+  type CommitmentKind,
+  type CommitmentSuggestion,
+} from './draft';
 import { NamePage } from './name-page';
 import { ProofPage } from './proof-page';
 import { useNameCheck, type NameCheckResult } from './use-name-check';
@@ -27,7 +32,7 @@ export type WhatStepProps = {
   phase: WhatPhase;
   onPhaseChange: (phase: WhatPhase) => void;
   /** Presets shown as chips under the name, per kind; onboarding fills them from the survey. */
-  suggestions?: Record<CommitmentKind, { title: string; proof: string }[]>;
+  suggestions?: Record<CommitmentKind, CommitmentSuggestion[]>;
   /** Why no more of the chosen kind can be made right now, or null. */
   full?: string | null;
 };
@@ -61,16 +66,8 @@ export function WhatStep({
   }, [ensure]);
 
   const nameChecked = (result: NameCheckResult) => {
-    // The best fit fills in the method until the user chooses one, as long
-    // as no proof has been written for the current one.
-    if (
-      draft.kind === 'habit' &&
-      !methodPicked.current &&
-      draft.proof.trim().length === 0 &&
-      result.bestMethod !== null
-    ) {
-      onChange({ proofMethod: result.bestMethod });
-    }
+    const bestFit = bestFitPatch(draft, result, suggestions?.[draft.kind], methodPicked.current);
+    if (bestFit !== null) onChange(bestFit);
     // The icon follows the name until the user picks one themselves.
     if (draft.iconChosen !== true) onChange({ icon: result.icon ?? undefined });
     wording.dismiss();

@@ -482,7 +482,12 @@ export function pickTodayMoment({
   );
   const startingTomorrow = unlogged.filter((habit) => !countsToday(habit, today, accountableFrom));
 
-  const dayBack = accountableFrom !== null && today < accountableFrom && unlogged.length > 0;
+  // A new account's first day is free the same way (`accountableFrom` is set to
+  // tomorrow at sign-up), so it's only a day back if a habit predates today.
+  const dayBack =
+    accountableFrom !== null &&
+    today < accountableFrom &&
+    unlogged.some((habit) => habit.startDay === undefined || habit.startDay < today);
   // No run and no goal to show, but a weekly habit with logs still to fit in:
   // its tally is the number, the one with the most left to do.
   const tallied =
@@ -499,6 +504,10 @@ export function pickTodayMoment({
   // only counts from its next week.
   const practiceWeek = tallied !== undefined && !countsToday(tallied, today, accountableFrom);
 
+  // A free day with nothing else to show counts down to when it all counts.
+  const freeDay = headline.count === 0 && nextGoal === undefined && !pending;
+  const countdown = freeDay && (dayBack || startingTomorrow.length > 0);
+
   const figure: MomentFigure | null =
     headline.count > 0
       ? { kind: 'streak', streak: headline }
@@ -506,7 +515,9 @@ export function pickTodayMoment({
         ? (goalMoney(nextGoal) ?? { kind: 'time', text: formatTimeLeft(nextGoal.dueAt - now) })
         : tallied !== undefined
           ? { kind: 'tally', text: `${tallied.weekCount} of ${targetPerWeek(tallied)}` }
-          : null;
+          : countdown
+            ? { kind: 'time', text: clock }
+            : null;
 
   // With nothing owed the kicker names what the figure is; the note says why.
   // "Today's done" needs something actually done today when the figure is a
@@ -520,7 +531,7 @@ export function pickTodayMoment({
         ? 'Your streak'
         : figure?.kind === 'tally'
           ? 'This week'
-          : figure !== null
+          : figure !== null && !countdown
             ? 'Next up'
             : 'Nothing on the line today';
 
@@ -538,7 +549,8 @@ export function pickTodayMoment({
               : null;
 
   // The caption says what the figure is; whatever it leaves out rides in the capsule.
-  const goalInFigure = figure?.kind === 'money' || figure?.kind === 'time' ? nextGoal : undefined;
+  const goalInFigure =
+    !countdown && (figure?.kind === 'money' || figure?.kind === 'time') ? nextGoal : undefined;
   let sentence: string;
   let emphasis: string[] = [];
   if (figure?.kind === 'streak') {
@@ -572,11 +584,16 @@ export function pickTodayMoment({
   } else if (pending) {
     sentence = 'You’ll hear back as soon as it’s checked.';
   } else if (dayBack) {
-    sentence = 'Your day back is free. Everything counts again tomorrow.';
+    sentence = countdown
+      ? 'until everything counts again. Your day back is free.'
+      : 'Your day back is free. Everything counts again tomorrow.';
     emphasis = ['free'];
   } else if (startingTomorrow.length > 0) {
     const one = startingTomorrow.length === 1;
-    sentence = `${naming(startingTomorrow)} ${one ? 'starts' : 'start'} counting tomorrow.`;
+    const verb = one ? 'starts' : 'start';
+    sentence = countdown
+      ? `until ${naming(startingTomorrow)} ${verb} counting.`
+      : `${naming(startingTomorrow)} ${verb} counting tomorrow.`;
     emphasis = [naming(startingTomorrow)];
   } else if (slack.length > 0) {
     sentence = `${slack[0]}.`;

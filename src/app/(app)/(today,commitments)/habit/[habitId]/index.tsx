@@ -32,6 +32,7 @@ import { formatLastDay } from '@/data/ending';
 import { habitTerms } from '@/data/commitment-terms';
 import { isDaily, type HabitWithProgress } from '@/data/habits';
 import { useCallOff } from '@/hooks/use-call-off';
+import { useFriendEmail } from '@/hooks/use-friend-email';
 import { useNow } from '@/hooks/use-now';
 import { useSubscription } from '@/hooks/use-subscription';
 import { track } from '@/lib/analytics';
@@ -62,6 +63,7 @@ export default function HabitDetailScreen() {
   const callOff = useCallOff();
   // What ending it would do today, so the button can say so before it's tapped.
   const terms = useQuery(api.habits.endingTerms, habit === null ? 'skip' : { habitId, today });
+  const friendEmail = useFriendEmail(progress?.stakeView);
 
   // `undefined` is still loading; `null` means it was deleted or never existed.
   if (habit === undefined) {
@@ -204,7 +206,7 @@ export default function HabitDetailScreen() {
 
       {progress === undefined ? null : (
         <DetailSection title="the deal">
-          <TermsCard terms={habitTerms(progress, today)} />
+          <TermsCard terms={habitTerms(progress, today, friendEmail)} />
           <RaiseButton
             target={{ habitId }}
             stake={progress.stakeView}

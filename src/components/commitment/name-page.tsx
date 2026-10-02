@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
-import { MIN_LEAD_MS, type CommitmentDraft, type CommitmentKind } from './draft';
+import {
+  MIN_LEAD_MS,
+  suggestionPatch,
+  type CommitmentDraft,
+  type CommitmentKind,
+  type CommitmentSuggestion,
+} from './draft';
 import { EndDatePicker } from './end-date-picker';
 import { FrequencyPicker } from './frequency-picker';
 import { IconTile } from './icon-tile';
@@ -40,7 +46,7 @@ export type NamePageProps = {
   nameCheck: ReturnType<typeof useNameCheck>;
   /** The name passed its check: on to the proof. */
   onNext: (result: NameCheckResult) => void;
-  suggestions?: Record<CommitmentKind, { title: string; proof: string }[]>;
+  suggestions?: Record<CommitmentKind, CommitmentSuggestion[]>;
   /** Why no more of this kind can be made right now (`lib/commitmentLimits.ts`), or null. */
   full?: string | null;
 };
@@ -219,7 +225,7 @@ export function NamePage({
                 selected={draft.title === suggestion.title}
                 onPress={() => {
                   setRevision(null);
-                  onChange({ title: suggestion.title, proof: suggestion.proof });
+                  onChange(suggestionPatch(draft.kind, suggestion));
                   setTyped(suggestion.title);
                   setFieldKey((key) => key + 1);
                   void nameCheck.ensure(suggestion.title);

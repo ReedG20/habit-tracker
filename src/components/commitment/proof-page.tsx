@@ -4,10 +4,12 @@ import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import {
   draftEndDay,
   draftProofMethod,
+  isPresetProof,
   MIN_LEAD_MS,
   wordingSignature,
   type CommitmentDraft,
   type CommitmentKind,
+  type CommitmentSuggestion,
 } from './draft';
 import { GoalProofExplainer } from './goal-proof-explainer';
 import { Note } from './note';
@@ -22,8 +24,9 @@ import { ActionButton } from '@/components/action-button';
 import { Icon } from '@/components/icon';
 import { TextField } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
+import { titleFontFamily } from '@/constants/custom-fonts';
 import { Edit02Icon } from '@/constants/icons';
-import { PROOF_METHODS } from '@/constants/proof-methods';
+import { PROOF_METHOD_ORDER, PROOF_METHODS } from '@/constants/proof-methods';
 import { BorderRadius, Spacing } from '@/constants/theme';
 import { MAX_PROOF_LENGTH } from '@/convex/lib/commitmentText';
 import { shortFrequency } from '@/convex/lib/frequency';
@@ -58,7 +61,7 @@ export type ProofPageProps = {
   onMethodPicked: () => void;
   nameCheck: ReturnType<typeof useNameCheck>;
   wording: ReturnType<typeof useWordingCheck>;
-  suggestions?: Record<CommitmentKind, { title: string; proof: string }[]>;
+  suggestions?: Record<CommitmentKind, CommitmentSuggestion[]>;
 };
 
 /**
@@ -124,16 +127,20 @@ export function ProofPage({
 
     const signature = wordingSignature({ kind: draft.kind, proofMethod: method, title, proof });
     // Already passed, one of the name check's ideas, or one of onboarding's own
-    // suggestions: no need to ask again. Onboarding's are written for photos.
+    // suggestions in the method it was written for: no need to ask again.
     const vetted =
       draft.checkedWording === signature ||
       (ideas ?? []).includes(proof.trim()) ||
-      (method === 'photo' &&
-        (suggestions?.[draft.kind] ?? []).some(
-          (suggestion) =>
-            wordingSignature({ kind: draft.kind, proofMethod: method, ...suggestion }) ===
-            signature,
-        ));
+      (suggestions?.[draft.kind] ?? []).some(
+        (suggestion) =>
+          (draft.kind === 'goal' || (suggestion.proofMethod ?? 'photo') === method) &&
+          wordingSignature({
+            kind: draft.kind,
+            proofMethod: method,
+            title: suggestion.title,
+            proof: suggestion.proof,
+          }) === signature,
+      );
 
     if (!vetted && !skipProof) {
       const revision = await wording.run({
@@ -183,7 +190,14 @@ export function ProofPage({
           onChange={(proofMethod) => {
             wording.dismiss();
             onMethodPicked();
-            onChange({ proof: readProofNow(), proofMethod });
+            const current = readProofNow();
+            // Text we filled in was written for the old method; theirs is kept.
+            const ours =
+              current.trim().length === 0 ||
+              isPresetProof(current, suggestions?.[draft.kind]) ||
+              PROOF_METHOD_ORDER.some((key) => checked?.ideas[key].includes(current.trim()));
+            if (ours) replaceProof(checked?.ideas[proofMethod][0] ?? '');
+            onChange({ ...(!ours && { proof: current }), proofMethod });
           }}
           timerMinutes={draft.timerMinutes}
           onTimerMinutesChange={(timerMinutes) => onChange({ proof: readProofNow(), timerMinutes })}
@@ -265,9 +279,9 @@ const styles = StyleSheet.create({
     gap: Spacing.half,
   },
   recapTitle: {
-    fontSize: 20,
-    lineHeight: 26,
-    fontWeight: 700,
+    fontFamily: titleFontFamily,
+    fontSize: 24,
+    lineHeight: 30,
   },
   proof: {
     gap: Spacing.three,
