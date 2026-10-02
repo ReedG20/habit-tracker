@@ -161,6 +161,10 @@ function RootNavigator() {
           name="kept/[accomplishmentId]"
           options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
         />
+        <Stack.Screen
+          name="milestone/[milestoneId]"
+          options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
+        />
       </Stack.Protected>
 
       <Stack.Protected guard={!isAuthenticated && !onboarding}>

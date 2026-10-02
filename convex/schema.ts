@@ -7,6 +7,7 @@ import { comebackValidator } from './lib/comebackSchema';
 import { contractValidator } from './lib/contractSchema';
 import { endedHabitValidator } from './lib/endedHabitSchema';
 import { graceMarkValidator, graceValidator } from './lib/graceSchema';
+import { milestoneValidator } from './lib/milestoneSchema';
 import { photoOriginValidator } from './lib/photoOrigin';
 import { proofMethodValidator } from './lib/proofMethods';
 import { lockoutDaysValidator, moneyStatusValidator, stakeDocValidator } from './lib/stakeSchema';
@@ -525,4 +526,9 @@ export default defineSchema({
 
   /** Nudges once nothing is running (`lib/comebackSchema.ts`). */
   comebacks: defineTable(comebackValidator).index('by_user', ['userId']),
+
+  /** Streak milestones reached (`lib/milestoneSchema.ts`), for their full-screen moment. */
+  milestones: defineTable(milestoneValidator)
+    .index('by_user_and_seen_and_reached', ['userId', 'seenAt', 'reachedAt'])
+    .index('by_habit_and_count', ['habitId', 'count']),
 });

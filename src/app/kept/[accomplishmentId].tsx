@@ -11,21 +11,11 @@ import {
   type StyleProp,
   type TextStyle,
 } from 'react-native';
-import Animated, {
-  Easing,
-  FadeIn,
-  FadeInDown,
-  useAnimatedProps,
-  useReducedMotion,
-  useSharedValue,
-  withDelay,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInDown, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path } from 'react-native-svg';
-import { scheduleOnRN } from 'react-native-worklets';
 
 import { Icon } from '@/components/icon';
+import { RingedHeadline } from '@/components/moments/ringed-headline';
 import { openShare } from '@/components/share/open-share';
 import {
   contractBeats,
@@ -34,7 +24,6 @@ import {
   useRevealContract,
 } from '@/components/signed-contract/signed-contract';
 import { Flag02Icon, RepeatIcon, Share03Icon, Tick02Icon } from '@/constants/icons';
-import { RING_PATH } from '@/constants/ring-path';
 import { ControlHeight, Fonts, PillRadius, Spacing } from '@/constants/theme';
 import type { Kept } from '@/convex/accomplishments';
 import type { SignedContract } from '@/convex/contracts';
@@ -44,7 +33,7 @@ import { raiseOptions } from '@/convex/lib/stakeLadder';
 import { useFitsScreen } from '@/hooks/use-fits-screen';
 import { keptStory, type KeptStory } from '@/data/kept-story';
 import { track } from '@/lib/analytics';
-import { pressHaptic, successHaptic } from '@/lib/haptics';
+import { pressHaptic } from '@/lib/haptics';
 import { watchKept } from '@/lib/kept-screen';
 
 /**
@@ -186,7 +175,13 @@ function KeptBody({
         {story.kicker.toUpperCase()}
       </Animated.Text>
 
-      <RingedHeadline story={story} reduceMotion={reduceMotion} compact={compact} />
+      <RingedHeadline
+        figure={story.headline}
+        color={KEPT.text}
+        beats={BEAT}
+        reduceMotion={reduceMotion}
+        compact={compact}
+      />
 
       <View style={compact ? styles.linesCompact : styles.lines}>
         <Animated.View entering={FadeIn.delay(delay(BEAT.line)).duration(500)}>
@@ -260,89 +255,6 @@ function KeptBody({
         {compact ? null : <Text style={styles.note}>{story.note}</Text>}
       </Animated.View>
     </ScrollView>
-  );
-}
-
-const AnimatedPath = Animated.createAnimatedComponent(Path);
-
-/** At least the path's length, so one dash covers the whole loop. */
-const RING_DASH = 640;
-
-/** The big line, with a ring drawing itself around it: the loss screen's strike, reversed. */
-function RingedHeadline({
-  story,
-  reduceMotion,
-  compact,
-}: {
-  story: KeptStory;
-  reduceMotion: boolean;
-  /** Smaller, with the unit beside the ring, to leave room for the contract. */
-  compact: boolean;
-}) {
-  const draw = useSharedValue(reduceMotion ? 1 : 0);
-
-  useEffect(() => {
-    if (reduceMotion) {
-      successHaptic();
-      return;
-    }
-    draw.value = withDelay(
-      BEAT.ring,
-      withTiming(1, { duration: 700, easing: Easing.inOut(Easing.cubic) }, (finished) => {
-        if (finished) scheduleOnRN(successHaptic);
-      }),
-    );
-  }, [reduceMotion, draw]);
-
-  const ringProps = useAnimatedProps(() => ({ strokeDashoffset: RING_DASH * (1 - draw.value) }));
-
-  const label =
-    story.headline.kind === 'count'
-      ? `${story.headline.count} ${story.headline.unit}`
-      : story.headline.text;
-
-  return (
-    <View
-      style={[styles.headlineBlock, compact && styles.headlineRow]}
-      accessible
-      accessibilityLabel={label}>
-      <Animated.View
-        entering={FadeInDown.delay(reduceMotion ? 0 : BEAT.headline).duration(600)}
-        style={styles.ringed}>
-        <Text
-          style={
-            story.headline.kind === 'count'
-              ? [styles.count, compact && styles.countCompact]
-              : [styles.words, compact && styles.wordsCompact]
-          }
-          numberOfLines={1}>
-          {story.headline.kind === 'count' ? story.headline.count : story.headline.text}
-        </Text>
-        <Svg
-          style={styles.ring}
-          viewBox="0 0 200 100"
-          preserveAspectRatio="none"
-          pointerEvents="none">
-          <AnimatedPath
-            d={RING_PATH}
-            stroke={KEPT.text}
-            strokeWidth={4}
-            strokeLinecap="round"
-            fill="none"
-            strokeDasharray={RING_DASH}
-            vectorEffect="non-scaling-stroke"
-            animatedProps={ringProps}
-          />
-        </Svg>
-      </Animated.View>
-      {story.headline.kind === 'count' ? (
-        <Animated.Text
-          entering={FadeIn.delay(reduceMotion ? 0 : BEAT.unit).duration(500)}
-          style={[styles.unit, compact && styles.unitCompact]}>
-          {story.headline.unit}.
-        </Animated.Text>
-      ) : null}
-    </View>
   );
 }
 
@@ -489,60 +401,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     letterSpacing: 2,
-  },
-  headlineBlock: {
-    gap: Spacing.one,
-  },
-  headlineRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-  },
-  // Sized to the headline, so the ring hugs it.
-  ringed: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.two,
-    // Out into the gutter by less than the padding, so the ring clears the screen edge.
-    marginLeft: -Spacing.three,
-  },
-  ring: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-  },
-  // Comico sits high in its line box: a tall box keeps the digits from clipping.
-  count: {
-    fontFamily: Fonts.wisdom,
-    fontSize: 120,
-    lineHeight: 150,
-    color: KEPT.text,
-  },
-  words: {
-    fontFamily: Fonts.wisdom,
-    fontSize: 88,
-    lineHeight: 116,
-    color: KEPT.text,
-  },
-  unit: {
-    fontFamily: Fonts.wisdom,
-    fontSize: 44,
-    lineHeight: 56,
-    color: KEPT.text,
-  },
-  countCompact: {
-    fontSize: 80,
-    lineHeight: 100,
-  },
-  wordsCompact: {
-    fontSize: 64,
-    lineHeight: 84,
-  },
-  unitCompact: {
-    fontSize: 40,
-    lineHeight: 52,
   },
   line: {
     color: KEPT.soft,

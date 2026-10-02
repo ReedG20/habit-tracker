@@ -94,6 +94,9 @@ export type AnalyticsEvents = {
    * The share sheet, and what came of it. `activity` is the iOS activity the
    * user picked (`com.burbn.instagram.shareextension`), or `dismissed`.
    */
+  /** A streak milestone's moment (`convex/lib/milestones.ts`), and what came of it. */
+  'milestone viewed': { count: number; unit: 'day' | 'week'; stake_kind: StakeKind };
+  'milestone action': { action: 'share' | 'done' };
   'share opened': { card: ShareCardKind; source: ShareSource };
   'share completed': {
     card: ShareCardKind;

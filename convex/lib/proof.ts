@@ -4,6 +4,7 @@ import type { Doc, Id } from '../_generated/dataModel';
 import type { MutationCtx } from '../_generated/server';
 import { requireHabitsUnfrozen } from '../freezes';
 import { requireOwnedHabit, type AuthedCtx } from '../habits';
+import { recordMilestone } from '../milestones';
 import { requirePro } from './entitlements';
 import { localDay, requireUnlocked } from './lockout';
 import { notifyHabitVerdict } from './notify';
@@ -86,23 +87,22 @@ export async function settleVerification(
     ...(verdict.placeId === undefined ? {} : { placeId: verdict.placeId }),
   });
 
-  if (verdict.status === 'approved') {
-    await logCompletion(ctx, verification);
-  }
-  await notifyHabitVerdict(ctx, verification, verdict.status, verdict.reason);
+  const milestoneId = verdict.status === 'approved' ? await logCompletion(ctx, verification) : null;
+  await notifyHabitVerdict(ctx, verification, verdict.status, verdict.reason, milestoneId);
 }
 
 /**
  * Uses the day stored on the verification, not "now", so a verdict that lands
- * after the day ends still counts for the day the proof was taken.
+ * after the day ends still counts for the day the proof was taken. Returns
+ * the streak milestone the log reached, if it reached one.
  */
 export async function logCompletion(
   ctx: MutationCtx,
   verification: Pick<Doc<'habitVerifications'>, 'userId' | 'habitId' | 'day'>,
-): Promise<void> {
+): Promise<Id<'milestones'> | null> {
   const habit = await ctx.db.get('habits', verification.habitId);
   if (habit === null) {
-    return;
+    return null;
   }
 
   const existing = await ctx.db
@@ -112,7 +112,7 @@ export async function logCompletion(
     )
     .unique();
   if (existing !== null) {
-    return;
+    return null;
   }
 
   await ctx.db.insert('habitCompletions', {
@@ -121,4 +121,5 @@ export async function logCompletion(
     day: verification.day,
     completedAt: Date.now(),
   });
+  return await recordMilestone(ctx, habit, verification.day);
 }

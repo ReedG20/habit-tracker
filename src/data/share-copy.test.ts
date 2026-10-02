@@ -67,6 +67,22 @@ describe('shareCopy', () => {
     expect(weekly.cadence).toBe('3 times a week');
   });
 
+  test('on the day it reaches a milestone, the streak card names it', () => {
+    const copy = shareCopy({ ...habit, streak: { count: 30, unit: 'day' } }, 'streak', true);
+    expect(copy.kicker).toBe('30 days straight');
+    expect(copy.caption).toBe(
+      '30 days straight of “Run”. Not stopping now. $50 on the line the whole way.',
+    );
+
+    const weekly = shareCopy(
+      { ...habit, timesPerWeek: 3, streak: { count: 12, unit: 'week' } },
+      'streak',
+      true,
+    );
+    expect(weekly.kicker).toBe('12 weeks straight');
+    expect(shareCopy(habit, 'streak', true).kicker).toBe('Still going');
+  });
+
   test('a kept goal says how early it landed', () => {
     const achievedAt = Date.UTC(2026, 9, 1, 12);
     const goal: ShareSubject = {
