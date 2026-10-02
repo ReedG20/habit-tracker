@@ -150,7 +150,13 @@ function LossBody({
   // With the contract to show, the page tightens up to stay on one screen.
   const compact = contract !== null;
   // Extras, most important first: the run the stake bought, then what the friend got.
-  const fit = useFitsScreen(compact, 2);
+  // Only the ones this loss has: dropping one that isn't there frees no room,
+  // and the fit stops there.
+  const extras = [
+    story.bought !== null ? 'bought' : null,
+    loss.stake.kind === 'friend' ? 'friend' : null,
+  ].filter((extra) => extra !== null);
+  const fit = useFitsScreen(compact, extras.length);
   const scroll = useRef<ScrollView>(null);
   useRevealContract(scroll, BEAT.contract, compact && !reduceMotion);
 
@@ -199,7 +205,7 @@ function LossBody({
         </Animated.View>
       ) : null}
 
-      {story.bought !== null && fit.shows(0) ? (
+      {story.bought !== null && fit.shows(extras.indexOf('bought')) ? (
         <Animated.View
           entering={FadeInDown.delay(delay(BEAT.bought)).duration(500)}
           style={[styles.panel, compact && styles.panelCompact]}>
@@ -211,7 +217,7 @@ function LossBody({
         </Animated.View>
       ) : null}
 
-      {loss.stake.kind === 'friend' && fit.shows(1) ? (
+      {loss.stake.kind === 'friend' && fit.shows(extras.indexOf('friend')) ? (
         <Animated.View
           entering={FadeInDown.delay(delay(BEAT.bought)).duration(500)}
           style={[styles.panel, compact && styles.panelCompact]}>
@@ -281,7 +287,10 @@ function StruckAmount({
     fade.value = withDelay(BEAT.dim, withTiming(0.4, { duration: 900 }));
   }, [reduceMotion, strike, fade]);
 
-  const strikeStyle = useAnimatedStyle(() => ({ transform: [{ scaleX: strike.value }] }));
+  // The tilt rides in the animated transform: a static one would be replaced by it.
+  const strikeStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: '-7deg' }, { scaleX: strike.value }],
+  }));
   const amountStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
 
   return (
@@ -567,9 +576,10 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.five,
     gap: Spacing.four,
   },
+  // Tighter, so the run it bought still fits above the contract.
   bodyCompact: {
     paddingTop: Spacing.three,
-    gap: Spacing.three,
+    gap: Spacing.two + Spacing.one,
   },
   kicker: {
     color: INK.accent,
@@ -601,11 +611,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: -Spacing.two,
     right: -Spacing.two,
-    top: '52%',
+    // Through the middle of the digits, which sit high in their tall line box;
+    // pivoting up from its left end, its middle rises to meet them.
+    top: '46%',
     height: 10,
     borderRadius: PillRadius,
     backgroundColor: INK.accent,
-    transform: [{ rotate: '-7deg' }],
     transformOrigin: 'left',
   },
   gone: {
@@ -663,7 +674,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   panelCompact: {
-    paddingVertical: Spacing.three,
+    paddingVertical: Spacing.two + Spacing.one,
     gap: 0,
   },
   panelTitleCompact: {
@@ -700,8 +711,9 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     paddingTop: Spacing.four,
   },
+  // The body's gap is room enough above the buttons.
   actionsCompact: {
-    paddingTop: Spacing.two,
+    paddingTop: 0,
   },
   links: {
     flexDirection: 'row',

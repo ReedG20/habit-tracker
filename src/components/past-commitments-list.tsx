@@ -1,11 +1,12 @@
 import { useMutation } from 'convex/react';
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 import { Icon } from './icon';
+import { INK_DARK } from './today-hero';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 import { showToast } from './toast';
@@ -15,7 +16,9 @@ import { ArrowRight01Icon } from '@/constants/icons';
 import { CardRadius, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
-import type { PastItem } from '@/data/past-commitments';
+import type { StakeView } from '@/convex/lib/stakeRules';
+import { pastStakeTag, type PastItem } from '@/data/past-commitments';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import { formatShortDate } from '@/lib/dates';
 import { openKept } from '@/lib/kept-screen';
@@ -28,6 +31,8 @@ type Row = {
   icon: ReturnType<typeof commitmentIcon>;
   status: string;
   lost: boolean;
+  /** Money, in its own column: the amount and how it ended. */
+  money?: { amount: string; label: string; tone: 'lost' | 'kept' | 'quiet'; struck: boolean };
   onPress?: () => void;
   /** Swiping a deleted habit's row offers this; a goal is removed from its own page. */
   onRemove?: () => void;
@@ -73,9 +78,26 @@ export function PastCommitmentsList({ items }: { items: PastItem[] }) {
 
 function PastRow({ row, divided }: { row: Row; divided: boolean }) {
   const theme = useTheme();
+  const scheme = useColorScheme();
   const divider = divided && { borderTopWidth: 1, borderTopColor: theme.border };
+  const { money } = row;
+  const moneyColor =
+    money === undefined
+      ? undefined
+      : {
+          lost: theme.accent,
+          // Brand violet lightens on black so it stays readable, as on Today.
+          kept: scheme === 'dark' ? INK_DARK : theme.primary,
+          quiet: theme.textSecondary,
+        }[money.tone];
   const a11y = {
-    accessibilityLabel: `${row.title}, ${row.status}`,
+    accessibilityLabel: [
+      row.title,
+      row.status,
+      money === undefined ? undefined : `${money.amount} ${money.label}`,
+    ]
+      .filter(Boolean)
+      .join(', '),
     accessibilityActions: row.onRemove ? [{ name: 'delete', label: 'Remove' }] : undefined,
     onAccessibilityAction: row.onRemove
       ? ({ nativeEvent }: { nativeEvent: { actionName: string } }) => {
@@ -97,6 +119,22 @@ function PastRow({ row, divided }: { row: Row; divided: boolean }) {
           {row.status}
         </ThemedText>
       </View>
+      {money === undefined ? null : (
+        <View style={styles.money}>
+          <Text
+            style={[
+              styles.amount,
+              { color: moneyColor },
+              money.struck && styles.struck,
+              money.struck && { textDecorationColor: moneyColor },
+            ]}>
+            {money.amount}
+          </Text>
+          <ThemedText type="small" style={{ color: moneyColor }}>
+            {money.label}
+          </ThemedText>
+        </View>
+      )}
       {row.onPress ? (
         <Icon icon={ArrowRight01Icon} size={20} strokeWidth={2} themeColor="textSecondary" />
       ) : null}
@@ -156,7 +194,7 @@ function rowOf(item: PastItem, remove: (id: Id<'endedHabits'>) => void): Row {
       key: goal._id,
       title: goal.title,
       icon: commitmentIcon(goal.icon, 'goal'),
-      status: `${done ? 'Done' : 'Missed'} ${formatShortDate(item.endedAt)}`,
+      ...withStake(`${done ? 'Done' : 'Missed'} ${formatShortDate(item.endedAt)}`, goal.stakeView),
       lost: !done,
       onPress: () => router.push(`/goals/${goal._id}`),
     };
@@ -169,7 +207,10 @@ function rowOf(item: PastItem, remove: (id: Id<'endedHabits'>) => void): Row {
     key: habit._id,
     title: habit.title,
     icon: commitmentIcon(habit.icon, 'habit'),
-    status: `${OUTCOME_LABEL[habit.outcome]} ${formatShortDate(item.endedAt)} · ${logged}`,
+    ...withStake(
+      `${OUTCOME_LABEL[habit.outcome]} ${formatShortDate(item.endedAt)} · ${logged}`,
+      habit.stakeView,
+    ),
     lost: habit.outcome === 'lost',
     onPress:
       habit.outcome === 'kept' && accomplishmentId !== undefined
@@ -179,6 +220,15 @@ function rowOf(item: PastItem, remove: (id: Id<'endedHabits'>) => void): Row {
           : undefined,
     onRemove: () => remove(habit._id),
   };
+}
+
+/** Money takes its own column; a friend or a freeze joins the status line. */
+function withStake(status: string, stake: StakeView | null): Pick<Row, 'status' | 'money'> {
+  const tag = pastStakeTag(stake);
+  if (tag === null) return { status };
+  if (tag.kind === 'phrase') return { status: `${status} · ${tag.phrase}` };
+  const { amount, label, tone, struck } = tag;
+  return { status, money: { amount, label, tone, struck } };
 }
 
 const OUTCOME_LABEL = { kept: 'Kept', lost: 'Lost', ended: 'Ended' } as const;
@@ -205,6 +255,21 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: Spacing.half,
     minWidth: 0,
+  },
+  // Right-aligned, so the amounts line up down the list.
+  money: {
+    alignItems: 'flex-end',
+    gap: Spacing.half,
+  },
+  amount: {
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: 700,
+    fontVariant: ['tabular-nums'],
+  },
+  struck: {
+    textDecorationLine: 'line-through',
+    textDecorationStyle: 'solid',
   },
   removeAction: {
     width: 96,

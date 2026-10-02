@@ -82,7 +82,14 @@ describe('endedHabits.list', () => {
     expect(await alice.as.mutation(api.habits.remove, { habitId })).toBe('deleted');
 
     expect(await alice.as.query(api.endedHabits.list, {})).toMatchObject([
-      { title: 'Read', outcome: 'ended', completions: 3, endedAt: at('2026-09-21').getTime() },
+      {
+        title: 'Read',
+        outcome: 'ended',
+        completions: 3,
+        endedAt: at('2026-09-21').getTime(),
+        // A new habit's default lockout, let go when it ended.
+        stakeView: { kind: 'lockout', status: 'released', days: 3 },
+      },
     ]);
   });
 
@@ -114,6 +121,8 @@ describe('endedHabits.list', () => {
     expect(ended).toMatchObject({ title: 'Run', outcome: 'kept', completions: 10 });
     expect(ended.accomplishmentId).toBe(kept?._id);
     expect(ended.stakeId).toBeDefined();
+    // The money it put up came back, and the row says so.
+    expect(ended.stakeView).toMatchObject({ kind: 'money', status: 'released', amountCents: 2000 });
   });
 
   test('one that broke during its notice is lost, and opens its loss screen', async () => {
@@ -128,7 +137,12 @@ describe('endedHabits.list', () => {
     await runCheck(t, '2026-09-24');
 
     expect(await alice.as.query(api.endedHabits.list, {})).toMatchObject([
-      { title: 'Run', outcome: 'lost', stakeId },
+      {
+        title: 'Run',
+        outcome: 'lost',
+        stakeId,
+        stakeView: { _id: stakeId, kind: 'money', amountCents: 2000, lostAt: expect.any(Number) },
+      },
     ]);
     expect((await alice.as.query(api.endedHabits.list, {}))[0].accomplishmentId).toBeUndefined();
   });

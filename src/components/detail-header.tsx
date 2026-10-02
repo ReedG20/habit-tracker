@@ -1,5 +1,6 @@
 import type { IconSvgElement } from '@hugeicons/react-native';
 import { router } from 'expo-router';
+import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ActionButton } from './action-button';
@@ -21,6 +22,8 @@ export type DetailHeaderProps = {
   deleteIcon?: IconSvgElement;
   /** Leave out to hide the button: there's nothing live to show off. */
   onShare?: () => void;
+  /** Shown under the heading, above the buttons: what's on the line. */
+  children?: ReactNode;
 };
 
 /** Back row, heading, and the edit/delete pair shared by both detail screens. */
@@ -33,6 +36,7 @@ export function DetailHeader({
   deleteText = 'Delete',
   deleteIcon = Delete02Icon,
   onShare,
+  children,
 }: DetailHeaderProps) {
   return (
     <View style={styles.header}>
@@ -53,6 +57,8 @@ export function DetailHeader({
       </ThemedText>
 
       {description ? <ThemedText themeColor="textSecondary">{description}</ThemedText> : null}
+
+      {children}
 
       <View style={styles.actions}>
         <ActionButton

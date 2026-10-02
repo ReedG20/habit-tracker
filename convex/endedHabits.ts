@@ -5,6 +5,7 @@ import { query, type MutationCtx } from './_generated/server';
 import { getCurrentUserOrNull } from './lib/auth';
 import { authedMutation } from './lib/customFunctions';
 import { endedHabitOutcomeValidator } from './lib/endedHabitSchema';
+import { stakeView, stakeViewValidator, type StakeView } from './lib/stakeRules';
 
 /**
  * Deleted habits, as the Past list on Commitments shows them. `deleteHabit`
@@ -48,6 +49,8 @@ export const endedHabitViewValidator = v.object({
   startedAt: v.number(),
   endedAt: v.number(),
   stakeId: v.optional(v.id('stakes')),
+  /** What was on it and how it ended, so the Past row can show the money. */
+  stakeView: v.union(stakeViewValidator, v.null()),
   accomplishmentId: v.optional(v.id('accomplishments')),
 });
 
@@ -68,17 +71,24 @@ export const list = query({
       .order('desc')
       .take(MAX_LISTED);
 
-    return rows.map((row) => ({
-      _id: row._id,
-      title: row.title,
-      icon: row.icon,
-      outcome: row.outcome,
-      completions: row.completions,
-      startedAt: row.startedAt,
-      endedAt: row.endedAt,
-      stakeId: row.stakeId,
-      accomplishmentId: row.accomplishmentId,
-    }));
+    return await Promise.all(
+      rows.map(async (row) => {
+        const stake = row.stakeId === undefined ? null : await ctx.db.get('stakes', row.stakeId);
+        const view: StakeView | null = stake === null ? null : stakeView(stake);
+        return {
+          _id: row._id,
+          title: row.title,
+          icon: row.icon,
+          outcome: row.outcome,
+          completions: row.completions,
+          startedAt: row.startedAt,
+          endedAt: row.endedAt,
+          stakeId: row.stakeId,
+          stakeView: view,
+          accomplishmentId: row.accomplishmentId,
+        };
+      }),
+    );
   },
 });
 
