@@ -201,8 +201,7 @@ export function keptOfPush(data: PushData): string | null {
 
 /** The milestone a push opens the moment for, if it does. */
 export function milestoneOfPush(data: PushData): string | null {
-  const match =
-    typeof data.url === 'string' ? /^\/milestone\/([a-z0-9]+)$/.exec(data.url) : null;
+  const match = typeof data.url === 'string' ? /^\/milestone\/([a-z0-9]+)$/.exec(data.url) : null;
   return match?.[1] ?? null;
 }
 

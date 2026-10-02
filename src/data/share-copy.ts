@@ -18,13 +18,7 @@ export type ShareCardKind = 'stake' | 'streak' | 'kept';
  * commitment's "It's on."; `milestone` is a streak milestone's moment.
  */
 export type ShareSource =
-  | 'locked_in'
-  | 'onboarding'
-  | 'raise'
-  | 'restart'
-  | 'detail'
-  | 'kept'
-  | 'milestone';
+  'locked_in' | 'onboarding' | 'raise' | 'restart' | 'detail' | 'kept' | 'milestone';
 
 export type ShareCopy = {
   kicker: string;

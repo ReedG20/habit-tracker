@@ -87,8 +87,7 @@ export async function settleVerification(
     ...(verdict.placeId === undefined ? {} : { placeId: verdict.placeId }),
   });
 
-  const milestoneId =
-    verdict.status === 'approved' ? await logCompletion(ctx, verification) : null;
+  const milestoneId = verdict.status === 'approved' ? await logCompletion(ctx, verification) : null;
   await notifyHabitVerdict(ctx, verification, verdict.status, verdict.reason, milestoneId);
 }
 
