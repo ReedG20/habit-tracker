@@ -87,6 +87,7 @@ export type AnalyticsEvents = {
     card: ShareCardKind;
     source: ShareSource;
     shown_amount: boolean;
+    theme: 'light' | 'dark';
     activity: string;
   };
 

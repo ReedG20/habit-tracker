@@ -4,6 +4,8 @@ import { defaultDueAt, MIN_LEAD_MS } from '@/components/commitment/draft';
 
 import { freshDueAt, shouldShowOnboarding, suggestKind, suggestionsFor } from './onboarding';
 
+import { TIMER_MINUTE_OPTIONS } from '@/convex/lib/proofMethods';
+
 describe('shouldShowOnboarding', () => {
   test('a fresh install that has never written the flag sees it', () => {
     expect(shouldShowOnboarding(null, false)).toBe(true);
@@ -79,5 +81,26 @@ describe('freshDueAt', () => {
   test('rolls a stale deadline forward to the default evening', () => {
     expect(freshDueAt(now - 1000, now)).toBe(defaultDueAt(now));
     expect(new Date(defaultDueAt(now)).getHours()).toBe(21);
+  });
+});
+
+describe('onboarding presets', () => {
+  const areas = ['fitness', 'health', 'focus', 'learning', 'money', 'mind', 'home'] as const;
+  const all = (kind: 'habit' | 'goal') => suggestionsFor([...areas], kind, 100);
+
+  test('a timer preset says how long, from the allowed lengths', () => {
+    for (const preset of all('habit').filter((s) => s.proofMethod === 'timer')) {
+      expect(TIMER_MINUTE_OPTIONS).toContain(preset.timerMinutes);
+    }
+  });
+
+  test('a goal is proved with photos, so no goal preset names another method', () => {
+    expect(all('goal').every((s) => s.proofMethod === undefined)).toBe(true);
+  });
+
+  test('“phone away” habits aren’t photos: the phone can’t picture itself put away', () => {
+    for (const preset of all('habit').filter((s) => /phone away/i.test(s.title))) {
+      expect(preset.proofMethod).toBe('timer');
+    }
   });
 });

@@ -72,6 +72,11 @@ const common = {
   /** When the user saw the loss screen for it. */
   seenAt: v.optional(v.number()),
   releasedAt: v.optional(v.number()),
+  /**
+   * When the user last upped the ante on it (`raises.ts`): set on a stake that
+   * took an old one's place, and on one raised in place (more money, a longer lock).
+   */
+  raisedAt: v.optional(v.number()),
   /** Goals only: the job that resolves the stake at the deadline, so proof can cancel it. */
   resolveJobId: v.optional(v.id('_scheduled_functions')),
   run: v.optional(runValidator),

@@ -39,8 +39,27 @@ export const INK_DARK = '#9F8CFF';
 
 /** The corner the note gets; two short handwritten lines. */
 const NOTE_WIDTH = 164;
-/** Beside the note the kicker gets this many lines; longer, the note moves up over it. */
-const KICKER_LINES_BESIDE_NOTE = 2;
+/**
+ * The kicker never runs past this many lines. Beside the note first; longer,
+ * the note moves up over it and the kicker wraps to two even lines rather
+ * than running the full width.
+ */
+const KICKER_LINES = 2;
+/** Added to half a long kicker's length, so it breaks into two near-even lines. */
+const KICKER_BALANCE_SLACK = 24;
+/** Up to this long, a kicker reads fine on one line and is left whole. */
+const KICKER_ONE_LINE_MAX = 240;
+
+/**
+ * Where the kicker is in being fitted: tried beside the note, then at full
+ * width (to learn its length), then held to about half of that. Each step
+ * renders hidden; `done` shows it.
+ */
+type KickerFit =
+  | { step: 'beside' | 'full' }
+  | { step: 'balanced'; maxWidth: number }
+  | { step: 'done'; layout: 'beside' | 'full' }
+  | { step: 'done'; layout: 'balanced'; maxWidth: number };
 
 /** One glyph per kind of argument: the clock, the run, the lock, the money. */
 function kickerIcon(moment: TodayMoment): IconSvgElement {
@@ -167,15 +186,44 @@ export function TodayHero({ moment }: TodayHeroProps) {
 
   // A kicker with a long name in it wraps to a tall, thin column beside the
   // note. Measured there first; if it runs long, the note rides above on one
-  // line instead and the kicker takes the full width. Keyed to the kicker so
-  // a new moment measures afresh.
-  const [fit, setFit] = useState<{ kicker: string; wide: boolean } | null>(null);
-  const measured = fit?.kicker === moment.kicker;
-  const wide = note !== null && measured && fit.wide;
+  // line and the kicker gets the width, held to two even lines rather than
+  // one that runs edge to edge. Keyed to the kicker so a new moment measures
+  // afresh; without a note there's nothing to sit beside.
+  const firstStep: KickerFit = { step: note === null ? 'full' : 'beside' };
+  const [fitted, setFitted] = useState<{ kicker: string; fit: KickerFit } | null>(null);
+  const fit = fitted?.kicker === moment.kicker ? fitted.fit : firstStep;
+  const done = fit.step === 'done';
+  const beside = note !== null && (fit.step === 'beside' || (done && fit.layout === 'beside'));
+  const wide = note !== null && !beside;
+  const kickerMaxWidth =
+    fit.step === 'balanced' || (done && fit.layout === 'balanced') ? fit.maxWidth : undefined;
+
   const onKickerLayout = (event: TextLayoutEvent) => {
-    if (note === null || measured) return;
-    const lines = event.nativeEvent.lines.length;
-    setFit({ kicker: moment.kicker, wide: lines > KICKER_LINES_BESIDE_NOTE });
+    const { lines } = event.nativeEvent;
+    const next = (step: KickerFit) => setFitted({ kicker: moment.kicker, fit: step });
+    switch (fit.step) {
+      case 'beside':
+        next(lines.length <= KICKER_LINES ? { step: 'done', layout: 'beside' } : { step: 'full' });
+        return;
+      case 'full': {
+        // Short enough for one line, or too long for two even ones: as it is.
+        const length = lines.reduce((total, line) => total + line.width, 0);
+        if (length <= KICKER_ONE_LINE_MAX || lines.length > KICKER_LINES) {
+          return next({ step: 'done', layout: 'full' });
+        }
+        next({ step: 'balanced', maxWidth: Math.ceil(length / 2 + KICKER_BALANCE_SLACK) });
+        return;
+      }
+      case 'balanced':
+        next(
+          lines.length <= KICKER_LINES
+            ? { step: 'done', layout: 'balanced', maxWidth: fit.maxWidth }
+            : { step: 'done', layout: 'full' },
+        );
+        return;
+      case 'done':
+        return;
+    }
   };
 
   return (
@@ -199,17 +247,17 @@ export function TodayHero({ moment }: TodayHeroProps) {
         {/* A kicker wraps short of the note rather than running under it, and
             stays hidden until it's measured so a long one doesn't jump. */}
         <View
-          style={[
-            styles.kicker,
-            note !== null && !wide && styles.kickerBesideNote,
-            note !== null && !measured && styles.unmeasured,
-          ]}>
+          style={[styles.kicker, beside && styles.kickerBesideNote, !done && styles.unmeasured]}>
           {/* HugeIcons go thin when small: a touch bigger and bolder than the label. */}
           <Icon icon={kickerIcon(moment)} size={20} strokeWidth={2} color={toneColor} />
           <ThemedText
             type="smallSemibold"
             onTextLayout={onKickerLayout}
-            style={[styles.kickerText, { color: toneColor }]}>
+            style={[
+              styles.kickerText,
+              kickerMaxWidth !== undefined && { maxWidth: kickerMaxWidth },
+              { color: toneColor },
+            ]}>
             {moment.kicker}
           </ThemedText>
         </View>

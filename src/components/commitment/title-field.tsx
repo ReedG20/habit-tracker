@@ -69,7 +69,7 @@ export function TitleField({
 
 const styles = StyleSheet.create({
   field: {
-    paddingBottom: Spacing.two,
+    paddingBottom: Spacing.one,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   input: {

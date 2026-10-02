@@ -25,6 +25,7 @@ import { openCallOff } from '@/data/call-off';
 import { goalTerms } from '@/data/commitment-terms';
 import { isMissed } from '@/data/goals';
 import { useCallOff } from '@/hooks/use-call-off';
+import { useFriendEmail } from '@/hooks/use-friend-email';
 import { useNow } from '@/hooks/use-now';
 import { track } from '@/lib/analytics';
 import { confirmDestructive, notify } from '@/lib/confirm';
@@ -66,6 +67,7 @@ export default function GoalDetailScreen() {
   const resetProof = useMutation(api.devProofs.resetGoalProof);
   const forceDelete = useForceDelete();
   const callOff = useCallOff();
+  const friendEmail = useFriendEmail(goal?.stakeView);
 
   if (goal === undefined) {
     return <ScreenScrollView />;
@@ -160,7 +162,7 @@ export default function GoalDetailScreen() {
       />
 
       <DetailSection title="the deal">
-        <TermsCard terms={goalTerms(goal, now)} />
+        <TermsCard terms={goalTerms(goal, now, friendEmail)} />
         <RaiseButton
           target={{ goalId }}
           stake={goal.stakeView}

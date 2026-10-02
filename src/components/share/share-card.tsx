@@ -14,16 +14,22 @@ import type { ShareSubject } from '@/convex/share';
 import type { ShareCardKind, ShareCopy } from '@/data/share-copy';
 import { SHARE_DISPLAY_URL } from '@/lib/share-links';
 
+import {
+  SHARE_CARD_HEIGHT,
+  SHARE_CARD_PADDING_X,
+  SHARE_CARD_WIDTH,
+  stakeHeroSize,
+} from './card-layout';
+
 /**
  * The image a share posts: a 9:16 story card, laid out at a fixed 360 × 640
- * and captured at 1080 × 1920. It never follows the device theme, so a post
- * looks the same whoever made it. Each kind has its own look: the stake on
- * contract paper, a streak in the dark with the flame, a kept one in the
- * Kept screen's violet.
+ * and captured at 1080 × 1920. Each kind has its own look, in light and dark:
+ * the stake on contract paper (or its ink), a streak with the flame, a kept
+ * one in the Kept screen's violet (or a midnight one). The share sheet picks
+ * light or dark, starting from the device theme.
  */
 
-export const SHARE_CARD_WIDTH = 360;
-export const SHARE_CARD_HEIGHT = 640;
+export { SHARE_CARD_HEIGHT, SHARE_CARD_WIDTH };
 
 type Palette = {
   background: string;
@@ -33,31 +39,67 @@ type Palette = {
   panel: string;
   /** Rings the app icon where it would melt into the background. */
   logoBorder?: string;
+  /** The stake card's hero for a word stake: blue, since nothing's charged. */
+  word?: string;
 };
 
-const PALETTES: Record<ShareCardKind, Palette> = {
-  // The signed contract's paper and ink.
+export type ShareCardTheme = 'light' | 'dark';
+
+const PALETTES: Record<ShareCardKind, Record<ShareCardTheme, Palette>> = {
+  // The signed contract's paper and ink, and the same swapped.
   stake: {
-    background: '#FBF8F1',
-    text: '#1A1614',
-    soft: '#8A7F78',
-    accent: '#FF391F',
-    panel: 'rgba(26, 22, 20, 0.06)',
+    light: {
+      background: '#FBF8F1',
+      text: '#1A1614',
+      soft: '#8A7F78',
+      accent: '#FF391F',
+      panel: 'rgba(26, 22, 20, 0.06)',
+      word: '#4121FF',
+    },
+    dark: {
+      background: '#1A1614',
+      text: '#FBF8F1',
+      soft: '#A39890',
+      accent: '#FF391F',
+      panel: 'rgba(251, 248, 241, 0.08)',
+      // The brand blue is too dim on ink; lifted, and nudged bluer so it doesn't go lavender.
+      word: '#4D6BFF',
+    },
   },
   streak: {
-    background: '#000000',
-    text: '#FFFFFF',
-    soft: '#B0B4BA',
-    accent: '#FF391F',
-    panel: '#212225',
+    light: {
+      background: '#FFFFFF',
+      text: '#000000',
+      soft: '#60646C',
+      accent: '#FF391F',
+      panel: '#F0F0F3',
+    },
+    dark: {
+      background: '#000000',
+      text: '#FFFFFF',
+      soft: '#B0B4BA',
+      accent: '#FF391F',
+      panel: '#212225',
+    },
   },
   kept: {
-    background: '#4121FF',
-    text: '#FFFFFF',
-    soft: 'rgba(255, 255, 255, 0.78)',
-    accent: '#FFFFFF',
-    panel: 'rgba(255, 255, 255, 0.12)',
-    logoBorder: 'rgba(255, 255, 255, 0.6)',
+    light: {
+      background: '#4121FF',
+      text: '#FFFFFF',
+      soft: 'rgba(255, 255, 255, 0.78)',
+      accent: '#FFFFFF',
+      panel: 'rgba(255, 255, 255, 0.12)',
+      logoBorder: 'rgba(255, 255, 255, 0.6)',
+    },
+    // The violet at midnight: still the Kept screen's, just after dark.
+    dark: {
+      background: '#130A47',
+      text: '#FFFFFF',
+      soft: 'rgba(255, 255, 255, 0.72)',
+      accent: '#FFFFFF',
+      panel: 'rgba(255, 255, 255, 0.1)',
+      logoBorder: 'rgba(255, 255, 255, 0.4)',
+    },
   },
 };
 
@@ -65,11 +107,12 @@ export type ShareCardProps = {
   card: ShareCardKind;
   subject: ShareSubject;
   copy: ShareCopy;
+  theme: ShareCardTheme;
   ref?: Ref<View>;
 };
 
-export function ShareCard({ card, subject, copy, ref }: ShareCardProps) {
-  const palette = PALETTES[card];
+export function ShareCard({ card, subject, copy, theme, ref }: ShareCardProps) {
+  const palette = PALETTES[card][theme];
 
   return (
     // Not collapsable, so the capture has a native view to draw.
@@ -87,7 +130,7 @@ export function ShareCard({ card, subject, copy, ref }: ShareCardProps) {
       </View>
 
       <View style={styles.middle}>
-        <Hero card={card} copy={copy} palette={palette} />
+        <Hero card={card} copy={copy} palette={palette} word={subject.stake.kind === 'none'} />
         <Text style={[styles.line, { color: palette.text }]}>{copy.line}</Text>
 
         <View style={[styles.panel, { backgroundColor: palette.panel }]}>
@@ -139,7 +182,18 @@ export function ShareCard({ card, subject, copy, ref }: ShareCardProps) {
   );
 }
 
-function Hero({ card, copy, palette }: { card: ShareCardKind; copy: ShareCopy; palette: Palette }) {
+function Hero({
+  card,
+  copy,
+  palette,
+  word,
+}: {
+  card: ShareCardKind;
+  copy: ShareCopy;
+  palette: Palette;
+  /** A word stake, with no money or lock behind it. */
+  word: boolean;
+}) {
   if (card === 'streak') {
     return (
       <View style={styles.heroRow}>
@@ -189,34 +243,22 @@ function Hero({ card, copy, palette }: { card: ShareCardKind; copy: ShareCopy; p
     <Text
       style={[
         styles.stakeHero,
-        { color: palette.accent, fontSize, lineHeight: Math.round(fontSize * 1.24) },
+        {
+          color: word ? (palette.word ?? palette.accent) : palette.accent,
+          fontSize,
+          lineHeight: Math.round(fontSize * 1.24),
+        },
       ]}>
       {copy.hero}
     </Text>
   );
 }
 
-/** Comico's capitals run about this wide, as a share of the font size. */
-const COMICO_CHAR_WIDTH = 0.6;
-const STAKE_HERO_MAX = 84;
-const HERO_WIDTH = SHARE_CARD_WIDTH - 2 * (Spacing.four + Spacing.one);
-
-/**
- * As big as the longest word allows, so "$250" and "3 days locked" both fill
- * the card without a word breaking. Sized here rather than with
- * `adjustsFontSizeToFit`, which shrinks it to nothing inside the share
- * sheet's scaled-down preview.
- */
-function stakeHeroSize(text: string): number {
-  const longest = Math.max(...text.split(' ').map((word) => word.length));
-  return Math.min(STAKE_HERO_MAX, Math.floor(HERO_WIDTH / (longest * COMICO_CHAR_WIDTH)));
-}
-
 const styles = StyleSheet.create({
   card: {
     width: SHARE_CARD_WIDTH,
     height: SHARE_CARD_HEIGHT,
-    paddingHorizontal: Spacing.four + Spacing.one,
+    paddingHorizontal: SHARE_CARD_PADDING_X,
     paddingTop: Spacing.five + Spacing.three,
     paddingBottom: Spacing.five,
     overflow: 'hidden',
