@@ -56,6 +56,7 @@ export function TextField({
   onChangeText,
   placeholder,
   multiline,
+  maxLength,
   autoCapitalize,
   readValueRef,
   onFocusChange,
@@ -92,6 +93,7 @@ export function TextField({
           ref={native}
           text={text}
           placeholder={placeholder}
+          maxLength={maxLength}
           axis={multiline ? 'vertical' : 'horizontal'}
           onTextChange={onChangeText}
           onFocusChange={(focused) => {

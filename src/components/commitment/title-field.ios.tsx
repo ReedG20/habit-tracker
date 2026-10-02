@@ -38,6 +38,7 @@ export function TitleField({
   defaultValue,
   placeholder,
   autoFocus,
+  maxLength,
   readValueRef,
   onChangeText,
   onSubmit,
@@ -67,6 +68,7 @@ export function TitleField({
           text={text}
           placeholder={placeholder}
           autoFocus={autoFocus}
+          maxLength={maxLength}
           // Vertical so a long name wraps like a heading. Return would add a
           // newline there, so a newline is taken as Return instead.
           axis="vertical"
