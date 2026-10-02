@@ -12,6 +12,8 @@ export type TitleFieldProps = {
   defaultValue?: string;
   placeholder?: string;
   autoFocus?: boolean;
+  /** Typing stops here; the server holds the same limit. */
+  maxLength?: number;
   /** As on `TextField`: returns the current text, read when leaving the page. */
   readValueRef?: MutableRefObject<(() => string) | null>;
   onChangeText?: (text: string) => void;

@@ -24,6 +24,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Edit02Icon } from '@/constants/icons';
 import { PROOF_METHODS } from '@/constants/proof-methods';
 import { BorderRadius, Spacing } from '@/constants/theme';
+import { MAX_PROOF_LENGTH } from '@/convex/lib/commitmentText';
 import { shortFrequency } from '@/convex/lib/frequency';
 import { track } from '@/lib/analytics';
 import { formatDueAt } from '@/lib/dates';
@@ -200,6 +201,7 @@ export function ProofPage({
             setProofText(text);
           }}
           placeholder={proofField(draft).placeholder}
+          maxLength={MAX_PROOF_LENGTH}
           multiline
         />
         <ProofIdeas
