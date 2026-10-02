@@ -49,9 +49,7 @@ describe('supportCaseEmail', () => {
       note: 'I was in the hospital.',
     });
 
-    expect(email.subject).toBe(
-      'Something came up (contested in the app): $25, Alice, “Run <5k>”',
-    );
+    expect(email.subject).toBe('Something came up (contested in the app): $25, Alice, “Run <5k>”');
     expect(email.text).toContain('Reason: Something serious came up');
     expect(email.text).toContain('Note: I was in the hospital.');
   });
