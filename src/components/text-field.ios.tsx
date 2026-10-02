@@ -5,15 +5,18 @@ import {
   type TextFieldRef,
 } from '@expo/ui/swift-ui';
 import {
+  autocorrectionDisabled,
   background,
   font,
   foregroundStyle,
   frame,
+  keyboardType as keyboardTypeModifier,
   lineLimit,
   onSubmit,
   padding,
   shapes,
   submitLabel,
+  textContentType as textContentTypeModifier,
   textFieldStyle,
   textInputAutocapitalization,
 } from '@expo/ui/swift-ui/modifiers';
@@ -31,6 +34,25 @@ import { useTheme } from '@/hooks/use-theme';
 const FILL = 100_000;
 
 type SubmitLabel = Parameters<typeof submitLabel>[0];
+type KeyboardKind = Parameters<typeof keyboardTypeModifier>[0];
+type ContentKind = Parameters<typeof textContentTypeModifier>[0];
+
+/** RN's keyboard types SwiftUI shares a name with; the rest keep the default. */
+const keyboardKinds: Partial<Record<NonNullable<TextInputProps['keyboardType']>, KeyboardKind>> = {
+  'email-address': 'email-address',
+  'phone-pad': 'phone-pad',
+  url: 'url',
+  numeric: 'numeric',
+  'decimal-pad': 'decimal-pad',
+};
+
+/** The content types the app's fields use, so AutoFill can offer the right thing. */
+const contentKinds: Partial<Record<NonNullable<TextInputProps['textContentType']>, ContentKind>> = {
+  emailAddress: 'emailAddress',
+  givenName: 'givenName',
+  name: 'name',
+  familyName: 'familyName',
+};
 
 /** RN's return key names that SwiftUI has a submit label for; the rest keep the default. */
 const submitLabels: Partial<Record<NonNullable<TextInputProps['returnKeyType']>, SubmitLabel>> = {
@@ -58,6 +80,9 @@ export function TextField({
   multiline,
   maxLength,
   autoCapitalize,
+  autoCorrect,
+  keyboardType,
+  textContentType,
   readValueRef,
   onFocusChange,
   returnKeyType,
@@ -70,6 +95,8 @@ export function TextField({
     blur: () => void native.current?.blur(),
   }));
   const returnLabel = returnKeyType ? submitLabels[returnKeyType] : undefined;
+  const keyboard = keyboardType ? keyboardKinds[keyboardType] : undefined;
+  const content = textContentType ? contentKinds[textContentType] : undefined;
   const fieldRef = useRef<View>(null);
   const fieldFocus = useFieldFocus();
   const text = useNativeState(defaultValue ?? '');
@@ -111,6 +138,9 @@ export function TextField({
             textInputAutocapitalization(
               autoCapitalize === 'none' ? 'never' : (autoCapitalize ?? 'sentences'),
             ),
+            ...(keyboard ? [keyboardTypeModifier(keyboard)] : []),
+            ...(content ? [textContentTypeModifier(content)] : []),
+            ...(autoCorrect === false ? [autocorrectionDisabled()] : []),
             ...(returnLabel ? [submitLabel(returnLabel)] : []),
             ...(onReturn ? [onSubmit(onReturn)] : []),
             font({ size: 16, weight: 'medium' }),

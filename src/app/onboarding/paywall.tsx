@@ -1,11 +1,12 @@
 import { useConvexAuth, useMutation, useQuery } from 'convex/react';
 import { Redirect } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { ActionButton } from '@/components/action-button';
 import { Icon } from '@/components/icon';
 import { CommitmentSummary } from '@/components/onboarding/commitment-summary';
+import { FirstCommitmentLive } from '@/components/onboarding/first-commitment-live';
 import { OnboardingScreen } from '@/components/onboarding/onboarding-screen';
 import { ProPaywall, type PaywallOutcome } from '@/components/pro-paywall';
 import { ThemedText } from '@/components/themed-text';
@@ -21,6 +22,7 @@ import {
   proofInput,
   type CommitmentDraft,
 } from '@/components/commitment/draft';
+import { draftCallOffUntil } from '@/data/call-off';
 import { commitmentNoun, freshDueAt } from '@/data/onboarding';
 import { useSessionUserId } from '@/hooks/use-signed-in-session';
 import { useSignContract, type ContractTarget } from '@/hooks/use-sign-contract';
@@ -36,12 +38,16 @@ import {
   setFirstSigned,
 } from '@/lib/onboarding';
 
-type Phase = 'offer' | 'saving' | 'failed';
+type Phase = 'offer' | 'saving' | 'failed' | 'live';
+
+/** The first commitment once it's saved, for its "It's on." */
+type Live = { target: ContractTarget; draft: CommitmentDraft; callOffUntil: number };
 
 /**
  * The last step, and a hard one: the drafted commitment only starts once Ante
  * Pro does (a trial counts). The survey is saved on arrival since it is not
- * gated; the commitment after the purchase, then onboarding completes, which
+ * gated; the commitment after the purchase, then its "It's on." (where it can
+ * be shared, and a friend on the hook texted), then onboarding completes, which
  * flips the root guard and swaps this stack for the tabs. Closing the app here
  * comes back here. Dev and preview builds get a skip that grants Pro.
  */
@@ -59,6 +65,7 @@ export default function OnboardingPaywallScreen() {
   const [draft] = useState<CommitmentDraft | null>(() => getOnboarding().draft);
   const [phase, setPhase] = useState<Phase>('offer');
   const [outcome, setOutcome] = useState<PaywallOutcome>('purchased');
+  const [live, setLive] = useState<Live | null>(null);
   const surveySaved = useRef(false);
   const started = useRef(false);
 
@@ -72,6 +79,7 @@ export default function OnboardingPaywallScreen() {
       areas: answers.areas,
       history: answers.history,
       motivator: answers.motivator,
+      heardFrom: answers.heardFrom,
     }).catch((error: unknown) => {
       // The survey is nice to have; it never blocks the commitment.
       console.error('Failed to save the onboarding answers', error);
@@ -80,6 +88,17 @@ export default function OnboardingPaywallScreen() {
   }, [userId, saveOnboarding]);
 
   const noun = draft === null ? null : commitmentNoun(draft.kind);
+
+  /** Flips the root guard: the tabs take over from here. */
+  const finish = useCallback(() => {
+    completeOnboarding();
+    const done = noun === null ? 'You’re all set.' : `Your first ${noun} is live.`;
+    showToast(
+      outcome === 'restored' ? 'Ante Pro restored' : 'Welcome to Ante Pro',
+      done,
+      'success',
+    );
+  }, [noun, outcome]);
 
   useEffect(() => {
     if (userId === null || phase !== 'saving' || started.current) return;
@@ -129,14 +148,15 @@ export default function OnboardingPaywallScreen() {
           stake_kind: draft?.stakeKind ?? null,
         });
         markDraftSaved();
-        completeOnboarding();
         successHaptic();
-        const live = noun === null ? 'You’re all set.' : `Your first ${noun} is live.`;
-        showToast(
-          outcome === 'restored' ? 'Ante Pro restored' : 'Welcome to Ante Pro',
-          live,
-          'success',
-        );
+        if (target !== null && pending !== null) {
+          // Signed a moment ago, so the window the server set is within seconds of this.
+          setLive({ target, draft: pending, callOffUntil: draftCallOffUntil(pending, Date.now()) });
+          setPhase('live');
+        } else {
+          // A relaunch after it was saved: nothing new to celebrate.
+          finish();
+        }
       })
       .catch((error: unknown) => {
         console.error('Failed to save the first commitment', error);
@@ -144,10 +164,21 @@ export default function OnboardingPaywallScreen() {
         started.current = false;
         setPhase('failed');
       });
-  }, [userId, phase, outcome, noun, draft, createHabit, createGoal, signContract]);
+  }, [userId, phase, outcome, draft, createHabit, createGoal, signContract, finish]);
 
   if (!isAuthenticated) {
     return <Redirect href="/onboarding/save" />;
+  }
+
+  if (phase === 'live' && live !== null) {
+    return (
+      <FirstCommitmentLive
+        draft={live.draft}
+        target={live.target}
+        callOffUntil={live.callOffUntil}
+        onDone={finish}
+      />
+    );
   }
 
   const start = (result: PaywallOutcome) => {

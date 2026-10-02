@@ -4,6 +4,7 @@ import PostHog from 'posthog-react-native';
 
 import type { AnalyticsEvents } from './analytics-events';
 import { storeErrorDetails } from './store-errors';
+import { inviteCode } from '@/convex/lib/invite';
 
 export type { AnalyticsEvents } from './analytics-events';
 
@@ -64,9 +65,16 @@ export function track<E extends keyof AnalyticsEvents>(
 /**
  * Ties this device's events to `userId` (our `users._id`, the same id
  * RevenueCat uses), merging what was captured anonymously before sign-in.
+ * `invite_code` is the `ref` on every link they hand out (`convex/lib/invite.ts`),
+ * so a visit to the `/get` page can be traced back to them.
  */
 export function identifyUser(userId: string, properties: { email?: string }): void {
-  posthog.identify(userId, properties.email ? { $set: { email: properties.email } } : undefined);
+  posthog.identify(userId, {
+    $set: {
+      invite_code: inviteCode(userId),
+      ...(properties.email ? { email: properties.email } : {}),
+    },
+  });
 }
 
 /** Back to an anonymous device, so whoever signs in next starts clean. */

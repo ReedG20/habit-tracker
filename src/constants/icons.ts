@@ -44,6 +44,7 @@ import LockKeyholeIcon from '@hugeicons/core-free-icons/LockKeyholeIcon';
 import LockKeyholeOpenIcon from '@hugeicons/core-free-icons/LockKeyholeOpenIcon';
 import Logout01Icon from '@hugeicons/core-free-icons/Logout01Icon';
 import Mail01Icon from '@hugeicons/core-free-icons/Mail01Icon';
+import Message01Icon from '@hugeicons/core-free-icons/Message01Icon';
 import MinusSignIcon from '@hugeicons/core-free-icons/MinusSignIcon';
 import Money03Icon from '@hugeicons/core-free-icons/Money03Icon';
 import Moon02Icon from '@hugeicons/core-free-icons/Moon02Icon';
@@ -103,6 +104,7 @@ export {
   LockKeyholeOpenIcon,
   Logout01Icon,
   Mail01Icon,
+  Message01Icon,
   MinusSignIcon,
   Money03Icon,
   Moon02Icon,

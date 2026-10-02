@@ -16,7 +16,7 @@ export default function MotivatorScreen() {
       onChoose={(motivator) => {
         setAnswers({ motivator });
         track('onboarding step completed', { step: 'motivator', motivator });
-        router.push('/onboarding/commitment');
+        router.push('/onboarding/heard');
       }}
     />
   );

@@ -18,6 +18,7 @@ import { ThemedView } from '@/components/themed-view';
 import { CardRadius, Spacing } from '@/constants/theme';
 import type { Id } from '@/convex/_generated/dataModel';
 import { api } from '@/convex/_generated/api';
+import { inviteCode } from '@/convex/lib/invite';
 import type { ShareSubject } from '@/convex/share';
 import {
   cardsFor,
@@ -29,6 +30,7 @@ import {
 } from '@/data/share-copy';
 import { captureError, track } from '@/lib/analytics';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useSessionUserId } from '@/hooks/use-signed-in-session';
 import { todayKey } from '@/lib/dates';
 import { successHaptic } from '@/lib/haptics';
 import { shareUrl } from '@/lib/share-links';
@@ -44,7 +46,14 @@ const SHEET_CHROME = 248;
 const PICKER_CHROME = 48;
 const ROW_CHROME = 90;
 
-const SOURCES: readonly ShareSource[] = ['locked_in', 'raise', 'restart', 'detail', 'kept'];
+const SOURCES: readonly ShareSource[] = [
+  'locked_in',
+  'onboarding',
+  'raise',
+  'restart',
+  'detail',
+  'kept',
+];
 const CARD_LABELS: Record<ShareCardKind, string> = {
   streak: 'Streak',
   stake: 'Stakes',
@@ -111,6 +120,7 @@ function ShareSheet({
   const [busy, setBusy] = useState(false);
   const cardRef = useRef<View>(null);
   const window = useWindowDimensions();
+  const userId = useSessionUserId();
 
   useEffect(() => {
     track('share opened', { card: initial, source });
@@ -128,7 +138,10 @@ function ShareSheet({
     if (busy) return;
     setBusy(true);
     try {
-      const activity = await shareCardImage(cardRef, shareMessage(copy, shareUrl(card)));
+      const activity = await shareCardImage(
+        cardRef,
+        shareMessage(copy, shareUrl(card, userId === null ? undefined : inviteCode(userId))),
+      );
       track('share completed', {
         card,
         source,

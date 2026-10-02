@@ -12,8 +12,8 @@ import { formatCents } from '@/lib/money';
 
 export type ShareCardKind = 'stake' | 'streak' | 'kept';
 
-/** Where the share sheet was opened from. */
-export type ShareSource = 'locked_in' | 'raise' | 'restart' | 'detail' | 'kept';
+/** Where the share sheet was opened from. `onboarding` is the first commitment's "It's on." */
+export type ShareSource = 'locked_in' | 'onboarding' | 'raise' | 'restart' | 'detail' | 'kept';
 
 export type ShareCopy = {
   kicker: string;

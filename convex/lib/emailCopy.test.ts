@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest';
 import { headsUpEmail, lossEmail, replyToFor } from './emailCopy';
 
 const OPT_OUT = 'https://example.convex.site/email/opt-out?t=abc';
+const INVITE = 'https://useanteapp.com/get?from=heads_up&ref=abc123defg';
 
 describe('friend emails', () => {
   test('the heads-up says what they signed up for and how to leave', () => {
@@ -13,11 +14,44 @@ describe('friend emails', () => {
       cadence: 'every day',
       subject: 'habit',
       optOutUrl: OPT_OUT,
+      inviteUrl: INVITE,
     });
     expect(email.subject).toBe('Reed put you on the hook');
     expect(email.text).toContain('If Reed breaks the streak, we’ll email you once');
     expect(email.text).toContain('Meditate (every day)');
     expect(email.html).toContain(OPT_OUT);
+  });
+
+  test('each email ends on one quiet P.S. linking to Ante, after the sign-off', () => {
+    const headsUp = headsUpEmail({
+      userName: 'Reed',
+      friendName: 'Sam',
+      title: 'Meditate',
+      cadence: 'every day',
+      subject: 'habit',
+      optOutUrl: OPT_OUT,
+      inviteUrl: INVITE,
+    });
+    expect(headsUp.text).toContain(
+      `— Ante\n\nP.S. Got something you keep putting off? Ante works for you too: ${INVITE}`,
+    );
+    expect(headsUp.html).toContain(`<a href="${INVITE.replace(/&/g, '&amp;')}"`);
+    expect(headsUp.html.match(/P\.S\./g)).toHaveLength(1);
+
+    const loss = lossEmail({
+      userName: 'Reed',
+      friendName: 'Sam',
+      title: 'Meditate',
+      subject: 'habit',
+      streak: 3,
+      unit: 'day',
+      replyable: false,
+      optOutUrl: OPT_OUT,
+      inviteUrl: INVITE,
+    });
+    expect(loss.text).toContain(
+      `P.S. Doing it with Reed next time? Ante can hold you to it too: ${INVITE}`,
+    );
   });
 
   test('a broken streak names the run and the day', () => {
@@ -31,6 +65,7 @@ describe('friend emails', () => {
       missedPeriod: '2026-09-22',
       replyable: true,
       optOutUrl: OPT_OUT,
+      inviteUrl: INVITE,
     });
     expect(email.subject).toBe('Reed broke a 23-day streak');
     expect(email.text).toContain('After 23 days in a row, they missed on Tuesday.');
@@ -49,6 +84,7 @@ describe('friend emails', () => {
         missedPeriod: '2026-09-21',
         replyable: false,
         optOutUrl: OPT_OUT,
+        inviteUrl: INVITE,
       }),
     ).toMatchObject({
       subject: 'Reed missed “Read”',
@@ -63,6 +99,7 @@ describe('friend emails', () => {
         dueLabel: 'Sun 9pm',
         replyable: true,
         optOutUrl: OPT_OUT,
+        inviteUrl: INVITE,
       }).text,
     ).toContain('committed to “Ship it” by Sun 9pm, and didn’t send proof in time.');
   });
@@ -75,6 +112,7 @@ describe('friend emails', () => {
       cadence: 'every day',
       subject: 'habit',
       optOutUrl: OPT_OUT,
+      inviteUrl: INVITE,
     });
     expect(email.html).not.toContain('<script>');
     expect(email.html).toContain('&lt;script&gt;');

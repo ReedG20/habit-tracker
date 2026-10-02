@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { friendName, proofSummary } from './contract-text';
@@ -35,6 +36,12 @@ export type LockedInProps = {
   note?: string;
   /** Offers to share the new stakes, beside Done. */
   onShare?: () => void;
+  /** "Done" unless given. */
+  doneLabel?: string;
+  /** Under the card, before the note: e.g. onboarding's nudge to text the friend. */
+  children?: ReactNode;
+  /** Space between sections, tighter when `children` would push the note off screen. */
+  gap?: number;
   /**
    * A new commitment's window to call it off (`convex/lib/callOff.ts`). A
    * friend hears about it then, so the stakes row says so.
@@ -49,6 +56,9 @@ export function LockedIn({
   title = 'It’s on.',
   note,
   onShare,
+  doneLabel = 'Done',
+  children,
+  gap,
   callOffUntil,
 }: LockedInProps) {
   const theme = useTheme();
@@ -61,12 +71,19 @@ export function LockedIn({
 
   return (
     <StepLayout
+      gap={gap}
       footer={
         <View style={styles.actions}>
           {onShare === undefined ? null : (
             <ActionButton label="Share" icon={Share03Icon} onPress={onShare} />
           )}
-          <ActionButton label="Done" variant="primary" fill onPress={onDone} style={styles.done} />
+          <ActionButton
+            label={doneLabel}
+            variant="primary"
+            fill
+            onPress={onDone}
+            style={styles.done}
+          />
         </View>
       }>
       <ThemedText style={styles.title} themeColor="text">
@@ -109,6 +126,8 @@ export function LockedIn({
           {lockedInCallOff(callOff, now)}
         </ThemedText>
       )}
+
+      {children}
 
       <Note>
         {note ??
