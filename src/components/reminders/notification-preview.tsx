@@ -1,6 +1,7 @@
+import { GlassView, isGlassEffectAPIAvailable, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { Image } from 'expo-image';
 import { StyleSheet, View } from 'react-native';
-import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
+import Animated, { LinearTransition, withTiming } from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
@@ -9,6 +10,26 @@ import { useTheme } from '@/hooks/use-theme';
 
 const timeFormat = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
 const dayFormat = new Intl.DateTimeFormat(undefined, { weekday: 'short' });
+
+const CARD_RADIUS = 22;
+
+// Glass draws nothing under a parent whose opacity animates, so the cards
+// scale in and out rather than fade.
+function scaleIn() {
+  'worklet';
+  return {
+    initialValues: { transform: [{ scale: 0.94 }] },
+    animations: { transform: [{ scale: withTiming(1, { duration: 220 }) }] },
+  };
+}
+
+function scaleOut() {
+  'worklet';
+  return {
+    initialValues: { transform: [{ scale: 1 }] },
+    animations: { transform: [{ scale: withTiming(0.94, { duration: 120 }) }] },
+  };
+}
 
 export type NotificationPreviewProps = {
   pushes: PreviewPush[];
@@ -26,8 +47,8 @@ export function NotificationPreview({ pushes, showDay = false }: NotificationPre
       {pushes.map((push) => (
         <Animated.View
           key={`${push.at}:${push.title}`}
-          entering={FadeIn.duration(220)}
-          exiting={FadeOut.duration(120)}
+          entering={scaleIn}
+          exiting={scaleOut}
           layout={LinearTransition.duration(220)}>
           <PushCard push={push} showDay={showDay} />
         </Animated.View>
@@ -38,6 +59,7 @@ export function NotificationPreview({ pushes, showDay = false }: NotificationPre
 
 function PushCard({ push, showDay }: { push: PreviewPush; showDay: boolean }) {
   const theme = useTheme();
+  const glass = isLiquidGlassAvailable() && isGlassEffectAPIAvailable();
   const at = new Date(push.at);
   const time = showDay ? `${dayFormat.format(at)} ${timeFormat.format(at)}` : timeFormat.format(at);
 
@@ -45,27 +67,47 @@ function PushCard({ push, showDay }: { push: PreviewPush; showDay: boolean }) {
     <View
       accessible
       accessibilityLabel={`At ${time}: ${push.title}. ${push.body}`}
-      style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
+      style={[styles.card, glass ? null : { backgroundColor: theme.backgroundElement }]}>
+      {glass ? (
+        <GlassView
+          pointerEvents="none"
+          // UIKit takes the radius literally, so it's repeated on the glass itself.
+          style={[StyleSheet.absoluteFill, styles.glass]}
+          glassEffectStyle="regular"
+        />
+      ) : null}
       <Image source={require('@/assets/images/icon.png')} style={styles.appIcon} />
       <View style={styles.text}>
-        {push.timeSensitive ? (
-          <ThemedText type="smallSemibold" style={styles.timeSensitive} themeColor="accent">
-            TIME SENSITIVE
-          </ThemedText>
-        ) : null}
-        <View style={styles.titleRow}>
-          <ThemedText type="smallSemibold" themeColor="text" style={styles.title} numberOfLines={1}>
-            {push.title}
-          </ThemedText>
+        {/* The time sits on the first line, as on the lock screen: beside the label when there is one. */}
+        <View style={styles.firstRow}>
+          {push.timeSensitive ? (
+            <ThemedText
+              type="smallSemibold"
+              style={[styles.flex, styles.timeSensitive]}
+              themeColor="textSecondary">
+              TIME SENSITIVE
+            </ThemedText>
+          ) : (
+            <Title text={push.title} />
+          )}
           <ThemedText type="small" themeColor="textSecondary">
             {time}
           </ThemedText>
         </View>
+        {push.timeSensitive ? <Title text={push.title} /> : null}
         <ThemedText type="small" themeColor="text" numberOfLines={3}>
           {push.body}
         </ThemedText>
       </View>
     </View>
+  );
+}
+
+function Title({ text }: { text: string }) {
+  return (
+    <ThemedText type="smallSemibold" themeColor="text" style={styles.flex} numberOfLines={1}>
+      {text}
+    </ThemedText>
   );
 }
 
@@ -78,9 +120,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: Spacing.two + Spacing.half,
-    borderRadius: 22,
+    borderRadius: CARD_RADIUS,
     paddingVertical: Spacing.two + Spacing.half,
     paddingHorizontal: Spacing.three,
+  },
+  glass: {
+    borderRadius: CARD_RADIUS,
   },
   appIcon: {
     width: 36,
@@ -97,12 +142,12 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     letterSpacing: 0.4,
   },
-  titleRow: {
+  firstRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: Spacing.two,
   },
-  title: {
+  flex: {
     flex: 1,
   },
 });

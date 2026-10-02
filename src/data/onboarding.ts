@@ -4,7 +4,12 @@
  * `src/app/onboarding/` and the store in `src/lib/onboarding.ts` build on it.
  */
 
-import { defaultDueAt, MIN_LEAD_MS, type CommitmentKind } from '@/components/commitment/draft';
+import {
+  defaultDueAt,
+  MIN_LEAD_MS,
+  type CommitmentKind,
+  type CommitmentSuggestion,
+} from '@/components/commitment/draft';
 
 export type FocusArea =
   'fitness' | 'health' | 'focus' | 'learning' | 'money' | 'mind' | 'home' | 'other';
@@ -92,14 +97,19 @@ export function suggestKind(answers: OnboardingAnswers): CommitmentKind {
   return 'habit';
 }
 
-/** A preset for the contract's first step: a name, and what the photo has to show. */
-export type Suggestion = { title: string; proof: string };
+/**
+ * A preset for the contract's first step: a name, how it's proven, and the
+ * proof in that method's words. Photo unless it says otherwise; a photo of a
+ * phone's own screen is a screenshot, so it says so. Nothing here asks for a
+ * photo the phone can't take of itself.
+ */
+export type Suggestion = CommitmentSuggestion;
 
 const suggestions: Record<Exclude<FocusArea, 'other'>, Record<CommitmentKind, Suggestion[]>> = {
   fitness: {
     habit: [
       { title: 'Work out for 20 minutes', proof: 'Me mid-workout, with the gym or trail in view' },
-      { title: 'Walk 8,000 steps', proof: 'Today’s step count on my phone or watch' },
+      { title: 'Walk 8,000 steps', proof: 'A screenshot of today’s step count, 8,000 or more' },
     ],
     goal: [
       { title: 'Run a 5K', proof: 'My watch or running app showing a finished 5 km run' },
@@ -118,18 +128,26 @@ const suggestions: Record<Exclude<FocusArea, 'other'>, Record<CommitmentKind, Su
   },
   focus: {
     habit: [
-      { title: 'Focus for an hour, phone away', proof: 'My desk mid-session, phone out of reach' },
+      {
+        title: 'Focus for an hour, phone away',
+        proof: 'Work at my desk while my phone sits across the room, Ante running',
+        proofMethod: 'timer',
+        timerMinutes: 60,
+      },
       { title: 'Plan tomorrow before bed', proof: 'Tomorrow’s to-do list, written out' },
     ],
     goal: [
       { title: 'Pass the certification exam', proof: 'My pass result, with my name on it' },
-      { title: 'Open my online shop', proof: 'My shop live on my phone, first item listed' },
+      { title: 'Open my online shop', proof: 'A screenshot of my shop live, first item listed' },
     ],
   },
   learning: {
     habit: [
       { title: 'Read 10 pages', proof: 'The page I finished on, page number in view' },
-      { title: 'Practise a language for 15 minutes', proof: 'Today’s finished lesson screen' },
+      {
+        title: 'Practise a language for 15 minutes',
+        proof: 'A screenshot of today’s finished lesson',
+      },
     ],
     goal: [
       { title: 'Finish the course', proof: 'The completion certificate with my name on it' },
@@ -138,22 +156,33 @@ const suggestions: Record<Exclude<FocusArea, 'other'>, Record<CommitmentKind, Su
   },
   money: {
     habit: [
-      { title: 'Log every purchase', proof: 'Today’s entries in my budget app' },
+      { title: 'Log every purchase', proof: 'A screenshot of today’s entries in my budget app' },
       { title: 'No takeout', proof: 'What I cooked instead, on the plate' },
     ],
     goal: [
-      { title: 'Set up automatic savings', proof: 'The scheduled transfer in my bank app' },
-      { title: 'Pay off my credit card', proof: 'My card balance showing $0' },
+      {
+        title: 'Set up automatic savings',
+        proof: 'A screenshot of the scheduled transfer in my bank app',
+      },
+      { title: 'Pay off my credit card', proof: 'A screenshot of my card balance showing $0' },
     ],
   },
   mind: {
     habit: [
-      { title: 'Meditate for 10 minutes', proof: 'The finished session in my meditation app' },
+      {
+        title: 'Meditate for 10 minutes',
+        proof: 'Sit somewhere quiet and meditate, phone face up beside me',
+        proofMethod: 'timer',
+        timerMinutes: 10,
+      },
       { title: 'Journal one page', proof: 'Today’s page, dated and filled' },
     ],
     goal: [
-      { title: 'Take a full day offline', proof: 'My phone switched off, in a drawer' },
-      { title: 'Call three old friends', proof: 'The call log showing each call' },
+      {
+        title: 'Finish a 30-day meditation course',
+        proof: 'A screenshot of the course marked complete',
+      },
+      { title: 'Call three old friends', proof: 'A screenshot of my call log showing each call' },
     ],
   },
   home: {

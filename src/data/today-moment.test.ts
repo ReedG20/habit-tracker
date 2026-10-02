@@ -219,11 +219,24 @@ describe('pickTodayMoment', () => {
     });
   });
 
-  test('a habit made today is free', () => {
+  test('a habit made today is free, counting down to when it starts', () => {
     const walk = habit({ title: 'Walk', startDay: TUESDAY });
     expect(pick({ habits: [walk] })).toMatchObject({
       kind: 'clear',
-      sentence: 'Walk starts counting tomorrow.',
+      kicker: 'Nothing on the line today',
+      figure: { kind: 'time', text: '16h' },
+      sentence: 'until Walk starts counting.',
+      note: 'first day’s free. use it anyway.',
+    });
+  });
+
+  test('a new account’s first day is a first day, not a day back', () => {
+    // Sign-up sets `accountableFrom` to tomorrow, as a lock's day back does.
+    const gym = habit({ title: 'Gym', startDay: TUESDAY });
+    expect(pick({ habits: [gym], accountableFrom: '2026-09-30' })).toMatchObject({
+      figure: { kind: 'time', text: '16h' },
+      sentence: 'until Gym starts counting.',
+      note: 'first day’s free. use it anyway.',
     });
   });
 
@@ -232,7 +245,8 @@ describe('pickTodayMoment', () => {
     expect(pick({ habits: [gym], accountableFrom: '2026-09-30' })).toMatchObject({
       kind: 'clear',
       kicker: 'Nothing on the line today',
-      sentence: 'Your day back is free. Everything counts again tomorrow.',
+      figure: { kind: 'time', text: '16h' },
+      sentence: 'until everything counts again. Your day back is free.',
       note: 'free day. it all counts tomorrow.',
     });
     // Even when a goal takes the headline, the note still says why.

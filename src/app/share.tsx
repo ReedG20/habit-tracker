@@ -5,7 +5,12 @@ import { Alert, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { FormSheet } from '@/components/form-sheet';
 import { SegmentedPicker } from '@/components/segmented-picker';
-import { SHARE_CARD_HEIGHT, SHARE_CARD_WIDTH, ShareCard } from '@/components/share/share-card';
+import {
+  SHARE_CARD_HEIGHT,
+  SHARE_CARD_WIDTH,
+  ShareCard,
+  type ShareCardTheme,
+} from '@/components/share/share-card';
 import { shareCardImage } from '@/components/share/share-image';
 import { Switch } from '@/components/switch';
 import { ThemedText } from '@/components/themed-text';
@@ -23,14 +28,21 @@ import {
   type ShareSource,
 } from '@/data/share-copy';
 import { captureError, track } from '@/lib/analytics';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { todayKey } from '@/lib/dates';
 import { successHaptic } from '@/lib/haptics';
 import { shareUrl } from '@/lib/share-links';
 
 /** The sheet's detent in `_layout.tsx`. */
 const SHEET_FRACTION = 0.9;
-/** What the sheet needs besides the card: title, picker, amount row, actions. */
-const SHEET_CHROME = 330;
+/**
+ * What the sheet needs besides the card, so the card fills whatever is left:
+ * the title, actions and gaps, plus the card picker and each settings row
+ * when they're shown.
+ */
+const SHEET_CHROME = 248;
+const PICKER_CHROME = 48;
+const ROW_CHROME = 90;
 
 const SOURCES: readonly ShareSource[] = ['locked_in', 'raise', 'restart', 'detail', 'kept'];
 const CARD_LABELS: Record<ShareCardKind, string> = {
@@ -93,6 +105,9 @@ function ShareSheet({
 }) {
   const [card, setCard] = useState(initial);
   const [showAmount, setShowAmount] = useState(true);
+  // Starts on the phone's theme; the switch below changes only this card.
+  const scheme = useColorScheme();
+  const [theme, setTheme] = useState<ShareCardTheme>(scheme === 'dark' ? 'dark' : 'light');
   const [busy, setBusy] = useState(false);
   const cardRef = useRef<View>(null);
   const window = useWindowDimensions();
@@ -102,9 +117,11 @@ function ShareSheet({
   }, [initial, source]);
 
   const copy = shareCopy(subject, card, showAmount);
+  const rows = hasAmount(subject) ? 2 : 1;
+  const chrome = SHEET_CHROME + (cards.length > 1 ? PICKER_CHROME : 0) + rows * ROW_CHROME;
   const scale = Math.min(
     (window.width - Spacing.three * 2) / SHARE_CARD_WIDTH,
-    (window.height * SHEET_FRACTION - SHEET_CHROME) / SHARE_CARD_HEIGHT,
+    (window.height * SHEET_FRACTION - chrome) / SHARE_CARD_HEIGHT,
   );
 
   const share = async () => {
@@ -116,6 +133,7 @@ function ShareSheet({
         card,
         source,
         shown_amount: hasAmount(subject) && showAmount,
+        theme,
         activity,
       });
       if (activity !== 'dismissed') {
@@ -152,9 +170,23 @@ function ShareSheet({
           { width: SHARE_CARD_WIDTH * scale, height: SHARE_CARD_HEIGHT * scale },
         ]}>
         <View style={[styles.scaled, { transform: [{ scale }] }]}>
-          <ShareCard ref={cardRef} card={card} subject={subject} copy={copy} />
+          <ShareCard ref={cardRef} card={card} subject={subject} copy={copy} theme={theme} />
         </View>
       </View>
+
+      <ThemedView type="backgroundElement" style={styles.row}>
+        <View style={styles.rowText}>
+          <ThemedText themeColor="text">Dark mode</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            Starts on your phone’s setting.
+          </ThemedText>
+        </View>
+        <Switch
+          value={theme === 'dark'}
+          onChange={(dark) => setTheme(dark ? 'dark' : 'light')}
+          accessibilityLabel="Dark mode"
+        />
+      </ThemedView>
 
       {hasAmount(subject) ? (
         <ThemedView type="backgroundElement" style={styles.row}>
