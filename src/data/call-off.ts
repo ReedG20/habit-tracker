@@ -1,5 +1,10 @@
 import type { CommitmentDraft, CommitmentKind } from '@/components/commitment/draft';
-import { goalCallOffUntil, habitCallOffUntil, isCallOffOpen } from '@/convex/lib/callOff';
+import {
+  friendHeadsUpAt,
+  goalCallOffUntil,
+  habitCallOffUntil,
+  isCallOffOpen,
+} from '@/convex/lib/callOff';
 import { isStakeLive, type StakeView } from '@/convex/lib/stakeRules';
 import { describeClock } from '@/lib/dates';
 
@@ -29,6 +34,27 @@ export function draftCallOffUntil(draft: CommitmentDraft, now: number, carried?:
       ? goalCallOffUntil(now, draft.dueAt)
       : habitCallOffUntil(now, deviceTimeZone());
   return carried === undefined ? fresh : Math.min(fresh, carried);
+}
+
+/**
+ * When the friend on the draft's stake will be emailed, given its call-off
+ * window: the same rule the server schedules by (`friendHeadsUpAt`), so the
+ * time on screen is the time it goes.
+ */
+export function draftHeadsUpAt(draft: CommitmentDraft, callOffUntil: number, now: number): number {
+  return friendHeadsUpAt(
+    callOffUntil,
+    now,
+    deviceTimeZone(),
+    draft.kind === 'goal' ? draft.dueAt : undefined,
+  );
+}
+
+/** "at 2:15 PM", "tomorrow at 8:00 AM", "on Wed 8:00 AM": when a heads-up goes, mid-sentence. */
+export function headsUpWhen(at: number, now: number): string {
+  const clock = describeClock(at, now);
+  if (clock.startsWith('tomorrow ')) return `tomorrow at ${clock.slice('tomorrow '.length)}`;
+  return /^\d/.test(clock) ? `at ${clock}` : `on ${clock}`;
 }
 
 /**

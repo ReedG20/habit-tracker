@@ -7,7 +7,8 @@
  *
  * Pure and free of Convex imports, so the app can say the time up front.
  */
-import { HOUR_MS, MINUTE_MS, nextDayEnd } from './zonedTime';
+import { nextDay } from './days';
+import { HOUR_MS, MINUTE_MS, localClock, nextDayEnd, zonedDay, zonedInstant } from './zonedTime';
 
 /** A goal's window is this share of its length… */
 export const CALL_OFF_SHARE = 0.1;
@@ -48,4 +49,43 @@ export function habitCallOffUntil(createdAt: number, timeZone: string | undefine
 /** Whether a commitment with this window can still be called off at `now`. */
 export function isCallOffOpen(callOffUntil: number | undefined, now: number): boolean {
   return callOffUntil !== undefined && now < callOffUntil;
+}
+
+/** A friend's heads-up never lands overnight: from this hour… */
+export const HEADS_UP_QUIET_FROM_HOUR = 22;
+/** …it waits for this one. */
+export const HEADS_UP_MORNING_HOUR = 8;
+
+/**
+ * When the friend on a new commitment's stake is emailed. It waits for the
+ * call-off window, so nobody hears about one taken back. A habit's window
+ * closes at the 3 AM day boundary, though, so a heads-up that would land
+ * between 10 PM and 8 AM in the user's zone goes out at 8 AM instead.
+ * Without a window (a stake raised on a running commitment) it goes now,
+ * while the user is up. A goal's friend always hears before the deadline,
+ * so when morning is too late it goes when the window closes.
+ */
+export function friendHeadsUpAt(
+  callOffUntil: number | undefined,
+  now: number,
+  timeZone: string | undefined,
+  dueAt?: number,
+): number {
+  const at = Math.max(now, callOffUntil ?? 0);
+  if (callOffUntil === undefined || timeZone === undefined) return at;
+
+  let hour: number;
+  let day: string;
+  try {
+    hour = Math.floor(localClock(at, timeZone) / 60);
+    day = zonedDay(at, timeZone);
+  } catch {
+    // An unknown zone: no way to tell night from day.
+    return at;
+  }
+  if (hour >= HEADS_UP_MORNING_HOUR && hour < HEADS_UP_QUIET_FROM_HOUR) return at;
+
+  const morningDay = hour >= HEADS_UP_QUIET_FROM_HOUR ? nextDay(day) : day;
+  const morning = zonedInstant(morningDay, HEADS_UP_MORNING_HOUR, 0, timeZone);
+  return dueAt !== undefined && morning >= dueAt ? at : morning;
 }

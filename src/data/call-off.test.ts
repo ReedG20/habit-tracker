@@ -4,7 +4,7 @@ import type { Id } from '@/convex/_generated/dataModel';
 import type { StakeView } from '@/convex/lib/stakeRules';
 import { formatClock } from '@/lib/dates';
 
-import { callOffBody, callOffConfirm, openCallOff } from './call-off';
+import { callOffBody, callOffConfirm, headsUpWhen, openCallOff } from './call-off';
 
 const NOW = new Date(2026, 9, 1, 12).getTime();
 const HOUR = 60 * 60 * 1000;
@@ -61,5 +61,15 @@ describe('callOffConfirm', () => {
     );
     expect(callOffConfirm(lockout).message).toBe('No lockout, and it’s gone for good.');
     expect(callOffConfirm(null).message).toBe('It’s gone for good.');
+  });
+});
+
+describe('headsUpWhen', () => {
+  test('reads mid-sentence: today, tomorrow, or further out', () => {
+    const soon = NOW + 2 * HOUR;
+    expect(headsUpWhen(soon, NOW)).toBe(`at ${formatClock(soon)}`);
+    const tomorrow = new Date(2026, 9, 2, 8).getTime();
+    expect(headsUpWhen(tomorrow, NOW)).toBe(`tomorrow at ${formatClock(tomorrow)}`);
+    expect(headsUpWhen(new Date(2026, 9, 3, 8).getTime(), NOW)).toMatch(/^on \S+ /);
   });
 });
