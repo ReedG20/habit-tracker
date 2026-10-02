@@ -1,11 +1,10 @@
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { draftEndDay, type CommitmentDraft } from '@/components/commitment/draft';
 import { DayField } from '@/components/day-field';
-import { ChoiceChip } from '@/components/onboarding/choice-chip';
 import { SegmentedPicker } from '@/components/segmented-picker';
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { PillRadius, Spacing } from '@/constants/theme';
 import {
   END_DATE_PRESET_WEEKS,
   endDayAfterWeeks,
@@ -13,6 +12,7 @@ import {
   MIN_END_DATE_WEEKS,
 } from '@/convex/lib/endDate';
 import { formatLastDay } from '@/data/ending';
+import { useTheme } from '@/hooks/use-theme';
 import { todayKey } from '@/lib/dates';
 
 type EndValue = 'none' | 'date';
@@ -67,22 +67,7 @@ export function EndDatePicker({ draft, onChange }: EndDatePickerProps) {
             max={endDayAfterWeeks(habit, MAX_END_DATE_WEEKS)}
             onChange={onChange}
           />
-          <View style={styles.presets}>
-            <ThemedText type="small" themeColor="textSecondary">
-              For
-            </ThemedText>
-            {END_DATE_PRESET_WEEKS.map((weeks) => {
-              const day = endDayAfterWeeks(habit, weeks);
-              return (
-                <ChoiceChip
-                  key={weeks}
-                  label={`${weeks} weeks`}
-                  selected={endDay === day}
-                  onPress={() => onChange(day)}
-                />
-              );
-            })}
-          </View>
+          <EndDatePresets habit={habit} value={endDay} onChange={onChange} />
           <ThemedText type="small" themeColor="textSecondary">
             {`It counts through ${formatLastDay(endDay)}, then it’s done and counts as kept. Start it again after if you like. Ending it sooner still takes a week’s notice.`}
           </ThemedText>
@@ -92,14 +77,69 @@ export function EndDatePicker({ draft, onChange }: EndDatePickerProps) {
   );
 }
 
+/**
+ * "2 / 4 / 8 / 12 weeks" under the date, as one row of equal pills, like the
+ * goal deadline's presets. The pill matching the picked day stays lit.
+ */
+function EndDatePresets({
+  habit,
+  value,
+  onChange,
+}: {
+  habit: { timesPerWeek: number; startDay: string };
+  value: string;
+  onChange: (endsOn: string) => void;
+}) {
+  const theme = useTheme();
+
+  return (
+    <View style={styles.presets}>
+      {END_DATE_PRESET_WEEKS.map((weeks) => {
+        const day = endDayAfterWeeks(habit, weeks);
+        const selected = value === day;
+        return (
+          <Pressable
+            key={weeks}
+            accessibilityRole="button"
+            accessibilityLabel={`Ends after ${weeks} weeks`}
+            accessibilityState={{ selected }}
+            onPress={() => onChange(day)}
+            style={({ pressed }) => [
+              styles.preset,
+              { backgroundColor: selected ? theme.primary : theme.backgroundElement },
+              pressed && styles.pressed,
+            ]}>
+            <ThemedText
+              type="smallSemibold"
+              style={{ color: selected ? theme.onPrimary : theme.text }}>
+              {weeks} weeks
+            </ThemedText>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+/** Shorter than a full control: these are shortcuts under the picker, not the picker. */
+const PRESET_HEIGHT = 36;
+
 const styles = StyleSheet.create({
   field: {
     gap: Spacing.two,
   },
   presets: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
     gap: Spacing.two,
+  },
+  preset: {
+    flex: 1,
+    height: PRESET_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: PillRadius,
+  },
+  pressed: {
+    opacity: 0.7,
   },
 });
