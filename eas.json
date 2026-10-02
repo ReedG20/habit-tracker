@@ -5,6 +5,9 @@
   },
   "build": {
     "development": {
+      "ios": {
+        "image": "macos-tahoe-26.6-xcode-27.0"
+      },
       "developmentClient": true,
       "distribution": "internal",
       "environment": "development",
@@ -15,6 +18,9 @@
       }
     },
     "preview": {
+      "ios": {
+        "image": "macos-tahoe-26.6-xcode-27.0"
+      },
       "distribution": "internal",
       "environment": "preview",
       "channel": "preview",
@@ -24,6 +30,9 @@
       }
     },
     "production": {
+      "ios": {
+        "image": "macos-tahoe-26.6-xcode-27.0"
+      },
       "environment": "production",
       "autoIncrement": true,
       "channel": "production",
