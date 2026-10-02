@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
   // At the very top, as on Today, so switching tabs leaves it where it was.
   masthead: {
     marginTop: -Spacing.four,
-    marginBottom: Spacing.four,
+    marginBottom: Spacing.four + Spacing.two,
   },
   // Comico sits high in its line box, so the line's empty bottom already
   // spaces it from the subtitle; this tucks the subtitle up under it.
