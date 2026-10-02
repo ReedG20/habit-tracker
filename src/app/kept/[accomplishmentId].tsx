@@ -1,3 +1,4 @@
+import type { IconSvgElement } from '@hugeicons/react-native';
 import { useMutation, useQuery } from 'convex/react';
 import { router, useLocalSearchParams, type Href } from 'expo-router';
 import { useEffect, useRef } from 'react';
@@ -25,13 +26,15 @@ import Svg, { Path } from 'react-native-svg';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { Icon } from '@/components/icon';
+import { openShare } from '@/components/share/open-share';
 import {
   contractBeats,
   SignedContractCard,
   signedAgo,
   useRevealContract,
 } from '@/components/signed-contract/signed-contract';
-import { Flag02Icon, Tick02Icon } from '@/constants/icons';
+import { Flag02Icon, Share03Icon, Tick02Icon } from '@/constants/icons';
+import { RING_PATH } from '@/constants/ring-path';
 import { ControlHeight, Fonts, PillRadius, Spacing } from '@/constants/theme';
 import type { Kept } from '@/convex/accomplishments';
 import type { SignedContract } from '@/convex/contracts';
@@ -101,6 +104,12 @@ export default function KeptScreen() {
     }
   };
 
+  // Sharing stays on the page: Done still answers it.
+  const share = () => {
+    track('kept action', { action: 'share' });
+    openShare({ accomplishmentId: accomplishmentId as Id<'accomplishments'> }, 'kept', 'kept');
+  };
+
   const viewed = useRef(false);
   useEffect(() => {
     if (kept == null || contract === undefined || viewed.current) return;
@@ -126,6 +135,7 @@ export default function KeptScreen() {
           contract={contract}
           bottomInset={insets.bottom}
           onLeave={leave}
+          onShare={share}
         />
       )}
     </View>
@@ -138,12 +148,14 @@ function KeptBody({
   contract,
   bottomInset,
   onLeave,
+  onShare,
 }: {
   kept: Kept;
   story: KeptStory;
   contract: SignedContract | null;
   bottomInset: number;
   onLeave: (action: 'done' | 'start_another', next?: Href) => void;
+  onShare: () => void;
 }) {
   const reduceMotion = useReducedMotion();
   const delay = (ms: number) => (reduceMotion ? 0 : ms);
@@ -212,7 +224,14 @@ function KeptBody({
       <Animated.View
         entering={FadeIn.delay(delay(actionsAt))}
         style={[styles.actions, compact && styles.actionsCompact]}>
-        <LightButton label="Done" onPress={() => onLeave('done')} />
+        <View style={styles.buttons}>
+          <View style={styles.button}>
+            <LightButton label="Share" icon={Share03Icon} quiet onPress={onShare} />
+          </View>
+          <View style={styles.button}>
+            <LightButton label="Done" onPress={() => onLeave('done')} />
+          </View>
+        </View>
         <Pressable
           accessibilityRole="button"
           onPress={() => onLeave('start_another', `/new?kind=${kept.kind}` as Href)}
@@ -231,12 +250,6 @@ function KeptBody({
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
-/**
- * A loose, hand-drawn loop in a 200 × 100 box, stretched around whatever it
- * rings. It starts top right and overshoots its own start, the way a pen does.
- */
-const RING_PATH =
-  'M 152 10 C 108 -2, 38 4, 14 32 C -4 56, 18 90, 76 95 C 136 100, 194 86, 195 50 C 196 20, 158 4, 110 10';
 /** At least the path's length, so one dash covers the whole loop. */
 const RING_DASH = 640;
 
@@ -349,14 +362,33 @@ function RunDots({
   );
 }
 
-/** White on violet: the app's primary button would vanish into this background. */
-function LightButton({ label, onPress }: { label: string; onPress: () => void }) {
+/**
+ * White on violet: the app's primary button would vanish into this background.
+ * `quiet` sets it on the panel tint instead, for the action beside the main one.
+ */
+function LightButton({
+  label,
+  icon,
+  quiet = false,
+  onPress,
+}: {
+  label: string;
+  icon?: IconSvgElement;
+  quiet?: boolean;
+  onPress: () => void;
+}) {
+  const color = quiet ? KEPT.text : KEPT.background;
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [styles.lightButton, pressed && styles.pressed]}>
-      <Text style={styles.lightButtonText}>{label}</Text>
+      style={({ pressed }) => [
+        styles.lightButton,
+        quiet && styles.lightButtonQuiet,
+        pressed && styles.pressed,
+      ]}>
+      {icon === undefined ? null : <Icon icon={icon} size={20} strokeWidth={2} color={color} />}
+      <Text style={[styles.lightButtonText, { color }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -535,12 +567,24 @@ const styles = StyleSheet.create({
   actionsCompact: {
     paddingTop: Spacing.two,
   },
+  buttons: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
+  button: {
+    flex: 1,
+  },
   lightButton: {
+    flexDirection: 'row',
+    gap: Spacing.two,
     height: ControlHeight,
     borderRadius: PillRadius,
     backgroundColor: KEPT.text,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  lightButtonQuiet: {
+    backgroundColor: KEPT.panel,
   },
   lightButtonText: {
     color: KEPT.background,

@@ -36,7 +36,7 @@ function plural(count: number, unit: string): string {
 }
 
 /** "3 days early", "a day early", "with 5 hours to spare". */
-function howEarly(dueAt: number, achievedAt: number): string {
+export function howEarly(dueAt: number, achievedAt: number): string {
   const ahead = dueAt - achievedAt;
   if (ahead >= 2 * DAY) return `${Math.floor(ahead / DAY)} days early`;
   if (ahead >= DAY) return 'a day early';

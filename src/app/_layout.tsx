@@ -151,6 +151,10 @@ function RootNavigator() {
           options={{ ...sheetScreenOptions, sheetAllowedDetents: [0.9] }}
         />
         <Stack.Screen name="raise" options={{ presentation: 'fullScreenModal' }} />
+        <Stack.Screen
+          name="share"
+          options={{ ...sheetScreenOptions, sheetAllowedDetents: [0.9] }}
+        />
         {/* Its counterpart for a commitment seen through: a moment, answered with a tap. */}
         <Stack.Screen
           name="kept/[accomplishmentId]"

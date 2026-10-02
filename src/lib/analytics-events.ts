@@ -2,6 +2,7 @@ import type { ContestReason } from '@/convex/lib/chargeReviewSchema';
 import type { ProofMethod } from '@/convex/lib/proofMethods';
 import type { StakeKind } from '@/convex/lib/stakeRules';
 import type { FocusArea, History, Motivator } from '@/data/onboarding';
+import type { ShareCardKind, ShareSource } from '@/data/share-copy';
 
 import type { CommitmentDraft, CommitmentKind } from '@/components/commitment/draft';
 
@@ -65,7 +66,18 @@ export type AnalyticsEvents = {
   'habit ending cancelled': { days_left: number };
   /** The Kept screen for a commitment seen through, and how it was left. */
   'kept viewed': { kind: CommitmentKind; stake_kind: StakeKind; has_contract: boolean };
-  'kept action': { action: 'done' | 'start_another' };
+  'kept action': { action: 'done' | 'start_another' | 'share' };
+  /**
+   * The share sheet, and what came of it. `activity` is the iOS activity the
+   * user picked (`com.burbn.instagram.shareextension`), or `dismissed`.
+   */
+  'share opened': { card: ShareCardKind; source: ShareSource };
+  'share completed': {
+    card: ShareCardKind;
+    source: ShareSource;
+    shown_amount: boolean;
+    activity: string;
+  };
 
   /** Sent for review; the verdict comes later from the server. */
   'habit checked in':
