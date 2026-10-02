@@ -849,6 +849,8 @@ export const devLose = authedMutation({
       title: habit?.title ?? goal?.title ?? 'Meditate for ten minutes',
       createdAt: now,
       lostAt: now,
+      // Seen, as `accomplishments.devPreview`: opened directly, never popped up later.
+      seenAt: now,
       run,
     };
 
