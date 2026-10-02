@@ -50,16 +50,15 @@ export function StakeStrip({ stake, ...options }: StakeStripProps) {
       </View>
       <View style={styles.body}>
         <View style={styles.headline}>
-          <Text
-            numberOfLines={1}
-            style={[
-              styles.figure,
-              { color: figureColor },
-              strip.struck && styles.struck,
-              strip.struck && { textDecorationColor: figureColor },
-            ]}>
-            {strip.figure}
-          </Text>
+          <View style={styles.figureBox}>
+            <Text numberOfLines={1} style={[styles.figure, { color: figureColor }]}>
+              {strip.figure}
+            </Text>
+            {/* Drawn, not `line-through`: the display font's own strike sits low on its glyphs. */}
+            {strip.struck ? (
+              <View style={[styles.strike, { backgroundColor: figureColor }]} />
+            ) : null}
+          </View>
           <ThemedText
             type="smallSemibold"
             style={{ color: live ? theme.accent : theme.textSecondary }}>
@@ -138,9 +137,17 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     flexShrink: 1,
   },
-  struck: {
-    textDecorationLine: 'line-through',
-    textDecorationStyle: 'solid',
+  figureBox: {
+    flexShrink: 1,
+  },
+  // Through the middle of the digits, which sit high in the line box.
+  strike: {
+    position: 'absolute',
+    left: -Spacing.half,
+    right: -Spacing.half,
+    top: '44%',
+    height: 2.5,
+    borderRadius: 2,
   },
   pressed: {
     opacity: 0.7,
