@@ -306,6 +306,14 @@ const STEPS: PurgeStep[] = [
   plain(
     (ctx, userId, limit) =>
       ctx.db
+        .query('endedHabits')
+        .withIndex('by_user', (q) => q.eq('userId', userId))
+        .take(limit),
+    (ctx, row) => ctx.db.delete('endedHabits', row._id),
+  ),
+  plain(
+    (ctx, userId, limit) =>
+      ctx.db
         .query('contracts')
         .withIndex('by_user', (q) => q.eq('userId', userId))
         .take(limit),
