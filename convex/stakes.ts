@@ -13,6 +13,7 @@ import {
 import { friendLimiter, normalizeEmail } from './friends';
 import { deliverableEmail } from './lib/emailCopy';
 import { getCurrentUserOrNull } from './lib/auth';
+import { friendHeadsUpAt } from './lib/callOff';
 import { authedAction, authedMutation } from './lib/customFunctions';
 import { requirePro } from './lib/entitlements';
 import { localDay, requireDevOverrides } from './lib/lockout';
@@ -73,8 +74,8 @@ export type ArmSpec =
  * against the cap here, inside the transaction that arms it, so two stakes
  * started at once can't both slip under it. A goal's stake is resolved by a
  * job at its deadline. A friend hears about it once the commitment can no
- * longer be called off (`lib/callOff.ts`), so they never hear about one that
- * was taken back.
+ * longer be called off, and never overnight (`lib/callOff.ts`), so they never
+ * hear about one that was taken back, or at 3 AM.
  */
 export async function armStake(
   ctx: MutationCtx,
@@ -122,7 +123,13 @@ export async function armStake(
         friendName: spec.friend.name,
         friendEmail: spec.friend.email,
       });
-      const headsUpAt = Math.max(Date.now(), subject.callOffUntil ?? 0);
+      const user = await ctx.db.get('users', subject.userId);
+      const headsUpAt = friendHeadsUpAt(
+        subject.callOffUntil,
+        Date.now(),
+        user?.timeZone,
+        'goal' in target ? target.goal.dueAt : undefined,
+      );
       await ctx.scheduler.runAt(headsUpAt, internal.emails.sendHeadsUp, { stakeId });
       break;
     }
@@ -849,6 +856,8 @@ export const devLose = authedMutation({
       title: habit?.title ?? goal?.title ?? 'Meditate for ten minutes',
       createdAt: now,
       lostAt: now,
+      // Seen, as `accomplishments.devPreview`: opened directly, never popped up later.
+      seenAt: now,
       run,
     };
 

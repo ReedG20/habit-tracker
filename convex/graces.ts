@@ -235,6 +235,8 @@ export const devGrace = authedMutation({
       originalDueAt: args.subject === 'goal' ? now - hour : undefined,
       extendedTo: args.subject === 'goal' ? now + 47 * hour : undefined,
       grantedAt: now,
+      // Seen, as `accomplishments.devPreview`: opened directly, never popped up later.
+      seenAt: now,
     });
   },
 });

@@ -103,10 +103,10 @@ export type AnalyticsEvents = {
     activity: string;
   };
   /**
-   * The user texted the friend they just put on the hook, from the first
-   * commitment's "It's on." `activity` as for shares.
+   * The user texted the friend they just put on the hook, from "It's on."
+   * (onboarding's first commitment, or one made in the app). `activity` as for shares.
    */
-  'friend texted': { source: 'onboarding'; activity: string };
+  'friend texted': { source: 'onboarding' | 'new'; activity: string };
 
   /** Sent for review; the verdict comes later from the server. */
   'habit checked in':

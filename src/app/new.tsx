@@ -25,6 +25,7 @@ import {
   higherStakePatch,
 } from '@/components/commitment/draft-from-commitment';
 import { LockedIn } from '@/components/commitment/locked-in';
+import { TellFriendCard } from '@/components/commitment/tell-friend-card';
 import { SignStep } from '@/components/commitment/sign-step';
 import {
   phaseBeforeSigning,
@@ -383,6 +384,7 @@ export default function NewCommitmentScreen() {
 
   // Only the very first page closes the screen; every other one steps back.
   const firstPage = step === 'what' && whatPhase === 'name';
+  const tellFriend = !revising && draft.stakeKind === 'friend';
 
   return (
     <View style={[styles.screen, { backgroundColor: theme.background, paddingTop: insets.top }]}>
@@ -457,7 +459,10 @@ export default function NewCommitmentScreen() {
             {...(revising ? { title: 'Updated.', note: 'same window, new terms.' } : {})}
             onDone={() => router.back()}
             onShare={created === null ? undefined : () => openShare(created, 'locked_in', 'stake')}
-          />
+            // A friend newly on the hook; changed terms keep whoever already heard.
+            gap={tellFriend ? Spacing.three : undefined}>
+            {tellFriend ? <TellFriendCard draft={draft} source="new" /> : null}
+          </LockedIn>
         ) : null}
       </Animated.View>
     </View>

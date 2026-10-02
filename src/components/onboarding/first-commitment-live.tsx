@@ -2,10 +2,9 @@ import { StyleSheet, View } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { TellFriendCard } from './tell-friend-card';
-
 import type { CommitmentDraft } from '@/components/commitment/draft';
 import { LockedIn } from '@/components/commitment/locked-in';
+import { TellFriendCard } from '@/components/commitment/tell-friend-card';
 import { openShare, type ShareTarget } from '@/components/share/open-share';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -49,7 +48,9 @@ export function FirstCommitmentLive({
           note="the hard part was deciding. that’s done."
           onShare={() => openShare(target, 'onboarding', 'stake')}
           onDone={onDone}>
-          {draft.stakeKind === 'friend' ? <TellFriendCard draft={draft} /> : null}
+          {draft.stakeKind === 'friend' ? (
+            <TellFriendCard draft={draft} source="onboarding" />
+          ) : null}
         </LockedIn>
       </Animated.View>
     </View>

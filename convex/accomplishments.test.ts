@@ -282,3 +282,31 @@ describe('going again', () => {
     });
   });
 });
+
+describe('the developer previews', () => {
+  test('open by id but never pop up on a later launch, even if left without Done', async () => {
+    vi.stubEnv('ANTE_DEV_OVERRIDES', '1');
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+
+    const keptId = await alice.as.mutation(api.accomplishments.devPreview, { subject: 'habit' });
+    const lossId = await alice.as.mutation(api.stakes.devLose, {
+      kind: 'lockout',
+      subject: 'habit',
+    });
+    const graceId = await alice.as.mutation(api.graces.devGrace, {
+      kind: 'lockout',
+      subject: 'habit',
+    });
+
+    expect(
+      await alice.as.query(api.accomplishments.get, { accomplishmentId: keptId }),
+    ).not.toBeNull();
+    expect(await alice.as.query(api.stakes.loss, { stakeId: lossId })).not.toBeNull();
+    expect(await alice.as.query(api.graces.get, { graceId })).not.toBeNull();
+
+    expect(await alice.as.query(api.accomplishments.unseen, {})).toBeNull();
+    expect(await alice.as.query(api.stakes.unseenLoss, {})).toBeNull();
+    expect(await alice.as.query(api.graces.unseen, {})).toBeNull();
+  });
+});

@@ -20,11 +20,11 @@ import {
   Spacing,
 } from '@/constants/theme';
 import { DAILY, frequencyLabel } from '@/convex/lib/frequency';
-import { lockedInCallOff } from '@/data/call-off';
+import { draftHeadsUpAt, headsUpWhen, lockedInCallOff } from '@/data/call-off';
 import { formatLastDay } from '@/data/ending';
 import { useNow } from '@/hooks/use-now';
 import { useTheme } from '@/hooks/use-theme';
-import { describeClock, describeWeekSpan, formatDueAt, todayKey } from '@/lib/dates';
+import { describeWeekSpan, formatDueAt, todayKey } from '@/lib/dates';
 import { formatCents } from '@/lib/money';
 
 export type LockedInProps = {
@@ -67,7 +67,11 @@ export function LockedIn({
   const now = useNow();
   // Their word alone can go any time, so there's nothing to call off.
   const callOff = draft.stakeKind === 'none' || callOffUntil === undefined ? null : callOffUntil;
-  const stakes = stakesLine(draft, daily, callOff === null ? null : describeClock(callOff, now));
+  const stakes = stakesLine(
+    draft,
+    daily,
+    callOff === null ? null : headsUpWhen(draftHeadsUpAt(draft, callOff, now), now),
+  );
 
   return (
     <StepLayout
@@ -142,7 +146,7 @@ export function LockedIn({
 }
 
 /** The stakes row: what's on the line, in the words of the kind picked. */
-function stakesLine(draft: CommitmentDraft, daily: boolean, headsUpAt: string | null): string {
+function stakesLine(draft: CommitmentDraft, daily: boolean, headsUpWhen: string | null): string {
   const miss = draft.kind === 'goal' ? 'Miss it' : daily ? 'Miss a day' : 'End a week short';
   switch (draft.stakeKind) {
     case 'money':
@@ -150,9 +154,9 @@ function stakesLine(draft: CommitmentDraft, daily: boolean, headsUpAt: string | 
         ? `${formatCents(draft.amountCents)} on your card`
         : `${formatCents(draft.amountCents)} on your card, charged once if the streak breaks`;
     case 'friend':
-      return headsUpAt === null
+      return headsUpWhen === null
         ? `${miss} and ${friendName(draft)} hears about it. We just sent them a heads-up.`
-        : `${miss} and ${friendName(draft)} hears about it. We’ll send them a heads-up at ${headsUpAt}.`;
+        : `${miss} and ${friendName(draft)} hears about it. We’ll send them a heads-up ${headsUpWhen}.`;
     case 'lockout':
       return `${miss} and your habits freeze for ${lockoutLabel(draft.lockoutDays)}`;
     case 'none':
