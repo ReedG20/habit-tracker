@@ -281,7 +281,10 @@ function StruckAmount({
     fade.value = withDelay(BEAT.dim, withTiming(0.4, { duration: 900 }));
   }, [reduceMotion, strike, fade]);
 
-  const strikeStyle = useAnimatedStyle(() => ({ transform: [{ scaleX: strike.value }] }));
+  // The tilt rides in the animated transform: a static one would be replaced by it.
+  const strikeStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: '-7deg' }, { scaleX: strike.value }],
+  }));
   const amountStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
 
   return (
@@ -601,12 +604,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: -Spacing.two,
     right: -Spacing.two,
-    // Through the middle of the digits, which sit high in their tall line box.
-    top: '37%',
+    // Through the middle of the digits, which sit high in their tall line box;
+    // pivoting up from its left end, its middle rises to meet them.
+    top: '46%',
     height: 10,
     borderRadius: PillRadius,
     backgroundColor: INK.accent,
-    transform: [{ rotate: '-7deg' }],
     transformOrigin: 'left',
   },
   gone: {
