@@ -41,9 +41,11 @@ describe('snapEndDay', () => {
     expect(snapEndDay(daily, '2026-10-01')).toBe('2026-10-01');
   });
 
-  test('a weekly habit moves to the end of the week the day falls in', () => {
+  test('a weekly habit moves to the nearest end of one of its weeks', () => {
     expect(snapEndDay(weekly, '2026-10-01')).toBe('2026-10-04');
     expect(snapEndDay(weekly, '2026-10-04')).toBe('2026-10-04');
+    expect(snapEndDay(weekly, '2026-10-07')).toBe('2026-10-04');
+    expect(snapEndDay(weekly, '2026-10-08')).toBe('2026-10-11');
   });
 });
 

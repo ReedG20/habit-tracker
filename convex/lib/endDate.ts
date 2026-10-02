@@ -50,10 +50,11 @@ export function endDayAfterWeeks(habit: DatedHabit & { startDay: string }, weeks
 
 /**
  * `day` as an end date: a weekly habit is only judged in whole weeks, so its
- * end date moves to the end of the habit's week that `day` falls in.
+ * end date moves to the nearest end of one of the habit's weeks, at most
+ * three days either way. Switching a picked date to weekly keeps its length.
  */
 export function snapEndDay(habit: DatedHabit, day: string): string {
-  return targetPerWeek(habit) >= DAILY ? day : habitWeekEnd(habit, day);
+  return targetPerWeek(habit) >= DAILY ? day : habitWeekEnd(habit, daysBefore(day, 3));
 }
 
 /**
