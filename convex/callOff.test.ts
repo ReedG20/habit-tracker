@@ -40,7 +40,11 @@ async function moneyGoal(
   t: Harness,
   userId: Id<'users'>,
   amountCents: number,
-  { title = 'Ship', dueAt = NOW + 3 * DAY, replaces }: Partial<{
+  {
+    title = 'Ship',
+    dueAt = NOW + 3 * DAY,
+    replaces,
+  }: Partial<{
     title: string;
     dueAt: number;
     replaces: Id<'goals'>;
@@ -208,7 +212,9 @@ describe('changing the terms', () => {
       dueAt: NOW + 3 * HOUR,
       replaces: later,
     });
-    expect((await goalOf(t, sooner))?.callOffUntil).toBe(goalCallOffUntil(NOW + HOUR, NOW + 3 * HOUR));
+    expect((await goalOf(t, sooner))?.callOffUntil).toBe(
+      goalCallOffUntil(NOW + HOUR, NOW + 3 * HOUR),
+    );
     expect(await stakesByTitle(t)).toEqual([
       ['Ship', 'released'],
       ['Ship', 'released'],

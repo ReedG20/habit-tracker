@@ -23,7 +23,15 @@ export function useCallOff() {
   const removeHabit = useMutation(api.habits.remove);
 
   return useCallback(
-    ({ target, stake, until }: { target: CallOffTarget; stake: StakeView | null; until: number }) => {
+    ({
+      target,
+      stake,
+      until,
+    }: {
+      target: CallOffTarget;
+      stake: StakeView | null;
+      until: number;
+    }) => {
       const { title, message } = callOffConfirm(stake);
       confirmDestructive({
         title,

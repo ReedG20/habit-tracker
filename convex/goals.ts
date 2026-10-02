@@ -195,7 +195,11 @@ async function takeOverGoal(
   const goal = await ctx.db.get('goals', goalId);
   if (goal === null || goal.userId !== userId) throw new Error('Goal not found');
   if (goal.completedAt !== undefined) throw new ConvexError('The goal is already done');
-  const callOffUntil = requireCallOffOpen(goal, Date.now(), 'It’s past the time to change this one');
+  const callOffUntil = requireCallOffOpen(
+    goal,
+    Date.now(),
+    'It’s past the time to change this one',
+  );
   await voidDeal(ctx, { goal });
   await deleteGoal(ctx, goal, await materializeGoalStake(ctx, goal));
   return callOffUntil;

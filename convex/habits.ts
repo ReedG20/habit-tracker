@@ -466,12 +466,7 @@ export const create = authedMutation({
       replaces === undefined ? undefined : await takeOverHabit(ctx, ctx.user, replaces);
     const fields = await requireNewHabit(ctx, ctx.user, habitArgs);
     const habit = await insertHabit(ctx, ctx.user, fields, carried);
-    await armPlain(
-      ctx,
-      ctx.user,
-      habit,
-      stake ?? { kind: 'lockout', days: DEFAULT_LOCKOUT_DAYS },
-    );
+    await armPlain(ctx, ctx.user, habit, stake ?? { kind: 'lockout', days: DEFAULT_LOCKOUT_DAYS });
     await touchReminders(ctx, ctx.user._id);
 
     return habit._id;

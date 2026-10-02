@@ -73,7 +73,10 @@ export function callOffConfirm(stake: StakeView | null): { title: string; messag
     case 'money':
       return { title: 'Call it off?', message: `Nothing is charged, and ${gone}.` };
     case 'friend':
-      return { title: 'Call it off?', message: `${stake.friendName} never hears about it, and ${gone}.` };
+      return {
+        title: 'Call it off?',
+        message: `${stake.friendName} never hears about it, and ${gone}.`,
+      };
     case 'lockout':
       return { title: 'Call it off?', message: `No lockout, and ${gone}.` };
     default:
