@@ -1,16 +1,22 @@
 import { v, type Infer } from 'convex/values';
 
+import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
-import { query, type MutationCtx, type QueryCtx } from './_generated/server';
+import { internalMutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
+import { revisableStake, revisableStakeValidator } from './callOff';
 import { finishedStreak } from './habitStreaks';
 import { getCurrentUserOrNull } from './lib/auth';
-import { keptRunValidator } from './lib/accomplishmentSchema';
-import { authedMutation } from './lib/customFunctions';
-import { daysBefore } from './lib/days';
+import { keptRunValidator, type keptTermsValidator } from './lib/accomplishmentSchema';
+import { authedMutation, authedQuery } from './lib/customFunctions';
+import { daysBefore, daysBetween } from './lib/days';
 import { DAILY, targetPerWeek } from './lib/frequency';
 import { lastCountedDay } from './lib/endDate';
 import { localDay, requireDevOverrides } from './lib/lockout';
+import { deliver, eventPush } from './lib/notify';
+import { proofMethodValidator } from './lib/proofMethods';
+import { eventCopy } from './lib/reminderCopy';
 import { stakeView, stakeViewValidator } from './lib/stakeRules';
+import { zonedDay, zonedInstant } from './lib/zonedTime';
 
 /**
  * Commitments seen through, and the Kept screen that marks each one: the
@@ -22,6 +28,24 @@ import { stakeView, stakeViewValidator } from './lib/stakeRules';
 const MAX_RUN_DAYS = 2000;
 
 type KeptRun = Infer<typeof keptRunValidator>;
+type KeptTerms = Infer<typeof keptTermsValidator>;
+
+/** How the habit was set up, for "Go again" once it's gone. */
+function termsOf(habit: Doc<'habits'>): KeptTerms {
+  const lengthDays =
+    habit.endsOn === undefined || habit.startDay === undefined
+      ? undefined
+      : daysBetween(habit.startDay, habit.endsOn).length;
+  return {
+    description: habit.description,
+    timesPerWeek: targetPerWeek(habit),
+    proofMethod: habit.proofMethod,
+    timerMinutes: habit.timerMinutes,
+    lengthDays: lengthDays === 0 ? undefined : lengthDays,
+    icon: habit.icon,
+    iconChosen: habit.iconChosen,
+  };
+}
 
 /**
  * Records a staked habit that just finished clean: its notice, or its end date. Call it before
@@ -59,16 +83,70 @@ export async function recordKeptHabit(
     timesPerWeek: target,
   };
 
-  return await ctx.db.insert('accomplishments', {
+  const accomplishmentId = await ctx.db.insert('accomplishments', {
     userId: habit.userId,
     kind: 'habit',
     title: habit.title,
     stakeId: stake?._id,
     habitId: habit._id,
     run,
+    terms: termsOf(habit),
     achievedAt: now,
   });
+  await scheduleKeptNotice(ctx, accomplishmentId, timeZone, now);
+  return accomplishmentId;
 }
+
+/** Mornings only: a habit finishes in the nightly check, hours before anyone is up. */
+const KEPT_NOTICE_TIME = { hour: 9, minute: 0 };
+const HOUR_MS = 60 * 60 * 1000;
+
+async function scheduleKeptNotice(
+  ctx: MutationCtx,
+  accomplishmentId: Id<'accomplishments'>,
+  timeZone: string,
+  now: number,
+): Promise<void> {
+  const morning = zonedInstant(
+    zonedDay(now, timeZone),
+    KEPT_NOTICE_TIME.hour,
+    KEPT_NOTICE_TIME.minute,
+    timeZone,
+  );
+  await ctx.scheduler.runAt(Math.max(now, morning), internal.accomplishments.keptNotice, {
+    accomplishmentId,
+  });
+}
+
+/**
+ * Tells them a habit finished clean, the morning after: otherwise they'd only
+ * find out the next time they happened to open the app. Skipped once the Kept
+ * screen has already been seen.
+ */
+export const keptNotice = internalMutation({
+  args: { accomplishmentId: v.id('accomplishments') },
+  returns: v.null(),
+  handler: async (ctx, args): Promise<null> => {
+    const row = await ctx.db.get('accomplishments', args.accomplishmentId);
+    if (row === null || row.seenAt !== undefined || row.kind !== 'habit') return null;
+    const message = {
+      kind: 'kept',
+      title: row.title,
+      streak: row.run?.streak,
+      unit: row.run?.unit,
+    } as const;
+    await deliver(ctx, row.userId, [
+      eventPush(eventCopy(message), {
+        data: { kind: 'moment', url: `/kept/${row._id}` },
+        collapseId: `kept:${row._id}`,
+        threadId: 'moment',
+        quiet: false,
+        expiresAt: Date.now() + 24 * HOUR_MS,
+      }),
+    ]);
+    return null;
+  },
+});
 
 /** Records a goal whose proof was just approved (`goals.completeGoal`). */
 export async function recordKeptGoal(
@@ -76,8 +154,8 @@ export async function recordKeptGoal(
   goal: Doc<'goals'>,
   stakeId: Id<'stakes'> | undefined,
   now: number,
-): Promise<void> {
-  await ctx.db.insert('accomplishments', {
+): Promise<Id<'accomplishments'>> {
+  return await ctx.db.insert('accomplishments', {
     userId: goal.userId,
     kind: 'goal',
     title: goal.title,
@@ -167,6 +245,77 @@ export const markSeen = authedMutation({
   },
 });
 
+const goAgainValidator = v.object({
+  kind: v.union(v.literal('habit'), v.literal('goal')),
+  title: v.string(),
+  description: v.optional(v.string()),
+  /** Habits only, and only on ones kept since "Go again". */
+  timesPerWeek: v.optional(v.number()),
+  proofMethod: v.optional(proofMethodValidator),
+  timerMinutes: v.optional(v.number()),
+  /** Habits: days from the first through the end date, when it had one. */
+  lengthDays: v.optional(v.number()),
+  /** Goals: how long it had, from signing to its deadline as signed. */
+  lengthMs: v.optional(v.number()),
+  icon: v.optional(v.string()),
+  iconChosen: v.optional(v.boolean()),
+  /** What it ran on, to run on again; `null` for just their word, or a friend who opted out. */
+  stake: v.union(revisableStakeValidator, v.null()),
+  /**
+   * Whether every term came back, so it can go straight to signing. Older
+   * habits kept before terms were saved only bring back their name.
+   */
+  complete: v.boolean(),
+});
+
+export type GoAgain = Infer<typeof goAgainValidator>;
+
+/**
+ * The terms an accomplishment was kept on, for the New flow's "Go again": the
+ * same words, the same stake on the same card, and a fresh deadline of the
+ * same length. Nothing is created here; it's signed again like any other.
+ */
+export const again = authedQuery({
+  args: { accomplishmentId: v.id('accomplishments') },
+  returns: v.union(goAgainValidator, v.null()),
+  handler: async (ctx, args): Promise<GoAgain | null> => {
+    const row = await ctx.db.get('accomplishments', args.accomplishmentId);
+    if (row === null || row.userId !== ctx.user._id) return null;
+
+    const stakeRow = row.stakeId === undefined ? null : await ctx.db.get('stakes', row.stakeId);
+    const stake =
+      stakeRow === null || (stakeRow.kind === 'friend' && stakeRow.status === 'void')
+        ? null
+        : revisableStake(stakeRow);
+    const common = { kind: row.kind, title: row.title, stake, complete: false };
+
+    if (row.kind === 'goal') {
+      const goal = row.goalId === undefined ? null : await ctx.db.get('goals', row.goalId);
+      if (goal === null) return common;
+      return {
+        ...common,
+        complete: hasWords(goal.description),
+        description: goal.description,
+        lengthMs: Math.round((goal.originalDueAt ?? goal.dueAt) - goal._creationTime),
+        icon: goal.icon,
+        iconChosen: goal.iconChosen,
+      };
+    }
+
+    const { terms } = row;
+    if (terms === undefined) {
+      return { ...common, timesPerWeek: row.run?.timesPerWeek };
+    }
+    // A timer's description is optional; every other way of proving needs one.
+    const complete = terms.proofMethod === 'timer' || hasWords(terms.description);
+    return { ...common, ...terms, complete };
+  },
+});
+
+function hasWords(text: string | undefined): boolean {
+  return text !== undefined && text.trim().length > 0;
+}
+
 /**
  * A made-up accomplishment for the dev "Preview kept" row: nothing real
  * changes. Uses the user's first staked habit's stake or goal for the stakes line.
@@ -213,6 +362,14 @@ export const devPreview = authedMutation({
         sinceDay: daysBefore(today, weekly ? 42 : 34),
         lastDay: daysBefore(today, 1),
         timesPerWeek: weekly ? 3 : DAILY,
+      },
+      terms: {
+        description: weekly
+          ? 'In the gym, a machine or the weights in view'
+          : 'Sit still with my phone face down',
+        timesPerWeek: weekly ? 3 : DAILY,
+        proofMethod: weekly ? 'photo' : 'timer',
+        timerMinutes: weekly ? undefined : 10,
       },
       achievedAt: now,
       seenAt: now,

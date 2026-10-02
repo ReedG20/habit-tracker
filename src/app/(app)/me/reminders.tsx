@@ -19,6 +19,7 @@ import {
   CheckmarkCircle02Icon,
   Moon02Icon,
   Notification01Icon,
+  RepeatIcon,
   Sun03Icon,
 } from '@/constants/icons';
 import { CardRadius, ScreenHeadingTypography, Spacing } from '@/constants/theme';
@@ -42,7 +43,7 @@ const presetOptions = REMINDER_PRESETS.map((preset) => ({
 }));
 
 type Toggle = {
-  key: 'morningLineup' | 'breakThroughFocus' | 'approvals';
+  key: 'morningLineup' | 'breakThroughFocus' | 'approvals' | 'comebacks';
   label: string;
   detail: string;
   icon: IconSvgElement;
@@ -66,6 +67,12 @@ const toggles: Toggle[] = [
     label: 'Approval notes',
     detail: 'When a photo or check-in passes.',
     icon: CheckmarkCircle02Icon,
+  },
+  {
+    key: 'comebacks',
+    label: 'When nothing’s running',
+    detail: 'A few nudges after your last one ends.',
+    icon: RepeatIcon,
   },
 ];
 

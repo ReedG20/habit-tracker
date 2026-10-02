@@ -11,6 +11,7 @@ import {
   stakeView,
   type StakeView,
 } from './stakeRules';
+import { armComeback } from './comebacks';
 import type { runValidator } from './stakeSchema';
 
 /**
@@ -195,6 +196,7 @@ export async function loseStake(
 ): Promise<boolean> {
   if (stake.status !== 'armed') return false;
   const due = { lostAt: now, run, resolveJobId: undefined };
+  await armComeback(ctx, stake.userId, { endedAt: now, outcome: 'missed', title: stake.title });
 
   switch (stake.kind) {
     case 'money':

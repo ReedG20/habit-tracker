@@ -58,7 +58,7 @@ export async function voidDeal(
   }
 }
 
-const revisableStakeValidator = v.union(
+export const revisableStakeValidator = v.union(
   v.object({
     kind: v.literal('money'),
     stakeId: v.id('stakes'),
@@ -141,7 +141,7 @@ export const revisable = authedQuery({
   },
 });
 
-function revisableStake(stake: Doc<'stakes'>): Revisable['stake'] {
+export function revisableStake(stake: Doc<'stakes'>): Revisable['stake'] {
   switch (stake.kind) {
     case 'money':
       return {

@@ -19,7 +19,11 @@ import {
   reuseForStake,
   type CommitmentDraft,
 } from '@/components/commitment/draft';
-import { draftFromRevisable } from '@/components/commitment/draft-from-commitment';
+import {
+  draftFromKept,
+  draftFromRevisable,
+  higherStakePatch,
+} from '@/components/commitment/draft-from-commitment';
 import { LockedIn } from '@/components/commitment/locked-in';
 import { TellFriendCard } from '@/components/commitment/tell-friend-card';
 import { SignStep } from '@/components/commitment/sign-step';
@@ -81,9 +85,19 @@ function stepTitle(step: Step, whatPhase: WhatPhase, draft: CommitmentDraft): st
  * `?revise=<goalId|habitId>` (with `kind`) changes the terms of one still in
  * its first moments (`convex/lib/callOff.ts`): everything starts as signed,
  * and locking in swaps the old one out, keeping the time it had left.
+ *
+ * `?from=<accomplishmentId>` goes again after one that was kept: the same
+ * terms, straight to signing. With `&higher=1` it opens on the stakes instead,
+ * a rung up the ladder.
  */
 export default function NewCommitmentScreen() {
-  const params = useLocalSearchParams<{ kind?: string; again?: string; revise?: string }>();
+  const params = useLocalSearchParams<{
+    kind?: string;
+    again?: string;
+    revise?: string;
+    from?: string;
+    higher?: string;
+  }>();
   const createHabit = useMutation(api.habits.create);
   const createHabitStaked = useAction(api.habits.createStaked);
   const createGoal = useMutation(api.goals.create);
@@ -92,6 +106,10 @@ export default function NewCommitmentScreen() {
   const again = useQuery(
     api.stakes.loss,
     params.again === undefined ? 'skip' : { stakeId: params.again as Id<'stakes'> },
+  );
+  const kept = useQuery(
+    api.accomplishments.again,
+    params.from === undefined ? 'skip' : { accomplishmentId: params.from as Id<'accomplishments'> },
   );
   const revising = params.revise !== undefined;
   const revisable = useQuery(
@@ -160,6 +178,17 @@ export default function NewCommitmentScreen() {
     });
   }, [again, update]);
 
+  // Going again after one that was kept: its terms carry over, once, as soon
+  // as they load, straight to signing (or to the stakes, a rung higher).
+  const [keptPrefilled, setKeptPrefilled] = useState(false);
+  if (kept != null && !keptPrefilled) {
+    setKeptPrefilled(true);
+    const higher = params.higher === '1' ? higherStakePatch(kept.stake, kept.kind) : null;
+    setDraft((current) => ({ ...current, ...draftFromKept(kept), ...higher }));
+    if (higher !== null) setStep('stakes');
+    else if (kept.complete) setStep('sign');
+  }
+
   // Changing the terms: everything starts as it was signed, once, as soon as it loads.
   const [revisePrefilled, setRevisePrefilled] = useState(false);
   if (revising && !revisePrefilled && revisable != null && revisable.callOffUntil > now) {
@@ -226,8 +255,8 @@ export default function NewCommitmentScreen() {
     }
 
     const createdProperties = commitmentCreatedProperties(draft, {
-      source: 'new',
-      isRedo: params.again !== undefined,
+      source: params.from === undefined ? 'new' : 'go_again',
+      isRedo: params.again !== undefined || params.from !== undefined,
     });
     const replaces = revising ? params.revise : undefined;
     const goalReplaces = replaces === undefined ? {} : { replaces: replaces as Id<'goals'> };

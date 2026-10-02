@@ -33,6 +33,7 @@ export async function reminderSettings(
     morningLineup: row.morningLineup,
     breakThroughFocus: row.breakThroughFocus,
     approvals: row.approvals,
+    comebacks: row.comebacks ?? DEFAULT_REMINDER_SETTINGS.comebacks,
   };
 }
 
@@ -175,9 +176,14 @@ export async function notifyGoalVerdict(
   goal: Doc<'goals'>,
   status: 'approved' | 'rejected' | 'failed',
   reason: string,
+  keptId?: Id<'accomplishments'>,
 ): Promise<void> {
   const now = Date.now();
-  const data = { kind: 'proof', url: `/goals/${goal._id}` };
+  // An approval opens the Kept screen it earned; the rest open the goal.
+  const data =
+    keptId === undefined
+      ? { kind: 'proof', url: `/goals/${goal._id}` }
+      : { kind: 'moment', url: `/kept/${keptId}` };
   const collapseId = `goals:${goal.dueAt}`;
 
   if (status === 'approved') {

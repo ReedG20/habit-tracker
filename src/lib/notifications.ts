@@ -14,8 +14,21 @@ export type PushPermission = 'granted' | 'provisional' | 'denied' | 'undetermine
 
 /** What a push carries in `data`, as set by `convex/reminders.ts` and `convex/lib/notify.ts`. */
 export type PushData = {
-  /** `timer` is the app's own local notification when a timer is cut short (`use-proof-timer.ts`). */
-  kind?: 'reminder' | 'lineup' | 'proof' | 'receipt' | 'account' | 'test' | 'timer';
+  /**
+   * `timer` is the app's own local notification when a timer is cut short
+   * (`use-proof-timer.ts`). `moment` opens a Kept screen; `comeback` is a
+   * nudge once nothing is running (`convex/comebacks.ts`).
+   */
+  kind?:
+    | 'reminder'
+    | 'lineup'
+    | 'proof'
+    | 'receipt'
+    | 'account'
+    | 'test'
+    | 'timer'
+    | 'moment'
+    | 'comeback';
   /** The habit a `timer` notification is about. */
   habitId?: string;
   url?: string;
@@ -178,6 +191,12 @@ export function lossOfPush(data: PushData): string | null {
   return typeof data.lossStakeId === 'string' && /^[a-z0-9]+$/.test(data.lossStakeId)
     ? data.lossStakeId
     : null;
+}
+
+/** The accomplishment a push opens the Kept screen for, if it does. */
+export function keptOfPush(data: PushData): string | null {
+  const match = typeof data.url === 'string' ? /^\/kept\/([a-z0-9]+)$/.exec(data.url) : null;
+  return match?.[1] ?? null;
 }
 
 /** Where a tapped push goes, when it isn't about a loss. */

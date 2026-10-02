@@ -254,10 +254,8 @@ export const resolve = internalMutation({
 
     const goal = await ctx.db.get('goals', submission.goalId);
     if (goal !== null) {
-      if (args.status === 'approved') {
-        await completeGoal(ctx, goal);
-      }
-      await notifyGoalVerdict(ctx, goal, args.status, args.reason);
+      const keptId = args.status === 'approved' ? await completeGoal(ctx, goal) : undefined;
+      await notifyGoalVerdict(ctx, goal, args.status, args.reason, keptId);
     }
 
     return null;

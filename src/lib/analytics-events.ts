@@ -51,7 +51,8 @@ export type AnalyticsEvents = {
     lockout_days: number | null;
     reused_card: boolean;
     is_redo: boolean;
-    source: 'new' | 'onboarding';
+    /** `go_again` is the Kept screen's "Go again", or a comeback push that opened it. */
+    source: 'new' | 'onboarding' | 'go_again';
   };
   'card saved': { amount_cents: number };
   /** One of the name check's proof ideas put in the proof field. */
@@ -86,7 +87,9 @@ export type AnalyticsEvents = {
   'habit ending cancelled': { days_left: number };
   /** The Kept screen for a commitment seen through, and how it was left. */
   'kept viewed': { kind: CommitmentKind; stake_kind: StakeKind; has_contract: boolean };
-  'kept action': { action: 'done' | 'start_another' | 'share' };
+  'kept action': {
+    action: 'done' | 'start_another' | 'share' | 'go_again' | 'go_again_higher';
+  };
   /**
    * The share sheet, and what came of it. `activity` is the iOS activity the
    * user picked (`com.burbn.instagram.shareextension`), or `dismissed`.
@@ -135,6 +138,7 @@ export type AnalyticsEvents = {
       | 'text_friend'
       | 'not_now'
       | 'done'
+      | 'start_another'
       | 'contest';
   };
   /** The one-time reprieve on a first miss (`convex/lib/grace.ts`), and what came of it. */
@@ -169,7 +173,11 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** `commitment created` properties for a draft about to be saved; `stakeKind` if the save changed it. */
 export function commitmentCreatedProperties(
   draft: CommitmentDraft,
-  context: { source: 'new' | 'onboarding'; isRedo: boolean; stakeKind?: StakeKind },
+  context: {
+    source: AnalyticsEvents['commitment created']['source'];
+    isRedo: boolean;
+    stakeKind?: StakeKind;
+  },
 ): AnalyticsEvents['commitment created'] {
   const stakeKind = context.stakeKind ?? draft.stakeKind;
   const endDay = draftEndDay(draft);

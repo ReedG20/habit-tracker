@@ -9,6 +9,7 @@ import { newIconFields, repickIconOnRename, requireNewIcon } from './commitmentI
 import { holdEvidence } from './evidence';
 import { friendInputValidator, resolveFriend } from './friends';
 import { getCurrentUserOrNull } from './lib/auth';
+import { armComeback } from './lib/comebacks';
 import { goalCallOffUntil, isCallOffOpen } from './lib/callOff';
 import { requireCommitmentIcon } from './lib/commitmentIcons';
 import { requireCommitmentText } from './lib/commitmentText';
@@ -155,15 +156,40 @@ function legacyStake(stake: Doc<'stakes'>): LegacyStake | undefined {
  * in the same transaction as the verdict, so an approval can never be charged.
  * A stake that already came due is left alone: the charge is already in flight.
  */
-export async function completeGoal(ctx: MutationCtx, goal: Doc<'goals'>): Promise<void> {
-  if (goal.completedAt !== undefined) return;
+export async function completeGoal(
+  ctx: MutationCtx,
+  goal: Doc<'goals'>,
+): Promise<Id<'accomplishments'> | undefined> {
+  if (goal.completedAt !== undefined) return undefined;
 
   const stake = await materializeGoalStake(ctx, goal);
   if (stake !== null) await releaseStake(ctx, stake);
 
   const now = Date.now();
   await ctx.db.patch('goals', goal._id, { completedAt: now });
-  await recordKeptGoal(ctx, goal, stake?._id, now);
+  const accomplishmentId = await recordKeptGoal(ctx, goal, stake?._id, now);
+  await armComeback(ctx, goal.userId, {
+    endedAt: now,
+    outcome: 'kept',
+    title: goal.title,
+    accomplishmentId,
+  });
+  return accomplishmentId;
+}
+
+/**
+ * A goal can lapse on just their word with nothing to notice it, so the
+ * comeback nudges are armed for its deadline from the start; proving it,
+ * losing it or deleting it re-arms them with how it really ended.
+ */
+async function armForDeadline(ctx: MutationCtx, goalId: Id<'goals'>): Promise<void> {
+  const goal = await ctx.db.get('goals', goalId);
+  if (goal === null) return;
+  await armComeback(ctx, goal.userId, {
+    endedAt: goal.dueAt,
+    outcome: 'missed',
+    title: goal.title,
+  });
 }
 
 function requireLead(dueAt: number): void {
@@ -303,6 +329,7 @@ export const create = authedMutation({
       const goal = await ctx.db.get('goals', goalId);
       if (goal !== null) await armStake(ctx, { goal }, { kind: 'friend', friend });
     }
+    await armForDeadline(ctx, goalId);
     await touchReminders(ctx, ctx.user._id);
 
     return goalId;
@@ -402,6 +429,7 @@ export const insertStaked = internalMutation({
     if (goal === null) throw new Error('Goal not found');
     // Checks the cap and replays; throwing here rolls the goal back with it.
     await armStake(ctx, { goal }, { kind: 'money', ...card });
+    await armForDeadline(ctx, goalId);
     await touchReminders(ctx, userId);
 
     return goalId;
@@ -522,4 +550,5 @@ async function deleteGoal(
   }
 
   await ctx.db.delete('goals', goal._id);
+  await armComeback(ctx, goal.userId, { endedAt: Date.now(), outcome: 'ended', title: goal.title });
 }
