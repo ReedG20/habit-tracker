@@ -14,7 +14,8 @@ import { useTheme } from '@/hooks/use-theme';
 
 const KICKER = 'Nothing on the line yet';
 const HEADLINE = 'Put something on it.';
-const SENTENCE = 'Back a habit or goal with money, a friend, or your word. Whatever’s riding on today shows up here.';
+const SENTENCE =
+  'Back a habit or goal with money, a friend, or your word. Whatever’s riding on today shows up here.';
 const EMPHASIS = ['money, a friend, or your word'];
 const NOTE = 'no stakes, no point.';
 
