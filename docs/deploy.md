@@ -135,6 +135,19 @@ they would have sent and never buzz a real phone.
 shared dev deployment only, which preview builds also use. **Never set it on
 production.**
 
+**Stakes cutover.** Per-habit stakes (money, friend, lockout freeze, or none)
+and the free lockout freeze run only where `STAKES_V2=on`; without it the
+backend still runs the old re-entry fee lockout. Before releasing, on the
+shared dev deployment first and then production (`convex/migrations.ts`):
+
+```bash
+bunx convex run --prod migrations:goalStakesToTable     # any time after deploy
+bunx convex env set --prod STAKES_V2 on
+bunx convex run --prod migrations:habitsToLockoutStakes
+bunx convex run --prod migrations:feeLockoutsToFreezes
+bunx convex run --prod migrations:status                # until nothing is left
+```
+
 Then in the Convex dashboard → production deployment → Settings → **Deploy
 keys**, generate a key with only `deployment:deploy` for step 6.
 
@@ -212,10 +225,12 @@ _downgrade_ (deferred to the end of the paid month) and annual → monthly an
 _upgrade_ (immediate, prorated) — backwards. Same level makes either switch a
 crossgrade that takes effect at the next renewal.
 
-**App Store Connect** → the app → In-App Purchases → **Consumable**
-`ante_reentry` at **$9.99**: the re-entry fee that lifts a lockout
-(`convex/lockouts.ts`). It needs a localization and a review screenshot like
-the subscriptions. The price lives only here, so changing it is not a code change.
+**Re-entry fee (`ante_reentry`, $9.99 consumable): being retired.** Before
+the stakes cutover (below), a missed habit locks the app until this fee is
+paid (`convex/lockouts.ts`). After it, a lockout is a free 1, 3 or 7 day
+freeze and nothing sells `ante_reentry`. The site's Terms already describe
+the cutover state, so don't attach `ante_reentry` to an App Store version,
+and finish the cutover before release.
 
 Under Users and Access → Integrations, create an **In-App Purchase** key and
 note the app-specific shared secret for RevenueCat. Create a Sandbox tester
@@ -232,11 +247,9 @@ note the app-specific shared secret for RevenueCat. Create a Sandbox tester
   `offering.monthly` / `offering.annual`. Attach the **App Store** product to
   each package, not only the Test Store one: EAS builds ignore the test key, so
   a package with only a Test Store product is empty there and the paywall shows
-  "Plans aren't available" even though the re-entry fee (bought by product ID,
-  no offering) still loads.
-- Products: also import `ante_reentry`, attached to **no** entitlement and in
-  no offering; the locked screen buys it by product ID. Add it to the Test
-  Store too, for the simulator.
+  "Plans aren't available".
+- `ante_reentry` (pre-cutover builds only) is attached to **no** entitlement
+  and in no offering; the old locked screen buys it by product ID.
 - Project settings → API keys → a **secret** key (`sk_...`) in
   `REVENUECAT_SECRET_API_KEY` on each Convex deployment. With it,
   `lockouts.confirmReentry` unlocks the moment the purchase completes; without
