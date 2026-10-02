@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Share, StyleSheet, View } from 'react-native';
 
 import { ActionButton } from '@/components/action-button';
-import type { CommitmentDraft } from '@/components/commitment/draft';
+import type { CommitmentDraft } from './draft';
 import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
 import { Message01Icon, Tick02Icon } from '@/constants/icons';
@@ -15,11 +15,18 @@ import { captureError, track } from '@/lib/analytics';
 import { successHaptic } from '@/lib/haptics';
 
 /**
- * On the first commitment's "It's on.", when a friend is on the hook: a nudge
- * to text them first. Ante's heads-up email lands better when they're
- * expecting it, and a text from a friend is the one invite people open.
+ * On "It's on.", when a friend is on the hook: a nudge to text them first.
+ * Ante's heads-up email lands better when they're expecting it, and a text
+ * from a friend is the one invite people open.
  */
-export function TellFriendCard({ draft }: { draft: CommitmentDraft }) {
+export function TellFriendCard({
+  draft,
+  source,
+}: {
+  draft: CommitmentDraft;
+  /** Where "It's on." was reached: the first commitment, or one made in the app. */
+  source: 'onboarding' | 'new';
+}) {
   const theme = useTheme();
   const userId = useSessionUserId();
   const [sent, setSent] = useState(false);
@@ -41,7 +48,7 @@ export function TellFriendCard({ draft }: { draft: CommitmentDraft }) {
       const result = await Share.share({ message });
       const activity =
         result.action === Share.sharedAction ? (result.activityType ?? 'shared') : 'dismissed';
-      track('friend texted', { source: 'onboarding', activity });
+      track('friend texted', { source, activity });
       if (activity !== 'dismissed') {
         successHaptic();
         setSent(true);
