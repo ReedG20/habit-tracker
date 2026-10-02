@@ -534,7 +534,7 @@ closed. So the app sends people to us first:
 - [x] `radar.early_fraud_warning.created` added to the live endpoint
       (2026-10-01). Dev uses `stripe listen` (see step 3), so there's no
       test-mode endpoint to update.
-- [ ] Stripe → Settings → Business details: describe Ante accurately, e.g.
+- [x] Stripe → Settings → Business details: describe Ante accurately, e.g.
       "Habit app where users pre-authorize a penalty charge, set by them, if
       they miss a commitment they made." A surprise review is how accounts get
       frozen.
