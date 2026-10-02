@@ -9,6 +9,7 @@ import { useGoalSubmissionToasts } from '@/hooks/use-goal-submission-toasts';
 import { useGracePresenter } from '@/hooks/use-grace-presenter';
 import { useKeptPresenter } from '@/hooks/use-kept-presenter';
 import { useLossPresenter } from '@/hooks/use-loss-presenter';
+import { useMilestonePresenter } from '@/hooks/use-milestone-presenter';
 import { useVerificationToasts } from '@/hooks/use-verification-toasts';
 import { todayKey } from '@/lib/dates';
 
@@ -28,6 +29,8 @@ export default function AppLayout() {
   useGracePresenter();
   // So does a commitment seen through, once any loss has been answered.
   useKeptPresenter();
+  // And a streak milestone, last of all.
+  useMilestonePresenter();
   // Without Pro, the paywall once a day; after either of those, never on top of them.
   useDailyPaywall();
 

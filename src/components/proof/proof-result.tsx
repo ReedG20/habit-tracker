@@ -1,4 +1,5 @@
 import type { IconSvgElement } from '@hugeicons/react-native';
+import { useQuery } from 'convex/react';
 import { useEffect, useEffectEvent } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
@@ -25,6 +26,11 @@ import {
 } from '@/constants/icons';
 import type { ProofMethod } from '@/constants/proof-methods';
 import { CardRadius, Fonts, Spacing } from '@/constants/theme';
+import { api } from '@/convex/_generated/api';
+import type { Id } from '@/convex/_generated/dataModel';
+import { DAILY, targetPerWeek } from '@/convex/lib/frequency';
+import { streakLine } from '@/data/streak-line';
+import { todayKey } from '@/lib/dates';
 import { successHaptic, warningHaptic } from '@/lib/haptics';
 
 export type ProofVerdict = {
@@ -74,7 +80,20 @@ export type ProofResultProps = {
   retryLabel?: string;
   /** Small print under the reason (Google's attribution for a check-in). */
   footnote?: string;
+  /** The habit proved, so an approval can say how long the run is now. */
+  habitId?: Id<'habits'>;
 };
+
+/**
+ * The habit's streak as it stands, from the list the app already watches
+ * (`(app)/_layout.tsx`): it moves in the same transaction as the log.
+ */
+function useStreakLine(habitId: Id<'habits'> | undefined): string | null {
+  const habits = useQuery(api.habits.list, habitId === undefined ? 'skip' : { today: todayKey() });
+  const habit = habits?.find((candidate) => candidate._id === habitId);
+  if (habit === undefined) return null;
+  return streakLine(habit.streak, targetPerWeek(habit) >= DAILY ? 'day' : 'week');
+}
 
 /**
  * The verdict, the same for every method: a panel that rises over the stage.
@@ -88,8 +107,10 @@ export function ProofResult({
   onRetry,
   retryLabel = 'Try again',
   footnote,
+  habitId,
 }: ProofResultProps) {
   const approved = verdict.status === 'approved';
+  const streak = useStreakLine(approved ? habitId : undefined);
   const badgeIcon = verdict.status === 'failed' ? Alert02Icon : REJECTED_ICONS[method];
   // Once per verdict, though the stage hands over a fresh `onDone` each render.
   const close = useEffectEvent(onDone);
@@ -120,6 +141,7 @@ export function ProofResult({
         <Text style={styles.title}>{TITLES[verdict.status][method]}</Text>
       </View>
       <Text style={styles.reason}>{verdict.reason ?? FALLBACK_REASONS[verdict.status]}</Text>
+      {streak !== null ? <Text style={styles.streak}>{streak}</Text> : null}
       {footnote !== undefined ? <Text style={styles.footnote}>{footnote}</Text> : null}
 
       <View style={styles.actions}>
@@ -224,6 +246,12 @@ const styles = StyleSheet.create({
     fontSize: 28,
     lineHeight: 38,
     color: PROOF_INK.text,
+  },
+  streak: {
+    color: PROOF_INK.text,
+    fontSize: 17,
+    lineHeight: 24,
+    fontWeight: '700',
   },
   reason: {
     color: PROOF_INK.soft,

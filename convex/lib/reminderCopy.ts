@@ -109,6 +109,8 @@ export type EventMessage =
    */
   | { kind: 'stillLocked'; renewsLabel: string; renewal: boolean }
   | { kind: 'trialEnding'; endsLabel: string }
+  /** A log that reached a streak milestone (`lib/milestones.ts`). */
+  | { kind: 'milestone'; title: string; count: number; unit: 'day' | 'week' }
   /** A habit finished clean, the morning after: the Kept screen is waiting. */
   | { kind: 'kept'; title: string; streak?: number; unit?: 'day' | 'week' }
   /**
@@ -484,6 +486,11 @@ export function eventCopy(message: EventMessage): PushCopy {
     }
     case 'comeback':
       return comebackCopy(message);
+    case 'milestone':
+      return {
+        title: `${message.count} ${message.unit}s in a row.`,
+        body: `${message.title}: a ${message.count}-${message.unit} streak. Worth showing off.`,
+      };
     case 'test':
       return {
         title: 'This is what a nudge looks like',
