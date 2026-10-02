@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   // spaces it from the subtitle; this tucks the subtitle up under it.
   title: {
     ...ScreenHeadingTypography,
-    marginBottom: -(Spacing.one + Spacing.half),
+    marginBottom: -Spacing.three,
   },
   sections: {
     gap: Spacing.four,
