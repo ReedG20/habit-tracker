@@ -37,7 +37,11 @@ export function DayField({ value, onChange, label, min, max }: DayFieldProps) {
         <TextInput
           style={[
             styles.input,
-            { backgroundColor: theme.backgroundElement, borderColor: theme.border, color: theme.text },
+            {
+              backgroundColor: theme.backgroundElement,
+              borderColor: theme.border,
+              color: theme.text,
+            },
           ]}
           value={draft}
           onChangeText={(text) => {

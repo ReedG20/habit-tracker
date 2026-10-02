@@ -74,10 +74,7 @@ export function validEndDay(habit: DatedHabit & { startDay: string }, day: strin
  * into, counting from `today` as its new start. Less than that and it's
  * left to finish; starting another is the way back.
  */
-export function restartableBefore(
-  habit: DatedHabit & { endsOn?: string },
-  today: string,
-): boolean {
+export function restartableBefore(habit: DatedHabit & { endsOn?: string }, today: string): boolean {
   if (habit.endsOn === undefined) return true;
   const restarted = { ...habit, startDay: today };
   return snapEndDay(restarted, habit.endsOn) >= endDayAfterWeeks(restarted, MIN_END_DATE_WEEKS);

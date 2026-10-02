@@ -389,7 +389,8 @@ function requireEndDay(
   if (endsOn === undefined) return undefined;
   const startDay = localDay(Date.now(), user.timeZone ?? 'UTC');
   const day = validEndDay({ timesPerWeek, startDay }, endsOn);
-  if (day === null) throw new ConvexError('Pick an end date at least a week and at most a year out');
+  if (day === null)
+    throw new ConvexError('Pick an end date at least a week and at most a year out');
   return day;
 }
 

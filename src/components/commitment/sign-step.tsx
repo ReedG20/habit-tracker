@@ -75,8 +75,7 @@ export function SignStep({ draft, busy, onConfirm }: SignStepProps) {
           {draft.kind === 'habit' && draftEndDay(draft) === undefined
             ? 'Standing agreement'
             : 'Agreement'}{' '}
-          ·{' '}
-          {signedDate.format(new Date())}
+          · {signedDate.format(new Date())}
         </ThemedText>
 
         <ThemedText style={styles.body} themeColor="text">
