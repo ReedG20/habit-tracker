@@ -2,6 +2,7 @@ import { useRef, type MutableRefObject } from 'react';
 
 import { TextField, type TextFieldHandle } from '@/components/text-field';
 import { PROOF_METHODS, type ProofMethod } from '@/constants/proof-methods';
+import { MAX_PROOF_LENGTH, MAX_TITLE_LENGTH } from '@/convex/lib/commitmentText';
 
 export type HabitDraft = {
   title: string;
@@ -32,6 +33,7 @@ export function HabitSheetFields({
           draftRef.current.title = text;
         }}
         placeholder="Go to the gym"
+        maxLength={MAX_TITLE_LENGTH}
         autoCapitalize="sentences"
         returnKeyType="next"
         onSubmit={() => proofRef.current?.focus()}
@@ -44,6 +46,7 @@ export function HabitSheetFields({
           draftRef.current.description = text;
         }}
         placeholder={method.proofPlaceholder}
+        maxLength={MAX_PROOF_LENGTH}
         multiline
       />
     </>
