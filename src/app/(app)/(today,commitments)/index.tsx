@@ -1,6 +1,7 @@
 import { useQuery } from 'convex/react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { AnteWordmark } from '@/components/brand/ante-wordmark';
 import { GoalCard } from '@/components/goal-card';
 import { HabitCard } from '@/components/habit-card';
 import { ProLockCard } from '@/components/pro-lock-card';
@@ -62,6 +63,7 @@ export default function TodayScreen() {
   return (
     <ScreenScrollView>
       <View style={styles.header}>
+        <AnteWordmark accessibilityRole="header" style={styles.masthead} />
         {moment === undefined ? (
           // Holds the hero's height while loading so the list doesn't jump.
           <View style={styles.hero} />
@@ -160,6 +162,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.one,
     gap: Spacing.four,
     alignItems: 'center',
+  },
+  // At the very top, as on Commitments, so switching tabs leaves it where it
+  // was. The room under it is for the hero's note, which hangs about 40pt
+  // above the hero.
+  masthead: {
+    alignSelf: 'flex-start',
+    marginTop: -Spacing.four,
+    marginBottom: Spacing.three,
   },
   sections: {
     gap: Spacing.four,

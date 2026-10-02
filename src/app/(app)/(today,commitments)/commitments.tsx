@@ -2,6 +2,7 @@ import { useQuery } from 'convex/react';
 import { router } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 
+import { AnteWordmark } from '@/components/brand/ante-wordmark';
 import { EmptyState } from '@/components/empty-state';
 import { GoalDetailCard } from '@/components/goal-detail-card';
 import { HabitDetailCard } from '@/components/habit-detail-card';
@@ -56,6 +57,7 @@ export default function CommitmentsScreen() {
   return (
     <ScreenScrollView>
       <View style={styles.header}>
+        <AnteWordmark accessibilityRole="header" style={styles.masthead} />
         <ThemedText style={styles.title} themeColor="text">
           Commitments
         </ThemedText>
@@ -129,7 +131,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.one,
     gap: Spacing.two,
   },
-  title: ScreenHeadingTypography,
+  // At the very top, as on Today, so switching tabs leaves it where it was.
+  masthead: {
+    marginTop: -Spacing.four,
+    marginBottom: Spacing.four + Spacing.two,
+  },
+  // Comico sits high in its line box, so the line's empty bottom already
+  // spaces it from the subtitle; this tucks the subtitle up under it.
+  title: {
+    ...ScreenHeadingTypography,
+    marginBottom: -(Spacing.two + Spacing.one),
+  },
   sections: {
     gap: Spacing.four,
   },

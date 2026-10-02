@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { describeSubscription } from './subscription';
+import { describeSubscription, proOfferCopy } from './subscription';
 
 const NOW = Date.UTC(2026, 8, 21, 12);
 const LATER = Date.UTC(2026, 9, 21, 12);
@@ -36,5 +36,18 @@ describe('describeSubscription', () => {
       describeSubscription({ status: 'cancelled', expiresAt: NOW - 1, willRenew: false }, NOW),
     ).toBe('Resubscribe');
     expect(describeSubscription({ status: 'expired', willRenew: false }, NOW)).toBe('Resubscribe');
+  });
+});
+
+describe('proOfferCopy', () => {
+  test('someone who never subscribed gets the pitch', () => {
+    expect(proOfferCopy(null)).toEqual({
+      line: 'Real stakes, proven check-ins, nothing held back.',
+      action: 'Upgrade',
+    });
+  });
+
+  test('a lapsed subscriber is asked back', () => {
+    expect(proOfferCopy({ status: 'expired', willRenew: false }).action).toBe('Resubscribe');
   });
 });

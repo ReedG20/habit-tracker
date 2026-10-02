@@ -12,7 +12,9 @@ export default function AppTabs() {
       backgroundColor={colors.background}
       indicatorColor={colors.backgroundElement}
       labelStyle={{ selected: { color: colors.text } }}>
-      <NativeTabs.Trigger name="(today)">
+      {/* Each tab would otherwise inset its first scroll view for the status
+          bar, on top of the safe-area padding `ScreenScrollView` already adds. */}
+      <NativeTabs.Trigger name="(today)" disableAutomaticContentInsets>
         <NativeTabs.Trigger.Label>Today</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           src={require('@/assets/images/tabIcons/habits.png')}
@@ -20,7 +22,7 @@ export default function AppTabs() {
         />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="(commitments)">
+      <NativeTabs.Trigger name="(commitments)" disableAutomaticContentInsets>
         <NativeTabs.Trigger.Label>Commitments</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
           src={require('@/assets/images/tabIcons/goals.png')}
@@ -28,8 +30,6 @@ export default function AppTabs() {
         />
       </NativeTabs.Trigger>
 
-      {/* The tab would otherwise inset its first scroll view for the status
-          bar, on top of the safe-area padding `ScreenScrollView` already adds. */}
       <NativeTabs.Trigger name="me" disableAutomaticContentInsets>
         <NativeTabs.Trigger.Label>Me</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon
