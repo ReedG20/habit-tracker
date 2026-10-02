@@ -5,6 +5,7 @@ import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { newIconFields, repickIconOnRename, requireNewIcon } from './commitmentIcons';
+import { recordEndedHabit } from './endedHabits';
 import { holdEvidence } from './evidence';
 import { frozenDaysBetween } from './freezes';
 import { friendInputValidator, resolveFriend } from './friends';
@@ -749,9 +750,15 @@ export const keepGoing = authedMutation({
 /**
  * The habit and everything logged against it, photos included. Its stake is
  * let go (the habit ended before it came due) and kept as a record. Proof
- * behind money that came due is held a while longer (`evidence.ts`).
+ * behind money that came due is held a while longer (`evidence.ts`). A short
+ * summary stays behind for the Past list (`endedHabits.ts`); pass the Kept
+ * screen's row when it finished clean.
  */
-export async function deleteHabit(ctx: MutationCtx, habitId: Id<'habits'>): Promise<void> {
+export async function deleteHabit(
+  ctx: MutationCtx,
+  habitId: Id<'habits'>,
+  accomplishmentId?: Id<'accomplishments'>,
+): Promise<void> {
   const habit = await ctx.db.get('habits', habitId);
   if (habit?.stakeId !== undefined) {
     const stake = await ctx.db.get('stakes', habit.stakeId);
@@ -764,6 +771,7 @@ export async function deleteHabit(ctx: MutationCtx, habitId: Id<'habits'>): Prom
     .withIndex('by_habit_and_day', (q) => q.eq('habitId', habitId))
     .collect();
 
+  if (habit !== null) await recordEndedHabit(ctx, habit, completions.length, accomplishmentId);
   for (const completion of completions) {
     await ctx.db.delete('habitCompletions', completion._id);
   }

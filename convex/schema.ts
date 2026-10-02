@@ -4,6 +4,7 @@ import { v } from 'convex/values';
 import { accomplishmentValidator } from './lib/accomplishmentSchema';
 import { chargeReviewValidator, moneyBlockValidator } from './lib/chargeReviewSchema';
 import { contractValidator } from './lib/contractSchema';
+import { endedHabitValidator } from './lib/endedHabitSchema';
 import { graceMarkValidator, graceValidator } from './lib/graceSchema';
 import { proofMethodValidator } from './lib/proofMethods';
 import { lockoutDaysValidator, moneyStatusValidator, stakeDocValidator } from './lib/stakeSchema';
@@ -471,6 +472,9 @@ export default defineSchema({
     'seenAt',
     'achievedAt',
   ]),
+
+  /** Deleted habits (`lib/endedHabitSchema.ts`), for the Past list on Commitments. */
+  endedHabits: defineTable(endedHabitValidator).index('by_user', ['userId']),
 
   /** Signed contracts (`lib/contractSchema.ts`), held back up on the Kept and loss screens. */
   contracts: defineTable(contractValidator)

@@ -6,14 +6,16 @@ import { EmptyState } from '@/components/empty-state';
 import { GoalDetailCard } from '@/components/goal-detail-card';
 import { HabitDetailCard } from '@/components/habit-detail-card';
 import { HeaderAddButton } from '@/components/header-add-button';
+import { PastCommitmentsList } from '@/components/past-commitments-list';
 import { ProLockCard } from '@/components/pro-lock-card';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { GoalListIcon } from '@/constants/icons';
 import { Fonts, ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
-import { groupGoals, type GoalWithStatus } from '@/data/goals';
+import { isGoalOver, type GoalWithStatus } from '@/data/goals';
 import type { HabitWithProgress } from '@/data/habits';
+import { pastCommitments } from '@/data/past-commitments';
 import { liveGoalCount } from '@/data/pro-lock';
 import { useNow } from '@/hooks/use-now';
 import { useSubscription } from '@/hooks/use-subscription';
@@ -32,21 +34,24 @@ export default function CommitmentsScreen() {
   // The cards fill in their history once it arrives.
   const history = useQuery(api.habitHistory.recent, { today });
   const historyByHabit = new Map(history?.map((entry) => [entry.habitId, entry]));
+  const endedHabits = useQuery(api.endedHabits.list);
   const subscription = useSubscription();
   const paused = !subscription.isPro && !subscription.isLoading;
 
-  // Goals first, in their active, missed, done order; then every habit.
+  // Goals still running first, soonest due on top; then every habit.
   const sections: Section[] | undefined =
     goals && habits
       ? [
           {
             id: 'goals' as const,
             title: 'goals',
-            items: groupGoals(goals, now).flatMap((section) => section.items),
+            items: goals.filter((goal) => !isGoalOver(goal, now)),
           },
           { id: 'habits' as const, title: paused ? 'habits · paused' : 'habits', items: habits },
         ].filter((section) => section.items.length > 0)
       : undefined;
+  // Whatever is over, done or missed or deleted, sinks to Past at the bottom.
+  const past = goals && endedHabits ? pastCommitments(goals, endedHabits, now) : [];
 
   return (
     <ScreenScrollView>
@@ -73,7 +78,11 @@ export default function CommitmentsScreen() {
         {sections?.length === 0 && !paused ? (
           <EmptyState
             icon={GoalListIcon}
-            message="Nothing yet. Tap New to add a habit or a goal."
+            message={
+              past.length > 0
+                ? 'Nothing running. Tap New to add a habit or a goal.'
+                : 'Nothing yet. Tap New to add a habit or a goal.'
+            }
           />
         ) : null}
 
@@ -99,6 +108,15 @@ export default function CommitmentsScreen() {
             </View>
           </View>
         ))}
+
+        {past.length > 0 ? (
+          <View style={styles.section}>
+            <ThemedText style={styles.sectionTitle} themeColor="text">
+              past
+            </ThemedText>
+            <PastCommitmentsList items={past} />
+          </View>
+        ) : null}
       </View>
     </ScreenScrollView>
   );

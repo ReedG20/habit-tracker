@@ -173,10 +173,10 @@ export async function checkUser(ctx: MutationCtx, user: Doc<'users'>, now: numbe
       await deleteHabit(ctx, habit._id);
     } else if (habit.endsAfter <= yesterday) {
       // One whose miss was let go didn't make it clean: it ends without the Kept screen.
-      if (!(await wasWaived(ctx, habit))) {
-        await recordKeptHabit(ctx, habit, timeZone, now);
-      }
-      await deleteHabit(ctx, habit._id);
+      const kept = (await wasWaived(ctx, habit))
+        ? undefined
+        : await recordKeptHabit(ctx, habit, timeZone, now);
+      await deleteHabit(ctx, habit._id, kept);
     }
   }
 }

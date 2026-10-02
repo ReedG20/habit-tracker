@@ -24,17 +24,17 @@ type KeptRun = Infer<typeof keptRunValidator>;
 
 /**
  * Records a staked habit that just finished its notice clean. Call it before
- * `deleteHabit`, which takes the logs this reads. The run counts from when its
- * stake was armed, the way the loss screen's does.
+ * `deleteHabit`, which takes the logs this reads, and hand that the row. The
+ * run counts from when its stake was armed, the way the loss screen's does.
  */
 export async function recordKeptHabit(
   ctx: MutationCtx,
   habit: Doc<'habits'>,
   timeZone: string,
   now: number,
-): Promise<void> {
+): Promise<Id<'accomplishments'> | undefined> {
   const lastDay = habit.endsAfter;
-  if (lastDay === undefined || habit.brokenAt !== undefined) return;
+  if (lastDay === undefined || habit.brokenAt !== undefined) return undefined;
 
   const stake = habit.stakeId === undefined ? null : await ctx.db.get('stakes', habit.stakeId);
   const sinceDay =
@@ -58,7 +58,7 @@ export async function recordKeptHabit(
     timesPerWeek: target,
   };
 
-  await ctx.db.insert('accomplishments', {
+  return await ctx.db.insert('accomplishments', {
     userId: habit.userId,
     kind: 'habit',
     title: habit.title,
