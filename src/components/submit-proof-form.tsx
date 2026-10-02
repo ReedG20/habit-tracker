@@ -29,11 +29,18 @@ import type { Id } from '@/convex/_generated/dataModel';
 import type { GoalWithStatus } from '@/data/goals';
 import { useTheme } from '@/hooks/use-theme';
 import { captureError, track } from '@/lib/analytics';
+import {
+  CAMERA_ORIGIN,
+  isFreshForGoal,
+  originFromExif,
+  type PhotoOrigin,
+} from '@/lib/photo-origin';
 import { userErrorMessage } from '@/lib/user-errors';
 
 type PickedPhoto = {
   uri: string;
   mimeType: string;
+  origin: PhotoOrigin;
 };
 
 /** Mirrors `MAX_SUBMISSION_PHOTOS` on the server. */
@@ -42,14 +49,15 @@ const MAX_PHOTOS = 6;
 const COLUMNS = 3;
 const GRID_GAP = Spacing.two;
 
-/** The simulator has no camera. Unlike habits, the library is always a legitimate source here. */
+/** The simulator has no camera, so it goes straight to the library. */
 const CAN_TAKE_PHOTO = Device.isDevice;
 
 const PICKER_OPTIONS: ImagePicker.ImagePickerOptions = {
   mediaTypes: ['images'],
   // Enough detail for a plausibility check, small enough to upload quickly.
   quality: 0.5,
-  exif: false,
+  // Library picks are judged by when and on what they were taken.
+  exif: true,
 };
 
 export type SubmitProofFormProps = {
@@ -93,7 +101,7 @@ export function SubmitProofForm({ goal, onSubmitted, onBack }: SubmitProofFormPr
       return;
     }
 
-    acceptResult(await ImagePicker.launchCameraAsync(PICKER_OPTIONS));
+    acceptResult(await ImagePicker.launchCameraAsync(PICKER_OPTIONS), 'camera');
   };
 
   const pickFromLibrary = async () => {
@@ -110,6 +118,7 @@ export function SubmitProofForm({ goal, onSubmitted, onBack }: SubmitProofFormPr
         preferredAssetRepresentationMode:
           ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
       }),
+      'library',
     );
   };
 
@@ -137,17 +146,33 @@ export function SubmitProofForm({ goal, onSubmitted, onBack }: SubmitProofFormPr
     }
   };
 
-  const acceptResult = (result: ImagePicker.ImagePickerResult) => {
+  /**
+   * Library photos taken before the goal was made can't prove it, so they are
+   * left out here rather than refused by the server after uploading.
+   */
+  const acceptResult = (result: ImagePicker.ImagePickerResult, source: PhotoOrigin['source']) => {
     if (result.canceled) return;
 
-    setPhotos((current) => [
-      ...current,
+    const picked = result.assets.map((asset) => ({
+      uri: asset.uri,
       // Camera output is JPEG and HEIC library picks are transcoded to JPEG,
       // so the fallback is right whenever the picker leaves the type out.
-      ...result.assets
-        .slice(0, MAX_PHOTOS - current.length)
-        .map((asset) => ({ uri: asset.uri, mimeType: asset.mimeType ?? 'image/jpeg' })),
-    ]);
+      mimeType: asset.mimeType ?? 'image/jpeg',
+      origin: source === 'camera' ? CAMERA_ORIGIN : originFromExif(asset.exif),
+    }));
+    const fresh = picked.filter((photo) => isFreshForGoal(photo.origin, goal._creationTime));
+
+    const left = picked.length - fresh.length;
+    if (left > 0) {
+      Alert.alert(
+        left === 1
+          ? 'That photo is from before this goal'
+          : `${left} photos are from before this goal`,
+        `Proof has to be taken after you made the goal, so ${left === 1 ? 'it was' : 'they were'} left out.`,
+      );
+    }
+
+    setPhotos((current) => [...current, ...fresh.slice(0, MAX_PHOTOS - current.length)]);
   };
 
   const upload = async (photo: PickedPhoto): Promise<Id<'_storage'>> => {
@@ -187,9 +212,17 @@ export function SubmitProofForm({ goal, onSubmitted, onBack }: SubmitProofFormPr
       await create({
         goalId: goal._id,
         photoIds,
+        photoOrigins: photos.map((photo) => photo.origin),
         text: note.length > 0 ? note : undefined,
       });
-      track('goal proof submitted', { photo_count: photoIds.length, has_note: note.length > 0 });
+      track('goal proof submitted', {
+        photo_count: photoIds.length,
+        has_note: note.length > 0,
+        library_count: photos.filter((photo) => photo.origin.source === 'library').length,
+        no_metadata_count: photos.filter(
+          (photo) => photo.origin.source === 'library' && photo.origin.takenAt === undefined,
+        ).length,
+      });
       onSubmitted();
     } catch (error: unknown) {
       console.error('Failed to submit the proof', error);

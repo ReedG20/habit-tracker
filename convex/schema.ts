@@ -6,6 +6,7 @@ import { chargeReviewValidator, moneyBlockValidator } from './lib/chargeReviewSc
 import { contractValidator } from './lib/contractSchema';
 import { endedHabitValidator } from './lib/endedHabitSchema';
 import { graceMarkValidator, graceValidator } from './lib/graceSchema';
+import { photoOriginValidator } from './lib/photoOrigin';
 import { proofMethodValidator } from './lib/proofMethods';
 import { lockoutDaysValidator, moneyStatusValidator, stakeDocValidator } from './lib/stakeSchema';
 
@@ -182,6 +183,8 @@ export default defineSchema({
     method: v.optional(proofMethodValidator),
     /** Photo proof only. */
     photoId: v.optional(v.id('_storage')),
+    /** Photo proof only: in-app camera or library, as the app reported it. */
+    photoOrigin: v.optional(photoOriginValidator),
     /** Location proof only: where the phone said it was. */
     coords: v.optional(
       v.object({ latitude: v.number(), longitude: v.number(), accuracy: v.number() }),
@@ -260,6 +263,8 @@ export default defineSchema({
     userId: v.id('users'),
     goalId: v.id('goals'),
     photoIds: v.array(v.id('_storage')),
+    /** Where each photo came from, in `photoIds` order; absent from older builds. */
+    photoOrigins: v.optional(v.array(photoOriginValidator)),
     text: v.optional(v.string()),
     status: submissionStatusValidator,
     reason: v.optional(v.string()),
