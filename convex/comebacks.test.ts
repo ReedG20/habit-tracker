@@ -128,7 +128,10 @@ describe('comeback nudges', () => {
 
     await runUntil(t, '2026-09-26T10:01:00Z');
     expect(comebacks()).toMatchObject([
-      { title: 'Go again?', body: 'Ship the app got away. One miss isn’t the story. Set it again?' },
+      {
+        title: 'Go again?',
+        body: 'Ship the app got away. One miss isn’t the story. Set it again?',
+      },
     ]);
   });
 

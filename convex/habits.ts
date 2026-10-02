@@ -901,11 +901,7 @@ export async function deleteHabit(
     await armComeback(ctx, habit.userId, {
       endedAt: Date.now(),
       outcome:
-        accomplishmentId !== undefined
-          ? 'kept'
-          : habit.brokenAt !== undefined
-            ? 'missed'
-            : 'ended',
+        accomplishmentId !== undefined ? 'kept' : habit.brokenAt !== undefined ? 'missed' : 'ended',
       title: habit.title,
       accomplishmentId,
     });
