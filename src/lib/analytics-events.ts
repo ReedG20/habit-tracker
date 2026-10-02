@@ -92,10 +92,15 @@ export type AnalyticsEvents = {
 
   /** Sent for review; the verdict comes later from the server. */
   'habit checked in':
-    | { method: 'photo'; photo_source: 'camera' | 'library' }
+    | { method: 'photo'; photo_source: 'camera' | 'library'; has_camera_metadata: boolean }
     | { method: 'location' }
     | { method: 'timer'; duration_minutes: number };
-  'goal proof submitted': { photo_count: number; has_note: boolean };
+  'goal proof submitted': {
+    photo_count: number;
+    has_note: boolean;
+    library_count: number;
+    no_metadata_count: number;
+  };
 
   'stake lost viewed': {
     kind: CommitmentKind;

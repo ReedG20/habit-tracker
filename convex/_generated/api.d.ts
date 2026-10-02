@@ -57,6 +57,7 @@ import type * as lib_habitWeek from "../lib/habitWeek.js";
 import type * as lib_lockout from "../lib/lockout.js";
 import type * as lib_notify from "../lib/notify.js";
 import type * as lib_openrouter from "../lib/openrouter.js";
+import type * as lib_photoOrigin from "../lib/photoOrigin.js";
 import type * as lib_places from "../lib/places.js";
 import type * as lib_proof from "../lib/proof.js";
 import type * as lib_proofMethods from "../lib/proofMethods.js";
@@ -145,6 +146,7 @@ declare const fullApi: ApiFromModules<{
   "lib/lockout": typeof lib_lockout;
   "lib/notify": typeof lib_notify;
   "lib/openrouter": typeof lib_openrouter;
+  "lib/photoOrigin": typeof lib_photoOrigin;
   "lib/places": typeof lib_places;
   "lib/proof": typeof lib_proof;
   "lib/proofMethods": typeof lib_proofMethods;
