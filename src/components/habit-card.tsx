@@ -5,12 +5,13 @@ import { Countdown } from './countdown';
 import { EndingKicker } from './ending-kicker';
 import { HabitActionButton } from './habit-action-button';
 import { Icon } from './icon';
+import { StakePill } from './stake-pill';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
 import { commitmentIcon } from '@/constants/commitment-icons';
 import { FlameIcon } from '@/constants/icons';
-import { ActionCardRadius, ControlHeight, PillRadius, Spacing } from '@/constants/theme';
+import { ActionCardRadius, ControlHeight, Spacing } from '@/constants/theme';
 import { targetPerWeek } from '@/convex/lib/frequency';
 import { endingStatus } from '@/data/ending';
 import { isDaily, isWeekDone, type HabitWithProgress } from '@/data/habits';
@@ -98,20 +99,7 @@ export function HabitCard({ habit, deadlineAt, paused = false, frozenUntil }: Ha
               </ThemedText>
             )}
             {/* The goal card's pill, so a stake reads the same on either card. */}
-            {chip === null ? null : (
-              <View
-                style={[
-                  styles.stakePill,
-                  { backgroundColor: paused ? theme.background : theme.accentElement },
-                ]}>
-                <ThemedText
-                  type="smallSemibold"
-                  themeColor={paused ? 'textSecondary' : 'accent'}
-                  accessibilityLabel={`On the line: ${chip}`}>
-                  {chip}
-                </ThemedText>
-              </View>
-            )}
+            {chip === null ? null : <StakePill text={chip} live={!paused} />}
             {friendGone ? (
               <ThemedText type="small" themeColor="accent">
                 Pick a new friend
@@ -172,11 +160,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: Spacing.two,
-  },
-  stakePill: {
-    paddingVertical: Spacing.half,
-    paddingHorizontal: Spacing.two,
-    borderRadius: PillRadius,
   },
   streak: {
     flexDirection: 'row',

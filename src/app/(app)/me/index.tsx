@@ -169,7 +169,10 @@ export default function MeScreen() {
           </View>
           <View style={styles.statRow}>
             <ThemedView type="backgroundElement" style={styles.statTile}>
-              <ThemedText style={styles.statValue} themeColor="text">
+              <ThemedText
+                style={styles.statValue}
+                // Money riding on something right now reads as live, as it does everywhere else.
+                themeColor={(stakeTotals?.onTheLineCents ?? 0) > 0 ? 'accent' : 'text'}>
                 {stakeTotals === undefined ? ' ' : formatCents(stakeTotals.onTheLineCents)}
               </ThemedText>
               <ThemedText type="small" themeColor="textSecondary">

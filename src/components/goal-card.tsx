@@ -4,11 +4,12 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Countdown } from './countdown';
 import { GoalActionButton } from './goal-action-button';
 import { Icon } from './icon';
+import { StakePill } from './stake-pill';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
 import { commitmentIcon } from '@/constants/commitment-icons';
-import { ActionCardRadius, ControlHeight, PillRadius, Spacing } from '@/constants/theme';
+import { ActionCardRadius, ControlHeight, Spacing } from '@/constants/theme';
 import { COUNTDOWN_WINDOW_MS, isMissed, type GoalWithStatus } from '@/data/goals';
 import { describeGoalStake } from '@/data/stakes';
 import { useTheme } from '@/hooks/use-theme';
@@ -64,19 +65,7 @@ export function GoalCard({ goal, now, detailHref, submitHref }: GoalCardProps) {
               style={styles.deadline}>
               {done ? 'Done' : describeDueAt(goal.dueAt, now)}
             </ThemedText>
-            {stake !== null ? (
-              <View
-                style={[
-                  styles.stakePill,
-                  {
-                    backgroundColor: armed ? theme.accentElement : theme.background,
-                  },
-                ]}>
-                <ThemedText type="smallSemibold" themeColor={armed ? 'accent' : 'textSecondary'}>
-                  {stake}
-                </ThemedText>
-              </View>
-            ) : null}
+            {stake !== null ? <StakePill text={stake} live={armed} /> : null}
           </View>
         </View>
       </Pressable>
@@ -122,11 +111,6 @@ const styles = StyleSheet.create({
   },
   deadline: {
     flexShrink: 1,
-  },
-  stakePill: {
-    paddingVertical: Spacing.half,
-    paddingHorizontal: Spacing.two,
-    borderRadius: PillRadius,
   },
   action: {
     alignSelf: 'flex-start',
