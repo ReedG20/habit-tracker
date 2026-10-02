@@ -3,6 +3,7 @@ import { v } from 'convex/values';
 
 import { accomplishmentValidator } from './lib/accomplishmentSchema';
 import { chargeReviewValidator, moneyBlockValidator } from './lib/chargeReviewSchema';
+import { comebackValidator } from './lib/comebackSchema';
 import { contractValidator } from './lib/contractSchema';
 import { endedHabitValidator } from './lib/endedHabitSchema';
 import { graceMarkValidator, graceValidator } from './lib/graceSchema';
@@ -441,6 +442,8 @@ export default defineSchema({
     morningLineup: v.boolean(),
     breakThroughFocus: v.boolean(),
     approvals: v.boolean(),
+    /** Nudges once nothing is running (`comebacks.ts`); absent means on. */
+    comebacks: v.optional(v.boolean()),
     updatedAt: v.number(),
   }).index('by_user', ['userId']),
 
@@ -509,4 +512,7 @@ export default defineSchema({
 
   /** Who already had theirs, by hash; outlives account deletion on purpose. */
   graceMarks: defineTable(graceMarkValidator).index('by_hash', ['hash']),
+
+  /** Nudges once nothing is running (`lib/comebackSchema.ts`). */
+  comebacks: defineTable(comebackValidator).index('by_user', ['userId']),
 });

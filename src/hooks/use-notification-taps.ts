@@ -2,8 +2,9 @@ import * as Notifications from 'expo-notifications';
 import { router, type Href } from 'expo-router';
 import { useEffect, useRef } from 'react';
 
+import { openKept } from '@/lib/kept-screen';
 import { openLoss } from '@/lib/loss-screen';
-import { lossOfPush, routeForPush, type PushData } from '@/lib/notifications';
+import { keptOfPush, lossOfPush, routeForPush, type PushData } from '@/lib/notifications';
 import { isProofOpen } from '@/lib/proof-watch';
 
 /**
@@ -24,10 +25,13 @@ export function useNotificationTaps({ ready }: { ready: boolean }) {
 
     const data = response.notification.request.content.data as PushData;
     const lossId = lossOfPush(data);
+    // Through `openKept`, so the presenter can't open the same page on top.
+    const keptId = keptOfPush(data);
     // A stopped timer's prove screen is usually still open, and says so itself.
     const alreadyThere =
       data.kind === 'timer' && data.habitId !== undefined && isProofOpen(data.habitId);
     if (lossId !== null) openLoss(lossId);
+    else if (keptId !== null) openKept(keptId);
     else if (!alreadyThere) router.push(routeForPush(data) as Href);
     void Notifications.clearLastNotificationResponseAsync().catch(() => {});
   }, [ready, response]);

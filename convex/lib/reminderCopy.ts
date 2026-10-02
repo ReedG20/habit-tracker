@@ -109,7 +109,24 @@ export type EventMessage =
    */
   | { kind: 'stillLocked'; renewsLabel: string; renewal: boolean }
   | { kind: 'trialEnding'; endsLabel: string }
+  /** A habit finished clean, the morning after: the Kept screen is waiting. */
+  | { kind: 'kept'; title: string; streak?: number; unit?: 'day' | 'week' }
+  /**
+   * Nothing running, `step` days after the last one ended (`comebacks.ts`).
+   * `outcome` is how that one ended, which sets the tone.
+   */
+  | {
+      kind: 'comeback';
+      step: ComebackStep;
+      outcome: ComebackOutcome;
+      lastTitle?: string;
+    }
   | { kind: 'test' };
+
+/** Days after the last commitment ended that a comeback nudge goes out. */
+export const COMEBACK_STEPS = [1, 3, 7] as const;
+export type ComebackStep = (typeof COMEBACK_STEPS)[number];
+export type ComebackOutcome = 'kept' | 'missed' | 'ended';
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
@@ -455,10 +472,69 @@ export function eventCopy(message: EventMessage): PushCopy {
         title: `Your free week ends ${message.endsLabel}`,
         body: 'Ante Pro renews then. If it’s not for you, cancel in Settings before it does.',
       };
+    case 'kept': {
+      const unit = message.unit === 'week' ? 'weeks' : 'days';
+      return {
+        title:
+          message.streak !== undefined && message.streak > 1
+            ? `${message.streak} ${unit} in a row. Kept.`
+            : `${message.title}: kept`,
+        body: `You saw ${message.title} through to the end. Go again?`,
+      };
+    }
+    case 'comeback':
+      return comebackCopy(message);
     case 'test':
       return {
         title: 'This is what a nudge looks like',
         body: 'Short. Only when something’s still open.',
       };
   }
+}
+
+/**
+ * The nudges once nothing is running. The first follows straight on from how
+ * the last one ended; a miss gets no edge, since they've already paid for it.
+ * Each later one is softer than the one before, and the third is the last.
+ */
+function comebackCopy(message: Extract<EventMessage, { kind: 'comeback' }>): PushCopy {
+  const last = message.lastTitle;
+  if (message.step === 1) {
+    switch (message.outcome) {
+      case 'kept':
+        return {
+          title: 'What’s next?',
+          body:
+            last === undefined
+              ? 'You kept your last one. Put the next one on the line while it’s easy.'
+              : `${last} is done. Put the next one on the line while it’s easy.`,
+        };
+      case 'missed':
+        return {
+          title: 'Go again?',
+          body:
+            last === undefined
+              ? 'One miss isn’t the story. Set it again, on terms you can keep.'
+              : `${last} got away. One miss isn’t the story. Set it again?`,
+        };
+      case 'ended':
+        return {
+          title: 'Nothing on the line',
+          body:
+            last === undefined
+              ? 'Nothing is running. What’s the next one?'
+              : `${last} is over. What’s the next one?`,
+        };
+    }
+  }
+  if (message.step === 3) {
+    return {
+      title: 'Nothing on the line',
+      body: 'Three days with nothing running. Pick one thing and put something on it.',
+    };
+  }
+  return {
+    title: 'Still in?',
+    body: 'One habit, one week. Small is fine. It just has to cost something.',
+  };
 }

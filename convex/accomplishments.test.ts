@@ -161,3 +161,124 @@ describe('a goal proven', () => {
     });
   });
 });
+
+describe('going again', () => {
+  test('a habit kept to its end date keeps its terms, and says so the next morning', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    await alice.as.mutation(api.push.register, {
+      token: 'ExponentPushToken[alice-phone]',
+      permission: 'granted',
+    });
+    vi.stubEnv('PUSH_DELIVERY', 'on');
+    const sent: { title: string; data: { url: string } }[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        if (url.endsWith('/push/send')) {
+          const batch = JSON.parse(String(init?.body)) as typeof sent;
+          sent.push(...batch);
+          const data = batch.map((_, index) => ({ status: 'ok', id: `ticket-${index}` }));
+          return new Response(JSON.stringify({ data }), { status: 200 });
+        }
+        return new Response(JSON.stringify({ data: {} }), { status: 200 });
+      }),
+    );
+
+    const habitId = await alice.as.mutation(api.habits.create, {
+      title: 'Run',
+      description: 'Running shoes on, outside',
+      endsOn: '2026-09-28',
+    });
+    await logDays(t, alice.userId, habitId, '2026-09-22', '2026-09-28');
+    await runCheck(t, '2026-09-29');
+
+    const kept = await alice.as.query(api.accomplishments.unseen, {});
+    expect(kept).toMatchObject({ kind: 'habit', title: 'Run', run: { streak: 7 } });
+    const again = await alice.as.query(api.accomplishments.again, {
+      accomplishmentId: kept!._id,
+    });
+    expect(again).toEqual({
+      kind: 'habit',
+      title: 'Run',
+      description: 'Running shoes on, outside',
+      timesPerWeek: 7,
+      proofMethod: 'photo',
+      lengthDays: 8,
+      stake: { kind: 'lockout', days: 3 },
+      complete: true,
+    });
+
+    // Found at 4 AM, told at 9.
+    vi.advanceTimersByTime(Date.parse('2026-09-29T08:59:00Z') - Date.now());
+    await t.finishInProgressScheduledFunctions();
+    expect(sent.filter((push) => push.data.url.startsWith('/kept/'))).toEqual([]);
+    vi.advanceTimersByTime(60 * 1000);
+    await t.finishInProgressScheduledFunctions();
+    vi.advanceTimersByTime(1);
+    await t.finishInProgressScheduledFunctions();
+    expect(sent.filter((push) => push.data.url === `/kept/${kept!._id}`)).toMatchObject([
+      { title: '7 days in a row. Kept.' },
+    ]);
+    vi.unstubAllGlobals();
+  });
+
+  test('a goal goes again with its words, stake and length', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    const goalId = await alice.as.mutation(api.goals.create, {
+      title: 'Ship the app',
+      description: 'A screenshot of it live in the App Store',
+      dueAt: at('2026-09-25').getTime(),
+      stake: { kind: 'friend', friend: { name: 'Sam', email: 'sam@example.com' } },
+    });
+    const submissionId = await t.run(async (ctx) => {
+      return await ctx.db.insert('goalSubmissions', {
+        userId: alice.userId,
+        goalId,
+        photoIds: [],
+        status: 'pending',
+        createdAt: Date.now(),
+      });
+    });
+    await t.mutation(internal.goalSubmissions.resolve, {
+      submissionId,
+      status: 'approved',
+      reason: 'Looks shipped',
+    });
+
+    const kept = await alice.as.query(api.accomplishments.unseen, {});
+    const again = await alice.as.query(api.accomplishments.again, {
+      accomplishmentId: kept!._id,
+    });
+    expect(again).toMatchObject({
+      kind: 'goal',
+      title: 'Ship the app',
+      description: 'A screenshot of it live in the App Store',
+      lengthMs: 4 * 24 * 60 * 60 * 1000,
+      stake: { kind: 'friend', name: 'Sam', email: 'sam@example.com' },
+      complete: true,
+    });
+  });
+
+  test('someone else’s terms stay hidden', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    const bob = await signIn(t, 'bob');
+    const id = await t.run(async (ctx) => {
+      return await ctx.db.insert('accomplishments', {
+        userId: alice.userId,
+        kind: 'goal',
+        title: 'Ship',
+        achievedAt: Date.now(),
+      });
+    });
+    expect(await bob.as.query(api.accomplishments.again, { accomplishmentId: id })).toBeNull();
+    expect(await alice.as.query(api.accomplishments.again, { accomplishmentId: id })).toEqual({
+      kind: 'goal',
+      title: 'Ship',
+      stake: null,
+      complete: false,
+    });
+  });
+});

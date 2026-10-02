@@ -1,5 +1,7 @@
 import { v } from 'convex/values';
 
+import { proofMethodValidator } from './proofMethods';
+
 /**
  * A commitment seen through: a goal proven, or a staked habit kept up right
  * to the end of its notice or its end date. The Kept screen opens once for each, the way the
@@ -22,6 +24,21 @@ export const keptRunValidator = v.object({
   timesPerWeek: v.number(),
 });
 
+/**
+ * How a finished habit was set up, so "Go again" can start a new one on the
+ * same terms: the habit row is deleted the night it finishes.
+ */
+export const keptTermsValidator = v.object({
+  description: v.optional(v.string()),
+  timesPerWeek: v.number(),
+  proofMethod: v.optional(proofMethodValidator),
+  timerMinutes: v.optional(v.number()),
+  /** Days from its first day through its end date; absent when it had none. */
+  lengthDays: v.optional(v.number()),
+  icon: v.optional(v.string()),
+  iconChosen: v.optional(v.boolean()),
+});
+
 export const accomplishmentValidator = v.object({
   userId: v.id('users'),
   kind: v.union(v.literal('habit'), v.literal('goal')),
@@ -37,6 +54,8 @@ export const accomplishmentValidator = v.object({
   habitId: v.optional(v.id('habits')),
   /** Habits only. */
   run: v.optional(keptRunValidator),
+  /** Habits only, and only on ones kept since "Go again". */
+  terms: v.optional(keptTermsValidator),
   /** Goals only: the deadline, to say how early it landed. */
   dueAt: v.optional(v.number()),
   achievedAt: v.number(),

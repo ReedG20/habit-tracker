@@ -33,13 +33,14 @@ import {
   signedAgo,
   useRevealContract,
 } from '@/components/signed-contract/signed-contract';
-import { Flag02Icon, Share03Icon, Tick02Icon } from '@/constants/icons';
+import { Flag02Icon, RepeatIcon, Share03Icon, Tick02Icon } from '@/constants/icons';
 import { RING_PATH } from '@/constants/ring-path';
 import { ControlHeight, Fonts, PillRadius, Spacing } from '@/constants/theme';
 import type { Kept } from '@/convex/accomplishments';
 import type { SignedContract } from '@/convex/contracts';
 import type { Id } from '@/convex/_generated/dataModel';
 import { api } from '@/convex/_generated/api';
+import { raiseOptions } from '@/convex/lib/stakeLadder';
 import { useFitsScreen } from '@/hooks/use-fits-screen';
 import { keptStory, type KeptStory } from '@/data/kept-story';
 import { track } from '@/lib/analytics';
@@ -88,7 +89,7 @@ export default function KeptScreen() {
   useEffect(() => watchKept(accomplishmentId), [accomplishmentId]);
 
   const seen = useRef(false);
-  const leave = (action: 'done' | 'start_another', next?: Href) => {
+  const leave = (action: LeaveAction, next?: Href) => {
     track('kept action', { action });
     if (!seen.current && kept != null) {
       seen.current = true;
@@ -142,6 +143,8 @@ export default function KeptScreen() {
   );
 }
 
+type LeaveAction = 'done' | 'start_another' | 'go_again' | 'go_again_higher';
+
 function KeptBody({
   kept,
   story,
@@ -154,9 +157,12 @@ function KeptBody({
   story: KeptStory;
   contract: SignedContract | null;
   bottomInset: number;
-  onLeave: (action: 'done' | 'start_another', next?: Href) => void;
+  onLeave: (action: LeaveAction, next?: Href) => void;
   onShare: () => void;
 }) {
+  const goAgain = `/new?from=${kept._id}`;
+  // Nowhere higher to go once it's already the most money a stake can be.
+  const canRaise = raiseOptions(kept.stake, kept.kind).canRaise;
   const reduceMotion = useReducedMotion();
   const delay = (ms: number) => (reduceMotion ? 0 : ms);
   const actionsAt = contract === null ? BEAT.actions : contractBeats(BEAT.contract, true).end;
@@ -229,18 +235,27 @@ function KeptBody({
             <LightButton label="Share" icon={Share03Icon} quiet onPress={onShare} />
           </View>
           <View style={styles.button}>
-            <LightButton label="Done" onPress={() => onLeave('done')} />
+            <LightButton
+              label="Go again"
+              icon={RepeatIcon}
+              onPress={() => onLeave('go_again', goAgain as Href)}
+            />
           </View>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => onLeave('start_another', `/new?kind=${kept.kind}` as Href)}
-          hitSlop={Spacing.two}
-          style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}>
-          <Text style={styles.secondaryText}>
-            {kept.kind === 'goal' ? 'Set another goal' : 'Start another habit'}
-          </Text>
-        </Pressable>
+        <View style={styles.links}>
+          <TextLink label="Done" onPress={() => onLeave('done')} />
+          {canRaise ? (
+            <TextLink
+              label="Go again, higher"
+              onPress={() => onLeave('go_again_higher', `${goAgain}&higher=1` as Href)}
+            />
+          ) : (
+            <TextLink
+              label={kept.kind === 'goal' ? 'Set another goal' : 'Start another habit'}
+              onPress={() => onLeave('start_another', `/new?kind=${kept.kind}` as Href)}
+            />
+          )}
+        </View>
         {/* The line over the contract says it now. */}
         {compact ? null : <Text style={styles.note}>{story.note}</Text>}
       </Animated.View>
@@ -389,6 +404,19 @@ function LightButton({
       ]}>
       {icon === undefined ? null : <Icon icon={icon} size={20} strokeWidth={2} color={color} />}
       <Text style={[styles.lightButtonText, { color }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** A quiet action under the buttons. */
+function TextLink({ label, onPress }: { label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={onPress}
+      hitSlop={Spacing.two}
+      style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}>
+      <Text style={styles.secondaryText}>{label}</Text>
     </Pressable>
   );
 }
@@ -591,8 +619,12 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
   },
+  links: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Spacing.five,
+  },
   secondary: {
-    alignSelf: 'center',
     paddingVertical: Spacing.one,
   },
   secondaryText: {

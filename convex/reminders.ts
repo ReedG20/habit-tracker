@@ -45,6 +45,7 @@ const settingsValidator = v.object({
   morningLineup: v.boolean(),
   breakThroughFocus: v.boolean(),
   approvals: v.boolean(),
+  comebacks: v.boolean(),
 });
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -70,6 +71,7 @@ export const updateSettings = authedMutation({
       morningLineup: args.morningLineup ?? current.morningLineup,
       breakThroughFocus: args.breakThroughFocus ?? current.breakThroughFocus,
       approvals: args.approvals ?? current.approvals,
+      comebacks: args.comebacks ?? current.comebacks,
     };
 
     const row = await ctx.db

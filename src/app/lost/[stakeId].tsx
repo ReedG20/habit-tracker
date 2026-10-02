@@ -428,7 +428,17 @@ function Actions({
   }
 
   if (!restartable) {
-    return <ActionButton label="Done" variant="primary" fill onPress={() => leave('done')} />;
+    return (
+      <>
+        <ActionButton
+          label="Start another habit"
+          variant="primary"
+          fill
+          onPress={() => leave('start_another', '/new?kind=habit' as Href)}
+        />
+        {secondary('Not now', () => leave('not_now'))}
+      </>
+    );
   }
 
   if (stake.kind === 'money') {

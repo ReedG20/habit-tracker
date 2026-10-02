@@ -60,6 +60,8 @@ export type ReminderSettings = {
   breakThroughFocus: boolean;
   /** A quiet note when a photo is approved. Rejections always come through. */
   approvals: boolean;
+  /** A few nudges once nothing is running (`convex/comebacks.ts`). */
+  comebacks: boolean;
 };
 
 export const DEFAULT_REMINDER_SETTINGS: ReminderSettings = {
@@ -67,6 +69,7 @@ export const DEFAULT_REMINDER_SETTINGS: ReminderSettings = {
   morningLineup: false,
   breakThroughFocus: true,
   approvals: true,
+  comebacks: true,
 };
 
 /** Local wall-clock time of the morning lineup. */

@@ -12,6 +12,7 @@ import { frozenDaysBetween } from './freezes';
 import { friendInputValidator, resolveFriend } from './friends';
 import { currentStreak } from './habitStreaks';
 import { getCurrentUserOrNull } from './lib/auth';
+import { armComeback } from './lib/comebacks';
 import { habitCallOffUntil, isCallOffOpen } from './lib/callOff';
 import { authedAction, authedMutation, authedQuery } from './lib/customFunctions';
 import { requireCommitmentIcon } from './lib/commitmentIcons';
@@ -894,6 +895,19 @@ export async function deleteHabit(
   }
 
   await ctx.db.delete('habits', habitId);
+  if (habit !== null) {
+    await armComeback(ctx, habit.userId, {
+      endedAt: Date.now(),
+      outcome:
+        accomplishmentId !== undefined
+          ? 'kept'
+          : habit.brokenAt !== undefined
+            ? 'missed'
+            : 'ended',
+      title: habit.title,
+      accomplishmentId,
+    });
+  }
 }
 
 /**
