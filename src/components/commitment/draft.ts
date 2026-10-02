@@ -1,11 +1,13 @@
 import { DEFAULT_TIMER_MINUTES, type ProofMethod } from '@/constants/proof-methods';
 import type { Id } from '@/convex/_generated/dataModel';
+import { snapEndDay } from '@/convex/lib/endDate';
 import {
   DEFAULT_LOCKOUT_DAYS,
   DEFAULT_STAKE_CENTS as DEFAULT_CENTS,
   type LockoutDays,
   type StakeKind,
 } from '@/convex/lib/stakeRules';
+import { todayKey } from '@/lib/dates';
 
 export type CommitmentKind = 'habit' | 'goal';
 
@@ -37,6 +39,17 @@ export type CommitmentDraft = {
   proofMethod: ProofMethod;
   /** Timer habits only, but kept while switching so it isn't lost. */
   timerMinutes: number;
+  /**
+   * Habits only: the end date as picked (`convex/lib/endDate.ts`). Absent, the
+   * default, runs until ended. Read it through `draftEndDay`, which snaps a
+   * weekly habit's to the end of one of its weeks.
+   */
+  endsOn?: string;
+  /**
+   * Raises only: the day the running habit's weeks are anchored on, which a
+   * raise keeps. New and restarted habits start today.
+   */
+  startDay?: string;
   /** `wordingSignature` of the last wording that passed the check, so it isn't re-asked. */
   checkedWording?: string;
   /**
@@ -84,6 +97,28 @@ export function iconInput(
 ): { icon: string; iconChosen?: true } | Record<string, never> {
   if (draft.icon === undefined) return {};
   return draft.iconChosen === true ? { icon: draft.icon, iconChosen: true } : { icon: draft.icon };
+}
+
+/**
+ * The last day a habit draft would count, as it will be signed and saved: a
+ * weekly habit's weeks start today, so its end date moves to the end of one.
+ * `undefined` for no end date, and for goals.
+ */
+export function draftEndDay(
+  draft: Pick<CommitmentDraft, 'kind' | 'endsOn' | 'timesPerWeek' | 'startDay'>,
+  today: string = todayKey(),
+): string | undefined {
+  if (draft.kind !== 'habit' || draft.endsOn === undefined) return undefined;
+  const startDay = draft.startDay ?? today;
+  return snapEndDay({ timesPerWeek: draft.timesPerWeek, startDay }, draft.endsOn);
+}
+
+/** The end date as `habits.create` takes it; nothing when it runs until ended. */
+export function endDateInput(
+  draft: Pick<CommitmentDraft, 'kind' | 'endsOn' | 'timesPerWeek' | 'startDay'>,
+): { endsOn: string } | Record<string, never> {
+  const endsOn = draftEndDay(draft);
+  return endsOn === undefined ? {} : { endsOn };
 }
 
 /** A goal is always proved with photos, whatever the habit side of the draft holds. */

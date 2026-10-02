@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   cardForStake,
   defaultDueAt,
+  endDateInput,
   freshStake,
   friendInput,
   MIN_LEAD_MS,
@@ -261,6 +262,7 @@ export default function NewCommitmentScreen() {
             description,
             timesPerWeek: draft.timesPerWeek,
             ...proofInput(draft),
+            ...endDateInput(draft),
             ...iconInput(draft),
             stake: plainStake(draft),
             ...habitReplaces,
@@ -300,6 +302,7 @@ export default function NewCommitmentScreen() {
           description,
           timesPerWeek: draft.timesPerWeek,
           ...proofInput(draft),
+          ...endDateInput(draft),
           ...iconInput(draft),
           amountCents: draft.amountCents,
           ...(card !== null

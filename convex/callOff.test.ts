@@ -301,4 +301,19 @@ describe('revisable', () => {
     });
     expect(await bob.as.query(api.callOff.revisable, { goalId })).toBeNull();
   });
+
+  test('a habit’s end date comes along, so it can be changed while it still can', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    const habitId = await alice.as.mutation(api.habits.create, {
+      title: 'Read',
+      stake: { kind: 'none' },
+      endsOn: '2026-11-01',
+    });
+
+    expect(await alice.as.query(api.callOff.revisable, { habitId })).toMatchObject({
+      kind: 'habit',
+      endsOn: '2026-11-01',
+    });
+  });
 });

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 
 import { MIN_LEAD_MS, type CommitmentDraft, type CommitmentKind } from './draft';
+import { EndDatePicker } from './end-date-picker';
 import { FrequencyPicker } from './frequency-picker';
 import { IconTile } from './icon-tile';
 import { StepLayout } from './step-layout';
@@ -230,10 +231,16 @@ export function NamePage({
       ) : null}
 
       {draft.kind === 'habit' ? (
-        <FrequencyPicker
-          value={draft.timesPerWeek}
-          onChange={(timesPerWeek) => onChange({ title: readTitleNow(), timesPerWeek })}
-        />
+        <>
+          <FrequencyPicker
+            value={draft.timesPerWeek}
+            onChange={(timesPerWeek) => onChange({ title: readTitleNow(), timesPerWeek })}
+          />
+          <EndDatePicker
+            draft={draft}
+            onChange={(endsOn) => onChange({ title: readTitleNow(), endsOn })}
+          />
+        </>
       ) : (
         <View style={styles.deadline}>
           <DeadlineField value={draft.dueAt} onChange={(dueAt) => onChange({ dueAt })} />

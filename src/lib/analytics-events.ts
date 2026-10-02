@@ -4,7 +4,13 @@ import type { StakeKind } from '@/convex/lib/stakeRules';
 import type { FocusArea, History, Motivator } from '@/data/onboarding';
 import type { ShareCardKind, ShareSource } from '@/data/share-copy';
 
-import type { CommitmentDraft, CommitmentKind } from '@/components/commitment/draft';
+import {
+  draftEndDay,
+  type CommitmentDraft,
+  type CommitmentKind,
+} from '@/components/commitment/draft';
+import { daysBetween } from '@/convex/lib/days';
+import { todayKey } from '@/lib/dates';
 
 /**
  * Every product event the app sends, with its properties. Names follow
@@ -38,6 +44,8 @@ export type AnalyticsEvents = {
     /** 0 unless the stake is money. */
     amount_cents: number;
     times_per_week: number | null;
+    /** Habits only: days from today through its end date; `null` when it runs until ended. */
+    days_until_end: number | null;
     days_until_due: number | null;
     lockout_days: number | null;
     reused_card: boolean;
@@ -157,11 +165,13 @@ export function commitmentCreatedProperties(
   context: { source: 'new' | 'onboarding'; isRedo: boolean; stakeKind?: StakeKind },
 ): AnalyticsEvents['commitment created'] {
   const stakeKind = context.stakeKind ?? draft.stakeKind;
+  const endDay = draftEndDay(draft);
   return {
     kind: draft.kind,
     stake_kind: stakeKind,
     amount_cents: stakeKind === 'money' ? draft.amountCents : 0,
     times_per_week: draft.kind === 'habit' ? draft.timesPerWeek : null,
+    days_until_end: endDay === undefined ? null : daysBetween(todayKey(), endDay).length - 1,
     days_until_due: draft.kind === 'goal' ? Math.round((draft.dueAt - Date.now()) / DAY_MS) : null,
     lockout_days: stakeKind === 'lockout' ? draft.lockoutDays : null,
     reused_card: stakeKind === 'money' && draft.reuse?.on === true,

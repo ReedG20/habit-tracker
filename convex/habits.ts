@@ -20,6 +20,7 @@ import { countThisWeek, daysBefore, STREAK_WINDOW_DAYS } from './lib/days';
 import { DAILY, isValidTimesPerWeek, targetPerWeek } from './lib/frequency';
 import { weekStartsOn } from './lib/habitWeek';
 import { requirePro } from './lib/entitlements';
+import { restartableBefore, snapEndDay, validEndDay } from './lib/endDate';
 import { endingPlan, type EndingPlan } from './lib/ending';
 import {
   devOverridesEnabled,
@@ -53,6 +54,7 @@ const habitValidator = v.object({
   order: v.number(),
   startDay: v.optional(v.string()),
   endsAfter: v.optional(v.string()),
+  endsOn: v.optional(v.string()),
   stakeId: v.optional(v.id('stakes')),
   brokenAt: v.optional(v.number()),
   proofMethod: v.optional(proofMethodValidator),
@@ -324,6 +326,8 @@ const newHabitFields = {
   proofMethod: v.optional(proofMethodValidator),
   /** Required for a timer habit, and only for one. */
   timerMinutes: v.optional(v.number()),
+  /** The last day it counts (`lib/endDate.ts`); omitted means it runs until ended. */
+  endsOn: v.optional(v.string()),
   ...newIconFields,
 };
 
@@ -333,6 +337,7 @@ type NewHabitArgs = {
   timesPerWeek?: number;
   proofMethod?: ProofMethod;
   timerMinutes?: number;
+  endsOn?: string;
   icon?: string;
   iconChosen?: boolean;
 };
@@ -343,6 +348,7 @@ type ValidHabitFields = {
   timesPerWeek: number;
   proofMethod: ProofMethod;
   timerMinutes?: number;
+  endsOn?: string;
   icon?: string;
   iconChosen?: true;
 };
@@ -366,8 +372,25 @@ async function requireNewHabit(
     description: args.description,
     timesPerWeek,
     ...proof,
+    endsOn: requireEndDay(user, timesPerWeek, args.endsOn),
     ...requireNewIcon(args),
   };
+}
+
+/**
+ * The end date a new habit keeps: snapped to the end of one of its weeks if
+ * it's weekly, and at least a week and at most a year out from today.
+ */
+function requireEndDay(
+  user: Doc<'users'>,
+  timesPerWeek: number,
+  endsOn: string | undefined,
+): string | undefined {
+  if (endsOn === undefined) return undefined;
+  const startDay = localDay(Date.now(), user.timeZone ?? 'UTC');
+  const day = validEndDay({ timesPerWeek, startDay }, endsOn);
+  if (day === null) throw new ConvexError('Pick an end date at least a week and at most a year out');
+  return day;
 }
 
 /**
@@ -417,6 +440,7 @@ async function insertHabit(
     timesPerWeek: args.timesPerWeek,
     proofMethod: args.proofMethod,
     timerMinutes: args.timerMinutes,
+    endsOn: args.endsOn,
     icon: args.icon,
     iconChosen: args.iconChosen,
     order,
@@ -505,6 +529,7 @@ export const createStaked = authedAction({
       timesPerWeek: args.timesPerWeek,
       proofMethod: args.proofMethod,
       timerMinutes: args.timerMinutes,
+      endsOn: args.endsOn,
       icon: args.icon,
       iconChosen: args.iconChosen,
       replaces: args.replaces,
@@ -542,6 +567,7 @@ export const insertStaked = internalMutation({
       timesPerWeek,
       proofMethod,
       timerMinutes,
+      endsOn,
       icon,
       iconChosen,
       replaces,
@@ -555,6 +581,7 @@ export const insertStaked = internalMutation({
       timesPerWeek,
       proofMethod,
       timerMinutes,
+      endsOn,
       icon,
       iconChosen,
     });
@@ -579,6 +606,9 @@ async function requireRestartable(
   const habit = await ctx.db.get('habits', habitId);
   if (habit === null || habit.userId !== user._id) throw new Error('Habit not found');
   if (habit.endsAfter !== undefined) throw new ConvexError('This habit is ending');
+  if (!restartableBefore(habit, localDay(Date.now(), user.timeZone ?? 'UTC'))) {
+    throw new ConvexError('This habit ends too soon to restart. Start a new one instead.');
+  }
   await requirePro(ctx, user._id);
   // A broken habit isn't counted as active, so picking it back up needs a slot.
   if (habit.brokenAt !== undefined) {
@@ -599,10 +629,15 @@ async function requireRestartable(
  * over, and today is free.
  */
 async function restartHabit(ctx: MutationCtx, user: Doc<'users'>, habit: Doc<'habits'>) {
+  const startDay =
+    user.timeZone === undefined ? habit.startDay : localDay(Date.now(), user.timeZone);
   await ctx.db.patch('habits', habit._id, {
     brokenAt: undefined,
     stakeId: undefined,
-    startDay: user.timeZone === undefined ? habit.startDay : localDay(Date.now(), user.timeZone),
+    startDay,
+    // Its weeks re-anchor on the new start, so a weekly end date moves to the end of one.
+    endsOn:
+      habit.endsOn === undefined ? undefined : snapEndDay({ ...habit, startDay }, habit.endsOn),
   });
   const fresh = await ctx.db.get('habits', habit._id);
   if (fresh === null) throw new Error('Habit not found');

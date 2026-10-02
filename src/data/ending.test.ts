@@ -40,6 +40,22 @@ describe('endingStatus', () => {
     });
   });
 
+  test('an end date says so only in its last week, and as finishing rather than ending', () => {
+    const dated = { ...daily, endsOn: '2026-10-30' };
+    expect(endingStatus(dated, '2026-10-23')).toBeNull();
+    expect(endingStatus(dated, '2026-10-24')).toMatchObject({
+      byEndDate: true,
+      daysLeft: 7,
+      label: 'Finishes · 7 days left',
+    });
+    expect(endingStatus(dated, '2026-10-30')).toMatchObject({ label: 'Finishes · last day' });
+    // Ended sooner, the notice is what it shows.
+    expect(endingStatus({ ...dated, endsAfter: '2026-09-28' }, '2026-09-22')).toMatchObject({
+      byEndDate: false,
+      label: 'Ending · 7 days left',
+    });
+  });
+
   test('past the last day, it is only waiting on the nightly check', () => {
     expect(endingStatus({ ...daily, endsAfter: '2026-09-28' }, '2026-09-29')).toMatchObject({
       daysLeft: 0,

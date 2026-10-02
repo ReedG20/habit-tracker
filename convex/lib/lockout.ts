@@ -3,6 +3,7 @@ import { ConvexError } from 'convex/values';
 import type { Doc, Id } from '../_generated/dataModel';
 import { env, type MutationCtx, type QueryCtx } from '../_generated/server';
 import { countThisWeek, daysBefore, nextDay, weekEnd, weekStart } from './days';
+import { lastCountedDay } from './endDate';
 import { DAILY, targetPerWeek } from './frequency';
 import { firstJudgedWeek, weekStartsOn } from './habitWeek';
 import { habitDay } from './zonedTime';
@@ -28,7 +29,7 @@ export type Miss = {
 
 export type CheckedHabit = Pick<
   Doc<'habits'>,
-  '_id' | 'title' | 'timesPerWeek' | 'startDay' | 'endsAfter'
+  '_id' | 'title' | 'timesPerWeek' | 'startDay' | 'endsAfter' | 'endsOn'
 > & { brokenAt?: number };
 
 /**
@@ -89,7 +90,8 @@ export function findMisses({
     if (habit.brokenAt !== undefined) continue;
     const done = completedDays.get(habit._id) ?? new Set<string>();
     const excused = excusedDays.get(habit._id) ?? new Set<string>();
-    const counts = (day: string) => habit.endsAfter === undefined || day <= habit.endsAfter;
+    const lastDay = lastCountedDay(habit);
+    const counts = (day: string) => lastDay === undefined || day <= lastDay;
 
     const target = targetPerWeek(habit);
     if (target >= DAILY) {

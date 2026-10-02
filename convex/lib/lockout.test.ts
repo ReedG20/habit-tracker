@@ -99,6 +99,17 @@ describe('findMisses: daily', () => {
     expect(check({ habits: [ending], from: '2026-09-22', to: '2026-09-22' })).toHaveLength(1);
     expect(check({ habits: [ending], from: '2026-09-23', to: '2026-09-25' })).toEqual([]);
   });
+
+  test('a habit with an end date counts through it, then stops', () => {
+    const dated = habit({ endsOn: '2026-09-22' });
+    expect(check({ habits: [dated], from: '2026-09-22', to: '2026-09-22' })).toHaveLength(1);
+    expect(check({ habits: [dated], from: '2026-09-23', to: '2026-09-25' })).toEqual([]);
+  });
+
+  test('ended sooner than its end date, the notice is what counts', () => {
+    const both = habit({ endsOn: '2026-10-30', endsAfter: '2026-09-22' });
+    expect(check({ habits: [both], from: '2026-09-23', to: '2026-09-25' })).toEqual([]);
+  });
 });
 
 describe('findMisses: weekly', () => {
@@ -116,6 +127,12 @@ describe('findMisses: weekly', () => {
   test('a week that hits the target is no miss', () => {
     const done = ['2026-09-21', '2026-09-23', '2026-09-27'];
     expect(check({ habits: [thrice()], done, from: '2026-09-27', to: '2026-09-27' })).toEqual([]);
+  });
+
+  test('an end date on its last week counts that week, and nothing after', () => {
+    const dated = thrice({ endsOn: '2026-09-27' });
+    expect(check({ habits: [dated], from: '2026-09-27', to: '2026-09-27' })).toHaveLength(1);
+    expect(check({ habits: [dated], from: '2026-09-28', to: '2026-10-04' })).toEqual([]);
   });
 
   test('weeks start on the weekday it was made, and the first one counts', () => {

@@ -8,6 +8,7 @@ import { keptRunValidator } from './lib/accomplishmentSchema';
 import { authedMutation } from './lib/customFunctions';
 import { daysBefore } from './lib/days';
 import { DAILY, targetPerWeek } from './lib/frequency';
+import { lastCountedDay } from './lib/endDate';
 import { localDay, requireDevOverrides } from './lib/lockout';
 import { stakeView, stakeViewValidator } from './lib/stakeRules';
 
@@ -23,7 +24,7 @@ const MAX_RUN_DAYS = 2000;
 type KeptRun = Infer<typeof keptRunValidator>;
 
 /**
- * Records a staked habit that just finished its notice clean. Call it before
+ * Records a staked habit that just finished clean: its notice, or its end date. Call it before
  * `deleteHabit`, which takes the logs this reads, and hand that the row. The
  * run counts from when its stake was armed, the way the loss screen's does.
  */
@@ -33,7 +34,7 @@ export async function recordKeptHabit(
   timeZone: string,
   now: number,
 ): Promise<Id<'accomplishments'> | undefined> {
-  const lastDay = habit.endsAfter;
+  const lastDay = lastCountedDay(habit);
   if (lastDay === undefined || habit.brokenAt !== undefined) return undefined;
 
   const stake = habit.stakeId === undefined ? null : await ctx.db.get('stakes', habit.stakeId);
@@ -63,6 +64,7 @@ export async function recordKeptHabit(
     kind: 'habit',
     title: habit.title,
     stakeId: stake?._id,
+    habitId: habit._id,
     run,
     achievedAt: now,
   });

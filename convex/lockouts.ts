@@ -9,6 +9,7 @@ import { deleteHabit } from './habits';
 import { getCurrentUserOrNull } from './lib/auth';
 import { authedAction, authedMutation } from './lib/customFunctions';
 import { daysBefore, nextDay, previousDay, STREAK_WINDOW_DAYS } from './lib/days';
+import { lastCountedDay } from './lib/endDate';
 import {
   activeLockout,
   devOverridesEnabled,
@@ -206,9 +207,10 @@ export async function checkUser(ctx: MutationCtx, user: Doc<'users'>, now: numbe
       : { lastCheckedDay: to },
   );
 
-  // A habit deleted while still owed stays until its last period has been checked.
+  // A habit deleted while still owed, or past its end date, stays until its last period has been checked.
   for (const habit of habits) {
-    if (habit.endsAfter !== undefined && habit.endsAfter <= yesterday) {
+    const lastDay = lastCountedDay(habit);
+    if (lastDay !== undefined && lastDay <= yesterday) {
       await deleteHabit(ctx, habit._id);
     }
   }

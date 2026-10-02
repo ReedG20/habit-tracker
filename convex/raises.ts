@@ -222,6 +222,9 @@ const raiseTargetValidator = v.object({
   timesPerWeek: v.optional(v.number()),
   proofMethod: v.optional(proofMethodValidator),
   timerMinutes: v.optional(v.number()),
+  /** Habits only: its end date, and the day its weeks are anchored on, for the re-signed contract. */
+  endsOn: v.optional(v.string()),
+  startDay: v.optional(v.string()),
   /** Goals only. The app checks it against the clock. */
   dueAt: v.optional(v.number()),
   stake: v.union(stakeViewValidator, v.null()),
@@ -258,6 +261,8 @@ async function readTarget(
       timesPerWeek: habit.timesPerWeek,
       proofMethod: habit.proofMethod,
       timerMinutes: habit.timerMinutes,
+      endsOn: habit.endsOn,
+      startDay: habit.startDay,
       stake: stake === null ? null : stakeView(stake),
       blocked: habitBlock(habit) ?? stakeBlock(stake),
     };

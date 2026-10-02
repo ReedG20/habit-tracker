@@ -59,5 +59,10 @@ export function endingPlan({
       : firstJudgedWeek(habit, accountableFrom) <= today;
   if (!counting) return { kind: 'now', reason: 'not-started' };
 
-  return { kind: 'notice', lastDay: noticeLastDay(habit, today) };
+  // A habit with an end date inside the notice already finishes then.
+  const lastDay = noticeLastDay(habit, today);
+  return {
+    kind: 'notice',
+    lastDay: habit.endsOn !== undefined && habit.endsOn < lastDay ? habit.endsOn : lastDay,
+  };
 }

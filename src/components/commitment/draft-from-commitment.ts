@@ -22,6 +22,7 @@ export function draftFromRevisable(revisable: Revisable): Partial<CommitmentDraf
   return {
     ...words,
     timesPerWeek: revisable.timesPerWeek ?? DAILY,
+    endsOn: revisable.endsOn,
     timerMinutes: revisable.timerMinutes ?? FRESH_PROOF.timerMinutes,
     checkedWording: wordingSignature(words),
     icon: revisable.icon,

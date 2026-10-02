@@ -58,6 +58,9 @@ export function raiseDraft(target: RaiseTarget, options: RaiseOptions): Commitme
     timesPerWeek: target.timesPerWeek ?? DAILY,
     proofMethod: target.proofMethod ?? FRESH_PROOF.proofMethod,
     timerMinutes: target.timerMinutes ?? FRESH_PROOF.timerMinutes,
+    // Already a canonical end date; the habit's own weeks keep it there.
+    endsOn: target.endsOn,
+    startDay: target.startDay,
     dueAt: target.dueAt ?? defaultDueAt(),
     stakeKind: startingKind(options),
     amountCents: startingAmount(options),

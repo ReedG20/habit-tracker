@@ -6,6 +6,7 @@ import { frozenDaysBetween } from './freezes';
 import { getCurrentUserOrNull } from './lib/auth';
 import { daysBefore, daysBetween, nextDay } from './lib/days';
 import { DAILY, targetPerWeek } from './lib/frequency';
+import { lastCountedDay } from './lib/endDate';
 import { localDay } from './lib/lockout';
 
 /**
@@ -34,7 +35,8 @@ function dueWindow(habit: Doc<'habits'>, timeZone: string): { from: string; to?:
   // Never checked on the day it was made.
   const from = nextDay(localDay(habit._creationTime, timeZone));
   const ends: string[] = [];
-  if (habit.endsAfter !== undefined) ends.push(habit.endsAfter);
+  const counted = lastCountedDay(habit);
+  if (counted !== undefined) ends.push(counted);
   if (habit.brokenAt !== undefined) ends.push(localDay(habit.brokenAt, timeZone));
   return { from, to: ends.sort()[0] };
 }

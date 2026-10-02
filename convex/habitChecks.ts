@@ -7,6 +7,7 @@ import { finishedStreak } from './habitStreaks';
 import { daysBefore, nextDay, previousDay, STREAK_WINDOW_DAYS } from './lib/days';
 import { DAILY, targetPerWeek } from './lib/frequency';
 import { graceAvailable, grantWaivers, wasWaived } from './lib/grace';
+import { lastCountedDay } from './lib/endDate';
 import { findMisses, localDay, type Miss } from './lib/lockout';
 import { loseStake, type Run } from './lib/stakes';
 import { isSubscriptionActive } from './lib/entitlements';
@@ -164,20 +165,28 @@ export async function checkUser(ctx: MutationCtx, user: Doc<'users'>, now: numbe
   }
   await startOrExtendFreeze(ctx, user, lockouts, now);
 
-  // An ending habit stays until its last day has been checked. One that broke
-  // during its notice goes now: its stake is spent, so nothing is left to see through.
-  // One that made it to the end clean is kept: the Kept screen marks it.
+  // A habit with a last day (its notice, or its end date) stays until that day
+  // has been checked. One that broke during its notice goes now: its stake is
+  // spent, so nothing is left to see through. One running to an end date that
+  // broke stays to be restarted until the date, like any broken habit. One that
+  // made it to the end clean is kept: the Kept screen marks it.
   for (const habit of habits) {
-    if (habit.endsAfter === undefined) continue;
-    if (broke.has(habit._id)) {
-      await deleteHabit(ctx, habit._id);
-    } else if (habit.endsAfter <= yesterday) {
-      // One whose miss was let go didn't make it clean: it ends without the Kept screen.
-      const kept = (await wasWaived(ctx, habit))
-        ? undefined
-        : await recordKeptHabit(ctx, habit, timeZone, now);
-      await deleteHabit(ctx, habit._id, kept);
+    const lastDay = lastCountedDay(habit);
+    if (lastDay === undefined) continue;
+    const brokeNow = broke.has(habit._id);
+    if (lastDay > yesterday) {
+      if (brokeNow && habit.endsAfter !== undefined) await deleteHabit(ctx, habit._id);
+      continue;
     }
+    if (brokeNow || habit.brokenAt !== undefined) {
+      await deleteHabit(ctx, habit._id);
+      continue;
+    }
+    // One whose miss was let go didn't make it clean: it ends without the Kept screen.
+    const kept = (await wasWaived(ctx, habit))
+      ? undefined
+      : await recordKeptHabit(ctx, habit, timeZone, now);
+    await deleteHabit(ctx, habit._id, kept);
   }
 }
 
