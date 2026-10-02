@@ -165,7 +165,7 @@ function footerHtml(userName: string, optOutUrl: string): string {
   return `You’re getting this because ${name} added your email on Ante. Don’t want to hear about ${name}’s commitments? <a href="${escapeHtml(optOutUrl)}" style="color:#6B6B76;">Opt out</a>.`;
 }
 
-function paragraph(text: string): string {
+export function paragraph(text: string): string {
   return `<p style="margin:0 0 16px;font-size:16px;line-height:24px;color:#111113;">${escapeHtml(text)}</p>`;
 }
 
@@ -176,7 +176,7 @@ function card(title: string, cadence: string): string {
 </div>`;
 }
 
-function layout(body: string, footer: string): string {
+export function layout(body: string, footer: string): string {
   return `<!doctype html><html><body style="margin:0;padding:0;background:#FFFFFF;">
 <div style="max-width:520px;margin:0 auto;padding:32px 24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
 <div style="font-size:20px;font-weight:700;color:#4121FF;margin:0 0 24px;">Ante</div>

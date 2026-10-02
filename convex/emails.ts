@@ -13,13 +13,15 @@ import {
   replyToFor,
   type EmailContent,
 } from './lib/emailCopy';
-import { frequencyLabel } from './lib/frequency';
+import { DAILY, frequencyLabel, targetPerWeek } from './lib/frequency';
+import { graceEmail, graceStakeLine, type GraceStake } from './lib/graceCopy';
 import { notifyFriendTold } from './lib/notify';
 import { formatDueLabel } from './lib/reminderCopy';
 import { cardOnFile, supportCaseEmail, type SupportProof } from './lib/supportCopy';
 
 /**
- * Email to the friends users answer to, through the Resend component, which
+ * Email to the friends users answer to (and, once, to the user: the one-time
+ * reprieve, `sendGrace`), through the Resend component, which
  * queues, batches and retries delivery. Sends only leave Convex where
  * `EMAIL_DELIVERY=on` (production); anywhere else they are logged, so a stray
  * dev deployment never emails a real person.
@@ -169,7 +171,12 @@ export const sendLoss = internalMutation({
       dueLabel:
         goal === null
           ? undefined
-          : formatDueLabel(goal.dueAt, stake.lostAt ?? Date.now(), user.timeZone ?? 'UTC'),
+          : // The deadline they were told about, even if it was moved once since.
+            formatDueLabel(
+              goal.originalDueAt ?? goal.dueAt,
+              stake.lostAt ?? Date.now(),
+              user.timeZone ?? 'UTC',
+            ),
       replyable: replyTo !== undefined,
       optOutUrl: optOutUrl(friend),
     });
@@ -262,6 +269,70 @@ export const sendSupportCase = internalMutation({
     return null;
   },
 });
+
+/**
+ * The one-time reprieve, by email: the same words as the push, for anyone who
+ * has notifications off and would otherwise not know a deadline moved.
+ */
+export const sendGrace = internalMutation({
+  args: { graceIds: v.array(v.id('graces')) },
+  returns: v.null(),
+  handler: async (ctx, args): Promise<null> => {
+    const graces: Doc<'graces'>[] = [];
+    for (const graceId of args.graceIds) {
+      const grace = await ctx.db.get('graces', graceId);
+      if (grace !== null) graces.push(grace);
+    }
+    const first = graces[0];
+    if (first === undefined) return null;
+    const user = await ctx.db.get('users', first.userId);
+    if (user === null) return null;
+    const to = deliverableEmail(normalizeEmail(user.email));
+    if (to === undefined) return null;
+
+    const stakes: GraceStake[] = [];
+    for (const grace of graces) {
+      const stake = await ctx.db.get('stakes', grace.stakeId);
+      if (stake !== null) stakes.push(graceStakeLine(stake));
+    }
+    const habit = first.habitId === undefined ? null : await ctx.db.get('habits', first.habitId);
+    const content = graceEmail({
+      userName: firstName(user.name),
+      kind: first.kind,
+      titles: graces.map((grace) => grace.title),
+      stakes,
+      missedPeriod: first.missedPeriod,
+      weekly: habit !== null && targetPerWeek(habit) < DAILY,
+      originalDueAt: first.originalDueAt,
+      extendedTo: first.extendedTo,
+      now: first.grantedAt,
+      timeZone: user.timeZone ?? 'UTC',
+    });
+    await sendToUser(ctx, to, content, { idempotencyKey: `grace:${first._id}` });
+    return null;
+  },
+});
+
+/** Mail to the user themselves, about their own commitments. */
+async function sendToUser(
+  ctx: MutationCtx,
+  to: string,
+  content: EmailContent,
+  options: { idempotencyKey: string },
+): Promise<void> {
+  if (env.EMAIL_DELIVERY !== 'on') {
+    console.log(`[email not sent] to=${to} subject="${content.subject}"\n${content.text}`);
+    return;
+  }
+  await resend().sendEmail(ctx, {
+    from: env.EMAIL_FROM ?? DEFAULT_FROM,
+    to,
+    subject: content.subject,
+    html: content.html,
+    text: content.text,
+    idempotencyKey: options.idempotencyKey,
+  });
+}
 
 async function sendToSupport(
   ctx: MutationCtx,

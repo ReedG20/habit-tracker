@@ -490,6 +490,7 @@ const moneyArgs = {
   stripeSetupIntentId: moneyFields.stripeSetupIntentId,
   cardBrand: moneyFields.cardBrand,
   cardLast4: moneyFields.cardLast4,
+  cardFingerprint: moneyFields.cardFingerprint,
 };
 
 export const insertStaked = internalMutation({

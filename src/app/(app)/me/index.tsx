@@ -40,6 +40,7 @@ import { useTheme } from '@/hooks/use-theme';
 import { todayKey } from '@/lib/dates';
 import { setForceDelete, showDevTools, useForceDelete } from '@/lib/dev-tools';
 import { openKept } from '@/lib/kept-screen';
+import { openGrace } from '@/lib/grace-screen';
 import { openLoss } from '@/lib/loss-screen';
 import { formatCents } from '@/lib/money';
 import { resetOnboarding } from '@/lib/onboarding';
@@ -87,6 +88,7 @@ export default function MeScreen() {
   const devOverrides = useQuery(api.lockouts.devOverrides, showDevTools ? {} : 'skip');
   const forceDelete = useForceDelete();
   const devLose = useMutation(api.stakes.devLose);
+  const devGrace = useMutation(api.graces.devGrace);
   const devKept = useMutation(api.accomplishments.devPreview);
   const devFreeze = useMutation(api.freezes.devFreeze);
   const devLift = useMutation(api.freezes.devLift);
@@ -316,6 +318,43 @@ export default function MeScreen() {
                   ]}>
                   <Icon icon={CoinsDollarIcon} size={22} themeColor="textSecondary" />
                   <ThemedText style={styles.settingLabel}>Preview a loss</ThemedText>
+                </Pressable>
+                {/* A made-up first miss let go: nothing is charged or emailed. */}
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    const preview = (args: Parameters<typeof devGrace>[0]) => {
+                      devGrace(args)
+                        .then(openGrace)
+                        .catch((error: unknown) => console.error('Failed to preview', error));
+                    };
+                    Alert.alert('Preview a first miss', undefined, [
+                      {
+                        text: 'Habit, money waived',
+                        onPress: () => preview({ kind: 'money', subject: 'habit' }),
+                      },
+                      {
+                        text: 'Habit, friend waived',
+                        onPress: () => preview({ kind: 'friend', subject: 'habit' }),
+                      },
+                      {
+                        text: 'Habit, lockout waived',
+                        onPress: () => preview({ kind: 'lockout', subject: 'habit' }),
+                      },
+                      {
+                        text: 'Goal, deadline extended',
+                        onPress: () => preview({ kind: 'money', subject: 'goal' }),
+                      },
+                      { text: 'Cancel', style: 'cancel' },
+                    ]);
+                  }}
+                  style={({ pressed }) => [
+                    styles.settingRow,
+                    { borderTopWidth: 1, borderTopColor: theme.border },
+                    pressed && styles.pressed,
+                  ]}>
+                  <Icon icon={CoinsDollarIcon} size={22} themeColor="textSecondary" />
+                  <ThemedText style={styles.settingLabel}>Preview a first miss</ThemedText>
                 </Pressable>
                 {/* A made-up accomplishment: nothing real changes. */}
                 <Pressable

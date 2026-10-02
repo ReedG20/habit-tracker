@@ -6,7 +6,7 @@ import { api, internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { nextDay } from './lib/days';
 import { MONEY_CAP_ERROR } from './lib/stakeRules';
-import { grantPro, setup as baseSetup, type Harness } from './test.helpers';
+import { grantPro, setup as baseSetup, spendGrace, type Harness } from './test.helpers';
 
 // 2026-09-21 is a Monday. Every user here lives in UTC, so the local day ends at 03:00Z.
 const at = (day: string, hour = 12) => new Date(`${day}T${String(hour).padStart(2, '0')}:00:00Z`);
@@ -22,6 +22,8 @@ async function signIn(t: Harness, tokenIdentifier: string) {
   const as = t.withIdentity({ tokenIdentifier, name: `${tokenIdentifier} Tester` });
   const userId: Id<'users'> = await as.mutation(api.users.storeUser, { timeZone: 'UTC' });
   await grantPro(t, userId);
+  // These tests are about what a miss costs; the first-miss reprieve has its own (`grace.test.ts`).
+  await spendGrace(t, userId);
   return { as, userId };
 }
 

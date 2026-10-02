@@ -12,7 +12,9 @@ import { cancelJob, materializeGoalStake, releaseStake, usedMoneyCents } from '.
  * short is finished by trying again while the `users` row is still there.
  *
  * Left behind on purpose: `emailSuppressions` (the friend's choice, not the
- * user's data) and the webhook dedupe tables, which hold no user ids.
+ * user's data), `graceMarks` (one-way hashes, so the one-time reprieve can't
+ * be earned again by signing up again; no user id) and the webhook dedupe
+ * tables, which hold no user ids.
  */
 
 export const CHARGING_ERROR = 'A charge is going through right now. Try again in a few minutes.';
@@ -142,6 +144,14 @@ function plain<T>(
 
 /** In order: pushes stop first, the children of habits and goals go before them. */
 const STEPS: PurgeStep[] = [
+  plain(
+    (ctx, userId, limit) =>
+      ctx.db
+        .query('graces')
+        .withIndex('by_user_and_seen', (q) => q.eq('userId', userId))
+        .take(limit),
+    (ctx, row) => ctx.db.delete('graces', row._id),
+  ),
   plain(
     (ctx, userId, limit) =>
       ctx.db

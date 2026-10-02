@@ -94,6 +94,18 @@ export type AnalyticsEvents = {
       | 'done'
       | 'contest';
   };
+  /** The one-time reprieve on a first miss (`convex/lib/grace.ts`), and what came of it. */
+  'grace viewed': {
+    grace_kind: 'waived' | 'extended';
+    stake_kind: StakeKind;
+    /** How many commitments it covered. */
+    covered: number;
+    has_contract: boolean;
+  };
+  'grace reason': { reason: 'forgot' | 'proof' | 'busy' | 'too_much' };
+  'grace action': {
+    action: 'done' | 'send_proof' | 'later' | 'reminders' | 'support' | 'open_habit';
+  };
   'stake settled': { result: 'settled' | 'pending' | 'canceled' };
   'charge contested': { reason: ContestReason; has_note: boolean };
 

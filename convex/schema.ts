@@ -4,6 +4,7 @@ import { v } from 'convex/values';
 import { accomplishmentValidator } from './lib/accomplishmentSchema';
 import { chargeReviewValidator, moneyBlockValidator } from './lib/chargeReviewSchema';
 import { contractValidator } from './lib/contractSchema';
+import { graceMarkValidator, graceValidator } from './lib/graceSchema';
 import { proofMethodValidator } from './lib/proofMethods';
 import { lockoutDaysValidator, moneyStatusValidator, stakeDocValidator } from './lib/stakeSchema';
 
@@ -114,6 +115,8 @@ export default defineSchema({
     lastCheckedDay: v.optional(v.string()),
     /** Set on a chargeback or fraud warning; no new money stakes until it's cleared. */
     moneyBlocked: v.optional(moneyBlockValidator),
+    /** When their one-time reprieve on a first miss was used (`lib/grace.ts`). */
+    graceUsedAt: v.optional(v.number()),
   })
     .index('by_token', ['tokenIdentifier'])
     .index('by_email', ['email']),
@@ -225,6 +228,8 @@ export default defineSchema({
     description: v.optional(v.string()),
     /** Deadline as a timestamp: goals are due at a specific time, not just a day. */
     dueAt: v.number(),
+    /** Set when the one-time reprieve moved `dueAt` (`lib/grace.ts`): the deadline as signed. */
+    originalDueAt: v.optional(v.number()),
     completedAt: v.optional(v.number()),
     order: v.number(),
     /** Deprecated: goal money moved to the `stakes` table (`lib/stakes.ts` migrates it). */
@@ -477,4 +482,12 @@ export default defineSchema({
   chargeReviews: defineTable(chargeReviewValidator)
     .index('by_stake', ['stakeId'])
     .index('by_user_and_status', ['userId', 'status']),
+
+  /** The one-time reprieve on a first miss (`lib/graceSchema.ts`). */
+  graces: defineTable(graceValidator)
+    .index('by_user_and_seen', ['userId', 'seenAt'])
+    .index('by_stake', ['stakeId']),
+
+  /** Who already had theirs, by hash; outlives account deletion on purpose. */
+  graceMarks: defineTable(graceMarkValidator).index('by_hash', ['hash']),
 });

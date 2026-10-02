@@ -12,6 +12,7 @@ import {
   weeklyStreak,
 } from './lib/days';
 import { DAILY, targetPerWeek } from './lib/frequency';
+import { graceAvailable, grantWaivers, wasWaived } from './lib/grace';
 import { weekStartsOn } from './lib/habitWeek';
 import { findMisses, localDay, type Miss } from './lib/lockout';
 import { loseStake, type Run } from './lib/stakes';
@@ -129,15 +130,39 @@ export async function checkUser(ctx: MutationCtx, user: Doc<'users'>, now: numbe
   );
 
   const byId = new Map(habits.map((habit) => [habit._id, habit]));
-  const lockouts: Extract<Doc<'stakes'>, { kind: 'lockout' }>[] = [];
-  const broke = new Set<Id<'habits'>>();
+  const staked: { habit: Doc<'habits'>; stake: Doc<'stakes'>; miss: Miss }[] = [];
   for (const miss of misses) {
     const habit = byId.get(miss.habitId);
     if (habit?.stakeId === undefined) continue;
     const stake = await ctx.db.get('stakes', habit.stakeId);
     // No stake, or one that's void or already spent: the streak just resets.
     if (stake === null || stake.status !== 'armed') continue;
+    staked.push({ habit, stake, miss });
+  }
 
+  // A first miss with something on the line is let go, once (`lib/grace.ts`):
+  // all of today's together, so none of them is charged beside a waived one.
+  const ticket =
+    staked.length === 0
+      ? null
+      : await graceAvailable(
+          ctx,
+          user,
+          staked.map(({ stake }) => stake),
+        );
+  if (ticket !== null) {
+    await grantWaivers(
+      ctx,
+      user,
+      staked.map(({ habit, stake, miss }) => ({ habit, stake, period: miss.period })),
+      ticket,
+      now,
+    );
+  }
+
+  const lockouts: Extract<Doc<'stakes'>, { kind: 'lockout' }>[] = [];
+  const broke = new Set<Id<'habits'>>();
+  for (const { habit, stake, miss } of ticket === null ? staked : []) {
     const run = await runSnapshot(ctx, habit, stake, miss, frozenDays, timeZone);
     if (!(await loseStake(ctx, stake, now, run))) continue;
     await ctx.db.patch('habits', habit._id, { brokenAt: now });
@@ -154,7 +179,10 @@ export async function checkUser(ctx: MutationCtx, user: Doc<'users'>, now: numbe
     if (broke.has(habit._id)) {
       await deleteHabit(ctx, habit._id);
     } else if (habit.endsAfter <= yesterday) {
-      await recordKeptHabit(ctx, habit, timeZone, frozenDays, now);
+      // One whose miss was let go didn't make it clean: it ends without the Kept screen.
+      if (!(await wasWaived(ctx, habit))) {
+        await recordKeptHabit(ctx, habit, timeZone, frozenDays, now);
+      }
       await deleteHabit(ctx, habit._id);
     }
   }

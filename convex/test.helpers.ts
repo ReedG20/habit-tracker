@@ -59,4 +59,12 @@ export async function grantPro(t: Harness, userId: Id<'users'>, expiresAt: numbe
   });
 }
 
+/**
+ * Uses up `userId`'s one-time reprieve on a first miss (`lib/grace.ts`), for
+ * tests about what a miss costs.
+ */
+export async function spendGrace(t: Harness, userId: Id<'users'>) {
+  await t.run(async (ctx) => await ctx.db.patch('users', userId, { graceUsedAt: Date.now() }));
+}
+
 export const TODAY = '2026-09-21';

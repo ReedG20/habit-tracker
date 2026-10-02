@@ -333,6 +333,7 @@ export const insertStaked = internalMutation({
     stripeSetupIntentId: moneyFields.stripeSetupIntentId,
     cardBrand: moneyFields.cardBrand,
     cardLast4: moneyFields.cardLast4,
+    cardFingerprint: moneyFields.cardFingerprint,
     ...newIconFields,
   },
   returns: v.id('goals'),

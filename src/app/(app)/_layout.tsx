@@ -6,6 +6,7 @@ import { ToastHost } from '@/components/toast';
 import { api } from '@/convex/_generated/api';
 import { useDailyPaywall } from '@/hooks/use-daily-paywall';
 import { useGoalSubmissionToasts } from '@/hooks/use-goal-submission-toasts';
+import { useGracePresenter } from '@/hooks/use-grace-presenter';
 import { useKeptPresenter } from '@/hooks/use-kept-presenter';
 import { useLossPresenter } from '@/hooks/use-loss-presenter';
 import { useVerificationToasts } from '@/hooks/use-verification-toasts';
@@ -23,6 +24,8 @@ export default function AppLayout() {
   useGoalSubmissionToasts(goals);
   // A stake that came due opens its own page, whichever tab is up.
   useLossPresenter();
+  // So does a first miss that was let go, once.
+  useGracePresenter();
   // So does a commitment seen through, once any loss has been answered.
   useKeptPresenter();
   // Without Pro, the paywall once a day; after either of those, never on top of them.
