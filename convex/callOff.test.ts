@@ -163,6 +163,20 @@ describe('calling it off', () => {
     expect(await goalOf(t, kept)).not.toBeNull();
   });
 
+  test('a habit’s friend hears at 8 AM, not when its window shuts at 3 AM', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    const habitId = await alice.as.mutation(api.habits.create, {
+      title: 'Run',
+      stake: { kind: 'friend', friend: SAM },
+    });
+    const habit = await t.run(async (ctx) => await ctx.db.get('habits', habitId));
+    expect(habit?.callOffUntil).toBe(Date.UTC(2026, 9, 2, 3));
+
+    const jobs = await pendingJobs(t, 'emails:sendHeadsUp');
+    expect(jobs.map((job) => job.scheduledTime)).toEqual([Date.UTC(2026, 9, 2, 8)]);
+  });
+
   test('a habit with money goes at once in its window, with no notice', async () => {
     const t = setup();
     const alice = await signIn(t, 'alice');

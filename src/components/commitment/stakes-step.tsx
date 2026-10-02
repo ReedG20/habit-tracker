@@ -27,6 +27,7 @@ import { ThemedText } from '@/components/themed-text';
 import { LockIcon, Mail01Icon, Money03Icon, Tick02Icon } from '@/constants/icons';
 import { Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
+import { draftHeadsUpAt, headsUpWhen } from '@/data/call-off';
 import { formatLastDay } from '@/data/ending';
 import { replacedLine } from '@/data/raise';
 import { DAILY } from '@/convex/lib/frequency';
@@ -470,11 +471,13 @@ function consequences(
   const name = friendName(draft);
   const them = name === 'my friend' ? 'them' : name;
   const they = name === 'my friend' ? 'they' : name;
-  // Held until it can't be called off, so nobody hears about one taken back.
+  // Held until it can't be called off, so nobody hears about one taken back,
+  // and never sent overnight.
+  const now = Date.now();
   const headsUp =
-    until === null
+    callOffUntil === undefined
       ? `We email ${them} a heads-up now. If they reply, it comes to you.`
-      : `We email ${them} a heads-up at ${until}, once it can’t be called off. If they reply, it comes to you.`;
+      : `We email ${them} a heads-up ${headsUpWhen(draftHeadsUpAt(draft, callOffUntil, now), now)}, after it can’t be called off. If they reply, it comes to you.`;
 
   switch (draft.stakeKind) {
     case 'money':

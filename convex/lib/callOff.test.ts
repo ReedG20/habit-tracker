@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { goalCallOffUntil, habitCallOffUntil, isCallOffOpen } from './callOff';
+import { friendHeadsUpAt, goalCallOffUntil, habitCallOffUntil, isCallOffOpen } from './callOff';
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
@@ -56,5 +56,42 @@ describe('isCallOffOpen', () => {
     expect(isCallOffOpen(NOW + 1, NOW)).toBe(true);
     expect(isCallOffOpen(NOW, NOW)).toBe(false);
     expect(isCallOffOpen(undefined, NOW)).toBe(false);
+  });
+});
+
+describe('friendHeadsUpAt', () => {
+  const chicago = 'America/Chicago';
+  // 2026-10-01 is CDT, UTC-5: local = UTC - 5h.
+  const local = (day: number, hour: number, minute = 0) => Date.UTC(2026, 9, day, hour + 5, minute);
+
+  test('a habit made in the afternoon tells the friend at 8 AM, not when the window shuts at 3 AM', () => {
+    const made = local(1, 15, 30);
+    const callOff = habitCallOffUntil(made, chicago);
+    expect(callOff).toBe(local(2, 3));
+    expect(friendHeadsUpAt(callOff, made, chicago)).toBe(local(2, 8));
+  });
+
+  test('a window closing late in the evening waits for the next morning', () => {
+    expect(friendHeadsUpAt(local(1, 22, 30), local(1, 21), chicago)).toBe(local(2, 8));
+  });
+
+  test('a window closing in the daytime goes as soon as it closes', () => {
+    expect(friendHeadsUpAt(local(1, 14), local(1, 13), chicago)).toBe(local(1, 14));
+    expect(friendHeadsUpAt(local(1, 21, 59), local(1, 21), chicago)).toBe(local(1, 21, 59));
+  });
+
+  test('with no window, it goes now, whatever the hour', () => {
+    expect(friendHeadsUpAt(undefined, local(1, 23), chicago)).toBe(local(1, 23));
+  });
+
+  test('a goal’s friend hears before the deadline, even overnight', () => {
+    const due = local(2, 6);
+    expect(friendHeadsUpAt(local(2, 1), local(1, 23), chicago, due)).toBe(local(2, 1));
+    expect(friendHeadsUpAt(local(2, 1), local(1, 23), chicago, local(2, 12))).toBe(local(2, 8));
+  });
+
+  test('an unknown zone, or none, keeps the window’s own time', () => {
+    expect(friendHeadsUpAt(local(2, 3), local(1, 15), undefined)).toBe(local(2, 3));
+    expect(friendHeadsUpAt(local(2, 3), local(1, 15), 'Not/AZone')).toBe(local(2, 3));
   });
 });
