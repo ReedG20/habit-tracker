@@ -33,7 +33,7 @@ function proofField(draft: CommitmentDraft): { label: string; placeholder: strin
   if (draft.kind === 'goal') {
     return {
       label: 'What will the photos show when it’s done?',
-      placeholder: 'The live site open on my laptop, not a screenshot',
+      placeholder: 'Me at the finish line, medal on and race bib showing',
       empty: PROOF_METHODS.photo.emptyProof,
     };
   }

@@ -49,7 +49,7 @@ export function GoalSheetFields({ initial, draftRef, showDeadline }: GoalSheetFi
         label="Name"
         defaultValue={initial.title}
         readValueRef={readTitle}
-        placeholder="Ship the landing page"
+        placeholder="Run a half marathon"
         autoCapitalize="sentences"
         returnKeyType="next"
         onSubmit={() => proofRef.current?.focus()}
@@ -59,7 +59,7 @@ export function GoalSheetFields({ initial, draftRef, showDeadline }: GoalSheetFi
         label="What proof will you show?"
         defaultValue={initial.description}
         readValueRef={readDescription}
-        placeholder="A photo of the live site on my laptop, not a screenshot"
+        placeholder="Me at the finish line, medal on and race bib showing"
         multiline
       />
       {showDeadline ? (
