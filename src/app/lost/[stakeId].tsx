@@ -601,7 +601,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: -Spacing.two,
     right: -Spacing.two,
-    top: '52%',
+    // Through the middle of the digits, which sit high in their tall line box.
+    top: '37%',
     height: 10,
     borderRadius: PillRadius,
     backgroundColor: INK.accent,
