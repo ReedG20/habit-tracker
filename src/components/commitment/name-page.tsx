@@ -30,7 +30,7 @@ const kindOptions: { value: CommitmentKind; label: string }[] = [
 
 const titlePlaceholders: Record<CommitmentKind, string> = {
   habit: 'Go to the gym',
-  goal: 'Ship the landing page',
+  goal: 'Run a half marathon',
 };
 
 export type NamePageProps = {
