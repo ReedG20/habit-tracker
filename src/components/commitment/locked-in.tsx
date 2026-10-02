@@ -19,8 +19,10 @@ import {
   Spacing,
 } from '@/constants/theme';
 import { DAILY, frequencyLabel } from '@/convex/lib/frequency';
+import { lockedInCallOff } from '@/data/call-off';
+import { useNow } from '@/hooks/use-now';
 import { useTheme } from '@/hooks/use-theme';
-import { describeWeekSpan, formatDueAt, todayKey } from '@/lib/dates';
+import { describeClock, describeWeekSpan, formatDueAt, todayKey } from '@/lib/dates';
 import { formatCents } from '@/lib/money';
 
 export type LockedInProps = {
@@ -32,13 +34,28 @@ export type LockedInProps = {
   note?: string;
   /** Offers to share the new stakes, beside Done. */
   onShare?: () => void;
+  /**
+   * A new commitment's window to call it off (`convex/lib/callOff.ts`). A
+   * friend hears about it then, so the stakes row says so.
+   */
+  callOffUntil?: number;
 };
 
 /** The confirmation after locking in: what was just agreed to, in one card. */
-export function LockedIn({ draft, onDone, title = 'It’s on.', note, onShare }: LockedInProps) {
+export function LockedIn({
+  draft,
+  onDone,
+  title = 'It’s on.',
+  note,
+  onShare,
+  callOffUntil,
+}: LockedInProps) {
   const theme = useTheme();
   const daily = draft.timesPerWeek >= DAILY;
-  const stakes = stakesLine(draft, daily);
+  const now = useNow();
+  // Their word alone can go any time, so there's nothing to call off.
+  const callOff = draft.stakeKind === 'none' || callOffUntil === undefined ? null : callOffUntil;
+  const stakes = stakesLine(draft, daily, callOff === null ? null : describeClock(callOff, now));
 
   return (
     <StepLayout
@@ -85,6 +102,12 @@ export function LockedIn({ draft, onDone, title = 'It’s on.', note, onShare }:
         <Row label="Stakes" value={stakes} />
       </View>
 
+      {callOff === null ? null : (
+        <ThemedText type="small" themeColor="textSecondary">
+          {lockedInCallOff(callOff, now)}
+        </ThemedText>
+      )}
+
       <Note>
         {note ??
           (draft.kind === 'goal'
@@ -98,7 +121,7 @@ export function LockedIn({ draft, onDone, title = 'It’s on.', note, onShare }:
 }
 
 /** The stakes row: what's on the line, in the words of the kind picked. */
-function stakesLine(draft: CommitmentDraft, daily: boolean): string {
+function stakesLine(draft: CommitmentDraft, daily: boolean, headsUpAt: string | null): string {
   const miss = draft.kind === 'goal' ? 'Miss it' : daily ? 'Miss a day' : 'End a week short';
   switch (draft.stakeKind) {
     case 'money':
@@ -106,7 +129,9 @@ function stakesLine(draft: CommitmentDraft, daily: boolean): string {
         ? `${formatCents(draft.amountCents)} on your card`
         : `${formatCents(draft.amountCents)} on your card, charged once if the streak breaks`;
     case 'friend':
-      return `${miss} and ${friendName(draft)} hears about it. We just sent them a heads-up.`;
+      return headsUpAt === null
+        ? `${miss} and ${friendName(draft)} hears about it. We just sent them a heads-up.`
+        : `${miss} and ${friendName(draft)} hears about it. We’ll send them a heads-up at ${headsUpAt}.`;
     case 'lockout':
       return `${miss} and your habits freeze for ${lockoutLabel(draft.lockoutDays)}`;
     case 'none':

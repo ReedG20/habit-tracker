@@ -26,7 +26,9 @@ import { ThemedText } from '@/components/themed-text';
 import { ArrowLeft01Icon } from '@/constants/icons';
 import { ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { DAILY } from '@/convex/lib/frequency';
+import { draftCallOffUntil } from '@/data/call-off';
 import { historyReply, suggestionsFor, suggestKind } from '@/data/onboarding';
+import { useNow } from '@/hooks/use-now';
 import { useTheme } from '@/hooks/use-theme';
 import { track } from '@/lib/analytics';
 import { useNotificationPermission } from '@/lib/notifications';
@@ -59,6 +61,7 @@ export default function OnboardingCommitmentScreen() {
   const permission = useNotificationPermission();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
+  const now = useNow();
 
   const [{ suggestions, reply }] = useState(() => {
     const { answers } = getOnboarding();
@@ -177,6 +180,8 @@ export default function OnboardingCommitmentScreen() {
             phase={stakesPhase}
             onPhaseChange={setStakesPhase}
             allowMoney={false}
+            // Made after the paywall, so close enough to say when a friend hears.
+            callOffUntil={draftCallOffUntil(draft, now)}
           />
         ) : null}
         {step === 'sign' ? <SignStep draft={draft} busy={false} onConfirm={lockIn} /> : null}
