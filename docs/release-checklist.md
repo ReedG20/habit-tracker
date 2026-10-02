@@ -8,6 +8,7 @@ its periods run on TestFlight's clock (about a day each).
 Record the build number tested: `1.0.0 (____)`.
 
 ## 1. Fresh start
+
 - [ ] Delete Ante, install from TestFlight, open it. No crash; the splash leaves.
 - [ ] Onboarding: every step, decline notifications once to check it carries on.
 - [ ] "Use AI to help?" appears when naming the first commitment. Tap **Not now**:
@@ -17,11 +18,13 @@ Record the build number tested: `1.0.0 (____)`.
 - [ ] On the paywall: **Delete account** opens the delete screen; go Back without deleting.
 
 ## 2. Ante Pro (sandbox)
+
 - [ ] Plans load with prices; the yearly trial line shows only if eligible.
 - [ ] Subscribe; the first commitment goes live ("It's on.").
 - [ ] Me → Pro shows the plan. **Restore purchases** on the paywall works on a reinstall.
 
 ## 3. Money stake, end to end (≈$1, refunded)
+
 - [ ] New goal due in about an hour with a **$1** money stake. The line under the
       steps reads "By tapping 'Put $1 on it', you confirm you're 18 or older…", and
       **Terms** opens the Terms page.
@@ -36,6 +39,7 @@ Record the build number tested: `1.0.0 (____)`.
 - [ ] Refund it in Stripe. The app shows Refunded, and a "Refunded" push arrives.
 
 ## 4. Proof
+
 - [ ] Photo habit: "Let AI check your proof?" asks once; Allow. Take a photo: a
       verdict arrives in seconds. In the Convex dashboard (prod → Files), the new
       photo is ~1600px and a few hundred KB, not several MB.
@@ -45,12 +49,14 @@ Record the build number tested: `1.0.0 (____)`.
 - [ ] Timer habit: run the shortest timer to the end.
 
 ## 5. Reminders and email
+
 - [ ] Me → Reminders → send a test push: it arrives.
 - [ ] A habit due tonight gets its reminder.
 - [ ] A "Tell a friend" stake: the friend (use your own second address) gets the
       heads-up email after the call-off window.
 
 ## 6. The rest
+
 - [ ] Raise the stakes on a habit; call off a brand-new commitment.
 - [ ] Share a card to Messages; the link opens useanteapp.com/get.
 - [ ] Dark mode and the largest text size on Today, a commitment and the paywall.
@@ -59,6 +65,7 @@ Record the build number tested: `1.0.0 (____)`.
       signs out; the user's rows are gone in Convex; its Stripe customer is deleted.
 
 ## 7. Record the review video
+
 Screen-record (60–90 s) arming a money stake, the loss screen (a real miss or Me →
 Developer → preview on a dev build), and the contest form. Attach it in App Store
 Connect → App Review Information.

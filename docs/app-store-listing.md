@@ -9,15 +9,15 @@ themselves. Never use bet, wager, odds, win, jackpot, pot or "ante up".
 
 ## App Information
 
-| Field | Value |
-|---|---|
-| Name (30) | Ante: Habit Contracts |
-| Subtitle (30) | Commit to it. Then prove it. |
-| Primary category | Productivity |
-| Secondary category | Health & Fitness |
-| Content rights | Doesn't contain, show or access third-party content |
-| License agreement | Apple's standard EULA |
-| Age rating | Answer the questionnaire truthfully: every gambling, contest and simulated-gambling question is **None/No** (there's no chance and no prize); no user-generated content shared between users; no social feed (share cards are images the user sends themselves); no unrestricted web access. |
+| Field              | Value                                                                                                                                                                                                                                                                                        |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Name (30)          | Ante: Habit Contracts                                                                                                                                                                                                                                                                        |
+| Subtitle (30)      | Commit to it. Then prove it.                                                                                                                                                                                                                                                                 |
+| Primary category   | Productivity                                                                                                                                                                                                                                                                                 |
+| Secondary category | Health & Fitness                                                                                                                                                                                                                                                                             |
+| Content rights     | Doesn't contain, show or access third-party content                                                                                                                                                                                                                                          |
+| License agreement  | Apple's standard EULA                                                                                                                                                                                                                                                                        |
+| Age rating         | Answer the questionnaire truthfully: every gambling, contest and simulated-gambling question is **None/No** (there's no chance and no prize); no user-generated content shared between users; no social feed (share cards are images the user sends themselves); no unrestricted web access. |
 
 ## Version 1.0.0
 
@@ -43,7 +43,7 @@ themselves. Never use bet, wager, odds, win, jackpot, pot or "ante up".
 > PUT SOMETHING ON THE LINE
 > Pick one consequence for each commitment:
 > • Money: you choose an amount ($1–$50). Your card is charged once, only if
->   you miss. Nothing is charged when you set it up.
+> you miss. Nothing is charged when you set it up.
 > • Tell a friend: someone you pick gets an email if you miss.
 > • Lockout: your habits freeze for a few days.
 > • Just your word.
