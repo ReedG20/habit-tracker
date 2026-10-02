@@ -3,17 +3,10 @@ import type { MutationCtx } from './_generated/server';
 import { recordKeptHabit } from './accomplishments';
 import { frozenDaysBetween, startOrExtendFreeze } from './freezes';
 import { deleteHabit } from './habits';
-import {
-  daysBefore,
-  nextDay,
-  previousDay,
-  streakLength,
-  STREAK_WINDOW_DAYS,
-  weeklyStreak,
-} from './lib/days';
+import { finishedStreak } from './habitStreaks';
+import { daysBefore, nextDay, previousDay, STREAK_WINDOW_DAYS } from './lib/days';
 import { DAILY, targetPerWeek } from './lib/frequency';
 import { graceAvailable, grantWaivers, wasWaived } from './lib/grace';
-import { weekStartsOn } from './lib/habitWeek';
 import { findMisses, localDay, type Miss } from './lib/lockout';
 import { loseStake, type Run } from './lib/stakes';
 import { isSubscriptionActive } from './lib/entitlements';
@@ -163,7 +156,7 @@ export async function checkUser(ctx: MutationCtx, user: Doc<'users'>, now: numbe
   const lockouts: Extract<Doc<'stakes'>, { kind: 'lockout' }>[] = [];
   const broke = new Set<Id<'habits'>>();
   for (const { habit, stake, miss } of ticket === null ? staked : []) {
-    const run = await runSnapshot(ctx, habit, stake, miss, frozenDays, timeZone);
+    const run = await runSnapshot(ctx, habit, stake, miss, timeZone);
     if (!(await loseStake(ctx, stake, now, run))) continue;
     await ctx.db.patch('habits', habit._id, { brokenAt: now });
     broke.add(habit._id);
@@ -181,7 +174,7 @@ export async function checkUser(ctx: MutationCtx, user: Doc<'users'>, now: numbe
     } else if (habit.endsAfter <= yesterday) {
       // One whose miss was let go didn't make it clean: it ends without the Kept screen.
       if (!(await wasWaived(ctx, habit))) {
-        await recordKeptHabit(ctx, habit, timeZone, frozenDays, now);
+        await recordKeptHabit(ctx, habit, timeZone, now);
       }
       await deleteHabit(ctx, habit._id);
     }
@@ -198,7 +191,6 @@ async function runSnapshot(
   habit: Doc<'habits'>,
   stake: Doc<'stakes'>,
   miss: Miss,
-  frozenDays: Set<string>,
   timeZone: string,
 ): Promise<Run> {
   const sinceDay = localDay(stake.createdAt, timeZone);
@@ -214,19 +206,13 @@ async function runSnapshot(
 
   const target = targetPerWeek(habit);
   const daily = target >= DAILY;
-  const streak = daily
-    ? streakLength(
-        new Set([...done].filter((day) => day < miss.period)),
-        previousDay(miss.period),
-        frozenDays,
-      )
-    : weeklyStreak(
-        new Set([...done].filter((day) => day < miss.period)),
-        previousDay(miss.period),
-        target,
-        weekStartsOn(habit),
-        frozenDays,
-      );
+  const streak = await finishedStreak(
+    ctx,
+    habit,
+    sinceDay,
+    previousDay(miss.period),
+    new Set([...done].filter((day) => day < miss.period)),
+  );
 
   return {
     streak,
