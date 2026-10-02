@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
@@ -358,5 +358,28 @@ describe('stripe.handleEvent', () => {
     });
     const seen = await t.run(async (ctx) => await ctx.db.query('stripeEvents').collect());
     expect(seen).toMatchObject([{ eventId: 'evt_stray' }]);
+  });
+});
+
+describe('stripe.chargeStake', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  test('holds the charge while CHARGING_PAUSED is on, without calling Stripe', async () => {
+    vi.stubEnv('CHARGING_PAUSED', 'on');
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    const stakeId = await insertHabitStake(t, alice.userId);
+
+    await t.action(internal.stripe.chargeStake, { stakeId, attempt: 1 });
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(await jobArgs(t, 'stripe:chargeStake')).toEqual([{ stakeId, attempt: 1 }]);
+    const stake = await t.run(async (ctx) => await ctx.db.get('stakes', stakeId));
+    expect(stake).toMatchObject({ status: 'charging' });
   });
 });

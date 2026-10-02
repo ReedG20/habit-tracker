@@ -8,6 +8,7 @@ import type { ProofMethod } from '@/constants/proof-methods';
 
 import { api } from '@/convex/_generated/api';
 import type { WordingCheckResult } from '@/convex/commitmentChecks';
+import { hasAiConsent } from '@/lib/ai-consent';
 
 export type WordingCheckInput = {
   kind: CommitmentKind;
@@ -37,6 +38,8 @@ export function useWordingCheck() {
   const [revision, setRevision] = useState<WordingRevision | null>(null);
 
   const run = async (input: WordingCheckInput): Promise<WordingRevision | null> => {
+    // Without the user's say-so nothing goes to the model, and the wording goes ahead.
+    if (!hasAiConsent()) return null;
     setChecking(true);
     setRevision(null);
     try {

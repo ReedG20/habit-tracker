@@ -39,7 +39,7 @@ describe('loss story', () => {
       'You missed Meditate on Tuesday, and your 23-day streak ended. $25 was charged to Visa ••4242.',
     );
     expect(story.bought).toMatchObject({
-      title: '$25 bought you 23 days.',
+      title: '$25 held you to 23 days.',
       body: expect.stringContaining('About $1.09 a day'),
       short: false,
     });

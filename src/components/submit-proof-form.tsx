@@ -17,6 +17,7 @@ import {
 import { ActionButton } from './action-button';
 import { Icon } from './icon';
 import { KeyboardDoneBar } from './keyboard/keyboard-done-bar';
+import { useAiProofConsent } from './proof/use-ai-proof-consent';
 import { ReplayMask } from './replay-mask';
 import { ScreenScrollView } from './screen-scroll-view';
 import { TextField } from './text-field';
@@ -35,6 +36,7 @@ import {
   originFromExif,
   type PhotoOrigin,
 } from '@/lib/photo-origin';
+import { uploadPhoto } from '@/lib/proof-upload';
 import { userErrorMessage } from '@/lib/user-errors';
 
 type PickedPhoto = {
@@ -76,6 +78,7 @@ export function SubmitProofForm({ goal, onSubmitted, onBack }: SubmitProofFormPr
   const theme = useTheme();
   const generateUploadUrl = useMutation(api.verifications.generateUploadUrl);
   const create = useMutation(api.goalSubmissions.create);
+  const aiAllowed = useAiProofConsent(onBack);
 
   const [photos, setPhotos] = useState<PickedPhoto[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -175,31 +178,12 @@ export function SubmitProofForm({ goal, onSubmitted, onBack }: SubmitProofFormPr
     setPhotos((current) => [...current, ...fresh.slice(0, MAX_PHOTOS - current.length)]);
   };
 
-  const upload = async (photo: PickedPhoto): Promise<Id<'_storage'>> => {
-    // Upload URLs are single-use, so one is minted per file.
-    const uploadUrl = await generateUploadUrl();
-
-    // The blob read from a file URI comes back untyped, and React Native sends
-    // a Blob body with the blob's own type as Content-Type (clobbering the
-    // header), so the type has to live on the blob itself.
-    const untyped = await (await fetch(photo.uri)).blob();
-    const blob = new Blob([untyped], { type: photo.mimeType });
-
-    const response = await fetch(uploadUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': photo.mimeType },
-      body: blob,
-    });
-    if (!response.ok) {
-      throw new Error(`Upload failed with status ${response.status}: ${await response.text()}`);
-    }
-
-    const { storageId } = (await response.json()) as { storageId: Id<'_storage'> };
-    return storageId;
-  };
+  // Upload URLs are single-use, so one is minted per file.
+  const upload = async (photo: PickedPhoto): Promise<Id<'_storage'>> =>
+    uploadPhoto(await generateUploadUrl(), photo);
 
   const onSubmit = async () => {
-    if (photos.length === 0 || submitting) return;
+    if (photos.length === 0 || submitting || !aiAllowed) return;
     setSubmitting(true);
 
     try {

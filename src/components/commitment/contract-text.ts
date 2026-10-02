@@ -86,6 +86,20 @@ function throughRuns(draft: CommitmentDraft): ContractRun[] {
 
 /** The contract as one "I will…" paragraph, with the user's own terms marked. */
 export function contractRuns(draft: CommitmentDraft): ContractRun[] {
+  return withAuthorization(draft, promiseRuns(draft));
+}
+
+/**
+ * Signed, so a money stake's charge is authorized in the contract itself, by
+ * an adult. Kept in the receipt too: it's the evidence for a disputed charge.
+ */
+function withAuthorization(draft: CommitmentDraft, runs: ContractRun[]): ContractRun[] {
+  return draft.stakeKind === 'money'
+    ? [...runs, { text: ' I’m 18 or older, and I authorize Ante to make this charge.' }]
+    : runs;
+}
+
+function promiseRuns(draft: CommitmentDraft): ContractRun[] {
   const lock = { text: missConsequence(draft), strong: true };
 
   if (draft.kind === 'habit' && draft.timesPerWeek < DAILY) {
@@ -136,6 +150,10 @@ export function contractRuns(draft: CommitmentDraft): ContractRun[] {
  * then it has either been shown or it hasn't.
  */
 export function receiptRuns(draft: CommitmentDraft): ContractRun[] {
+  return withAuthorization(draft, receiptPromiseRuns(draft));
+}
+
+function receiptPromiseRuns(draft: CommitmentDraft): ContractRun[] {
   const lock = { text: missConsequence(draft), strong: true };
   const promise = { text: lowerFirst(draft.title), strong: true };
 

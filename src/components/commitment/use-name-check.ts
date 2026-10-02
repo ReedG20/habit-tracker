@@ -5,6 +5,7 @@ import type { CommitmentKind } from './draft';
 
 import { api } from '@/convex/_generated/api';
 import type { NameCheckResult } from '@/convex/commitmentIdeas';
+import { hasAiConsent } from '@/lib/ai-consent';
 
 export type { NameCheckResult };
 
@@ -75,6 +76,8 @@ export function useNameCheck(kind: CommitmentKind, timesPerWeek: number) {
       const key = cacheKey(currentKind, title);
       const cached = results.get(key);
       if (cached !== undefined) return Promise.resolve(cached);
+      // Nothing goes to the model without the user's say-so; the name goes through unchecked.
+      if (!hasAiConsent()) return Promise.resolve(OPEN);
       const running = inFlight.get(key);
       if (running !== undefined) return running;
 

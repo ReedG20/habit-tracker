@@ -65,8 +65,9 @@ const config: ExpoConfig = {
       'expo-image-picker',
       {
         cameraPermission:
-          'Allow $(PRODUCT_NAME) to use the camera to verify your habits and goals.',
-        photosPermission: 'Allow $(PRODUCT_NAME) to access your photos.',
+          'Ante uses the camera so you can take a photo as proof that you did a habit or reached a goal.',
+        photosPermission:
+          'Ante lets you choose a photo from your library as proof that you did a habit or reached a goal.',
         // Images only; keeps NSMicrophoneUsageDescription out of the plist.
         microphonePermission: false,
       },
@@ -77,7 +78,7 @@ const config: ExpoConfig = {
       'expo-camera',
       {
         cameraPermission:
-          'Allow $(PRODUCT_NAME) to use the camera to verify your habits and goals.',
+          'Ante uses the camera so you can take a photo as proof that you did a habit or reached a goal.',
         microphonePermission: false,
         recordAudioAndroid: false,
       },

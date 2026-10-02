@@ -94,7 +94,7 @@ export function lossStory(loss: Loss): LossStory {
       // Nothing was kept on a decline or a refund, so the money can't be said to have bought anything.
       bought: isHabit && !declined && !refunded ? bought(stake.amountCents, streak, unit) : null,
       note: declined
-        ? 'a bet you don’t pay isn’t a bet.'
+        ? 'a commitment you don’t pay isn’t a commitment.'
         : isHabit
           ? 'the money’s gone. the habit doesn’t have to be.'
           : 'missing once is data. twice is a pattern.',
@@ -155,7 +155,7 @@ function bought(
   }
   const per = formatCents(Math.max(1, Math.round(cents / streak)));
   return {
-    title: `${formatCents(cents)} bought you ${plural(streak, unit)}.`,
+    title: `${formatCents(cents)} held you to ${plural(streak, unit)}.`,
     body: `About ${per} a ${unit}, for a run you might never have had without it. That’s the deal working.`,
     count: streak,
     unit,

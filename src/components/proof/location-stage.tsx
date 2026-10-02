@@ -16,6 +16,7 @@ import { PROOF_INK } from './ink';
 import { ProofResult } from './proof-result';
 import { ProofShell, QuietButton, RuleText } from './proof-shell';
 import { Radar, type RadarMode } from './radar';
+import { useAiProofConsent } from './use-ai-proof-consent';
 import { useVerdict } from './use-verdict';
 
 import { ActionButton } from '@/components/action-button';
@@ -49,6 +50,7 @@ type Blocked = 'denied' | 'reduced' | null;
  */
 export function LocationStage({ habit, onClose }: { habit: Habit; onClose: () => void }) {
   const submit = useMutation(api.locationProofs.submit);
+  const aiAllowed = useAiProofConsent(onClose);
   const { width } = useWindowDimensions();
   const [phase, setPhase] = useState<'ready' | 'locating' | 'sent'>('ready');
   const [blocked, setBlocked] = useState<Blocked>(null);
@@ -71,7 +73,7 @@ export function LocationStage({ habit, onClose }: { habit: Habit; onClose: () =>
   }, []);
 
   const checkIn = async () => {
-    if (phase !== 'ready' || busy.current) return;
+    if (phase !== 'ready' || busy.current || !aiAllowed) return;
     busy.current = true;
     pressHaptic();
 

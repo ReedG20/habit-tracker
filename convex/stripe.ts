@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 
 import { internal } from './_generated/api';
 import type { Doc } from './_generated/dataModel';
-import { internalAction, internalMutation, type MutationCtx } from './_generated/server';
+import { env, internalAction, internalMutation, type MutationCtx } from './_generated/server';
 import { normalizeEmail } from './friends';
 import { deliverableEmail } from './lib/emailCopy';
 import { notifyCharged, notifyDeclined, notifyRefunded } from './lib/notify';
@@ -27,6 +27,8 @@ import { stripeClient } from './lib/stripe';
 /** Backoff for a Stripe outage (not for declines, which are final). */
 const RETRY_AFTER_MS = 5 * 60 * 1000;
 const MAX_ATTEMPTS = 3;
+/** While `CHARGING_PAUSED` is on, how long a held charge waits before looking again. */
+export const PAUSED_RETRY_MS = 60 * 60 * 1000;
 
 const claimValidator = v.union(
   v.object({
@@ -63,6 +65,13 @@ export const chargeStake = internalAction({
   args: { stakeId: v.id('stakes'), attempt: v.number() },
   returns: v.null(),
   handler: async (ctx, args): Promise<null> => {
+    if (env.CHARGING_PAUSED === 'on') {
+      // Held, not dropped: the same attempt runs again once the brake is off.
+      console.warn(`Charging is paused; stake ${args.stakeId} waits an hour`);
+      await ctx.scheduler.runAfter(PAUSED_RETRY_MS, internal.stripe.chargeStake, args);
+      return null;
+    }
+
     const claim: Claim = await ctx.runMutation(internal.stripe.claimCharge, {
       stakeId: args.stakeId,
     });

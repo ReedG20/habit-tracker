@@ -410,6 +410,68 @@ to `main`; `convex deploy` is idempotent.
 Never run `bunx convex deploy` from a laptop with `CONVEX_DEPLOY_KEY` set, and
 read the deployment name every command prints before confirming.
 
+**Emergency brake on charges.** If a bug starts charging people who didn't
+miss, stop every automatic charge at once (from the main checkout):
+
+```bash
+bunx convex env set CHARGING_PAUSED on --prod
+```
+
+Held charges stay `charging` and look again hourly; nothing is dropped. Refund
+any wrong charges in Stripe (the webhook marks them refunded and tells the
+user), ship the fix, then `bunx convex env remove CHARGING_PAUSED --prod`, and
+the held charges go through on their next hourly look. An account with a held
+charge can't be deleted until it settles. Pull the brake for real incidents
+only: a held charge on a genuine miss still lands later.
+
+## Running it live
+
+**Native build or OTA update?**
+
+- An over-the-air update (JS and assets) reaches only builds with the same
+  native fingerprint. Merges send them to `preview`; `release.yml` ships them
+  to production. Use OTA for fixes and features, never to change what the app
+  is or to add something App Review would have refused.
+- Anything that changes the fingerprint needs a new build, a new version in App
+  Store Connect, and another App Review (usually under a day): native
+  dependencies, `app.config.ts` and `plugins/`, `patches/`, `package.json`
+  scripts, even `.gitignore`. `deploy.yml` builds and sends it to TestFlight
+  on merge; then add it to a new App Store version and submit.
+- Use phased release (7 days) for app updates after 1.0; it can be paused if
+  crash reports climb. Expedited review is there for a critical bug
+  (App Store Connect → Contact Us).
+
+**The backend serves every build at once.** Each merge deploys Convex to
+production immediately, and old binaries keep calling it, so schema changes
+stay additive and functions keep accepting their old arguments. Once a new
+build is live in the App Store and an old one has to go, set `MIN_IOS_BUILD`
+(see "Forcing an update").
+
+**What to watch daily, at least for the first weeks:**
+
+- Stripe: disputes (answer each with the support email's evidence; keep the
+  dispute rate well under 0.75%), failed payments, Radar warnings.
+- support@useanteapp.com: contested charges and questions, ideally within a
+  day.
+- Convex: errors in the logs, and usage against the plan's limits.
+- PostHog: error tracking and the onboarding → purchase funnel.
+- Spend: OpenRouter credits, Google Cloud (Places), Convex, EAS, Resend.
+- App Store Connect: ratings and reviews (reply to the unhappy ones), and
+  crashes in Xcode Organizer.
+- The first nights of real misses: charges run from the hourly cron after
+  each user's 3 AM. Look at the first few in Stripe the next morning.
+
+**Limits to upgrade before they bite** (around 1,000 users): EAS Update's free
+tier stops at 1,000 monthly users (Starter); Resend's free tier sends 100
+emails a day; Convex's free plan has no backups (go Professional before
+launch); Google Places is billed per check-in past 5,000 calls a month, so
+keep its daily quota cap; PostHog replays past 5,000 a month need a billing
+limit or sampling.
+
+**Dates:** the iOS distribution certificate expires 2027-01-13 (EAS renews
+it, but builds fail until it does); the Apple Developer Program and the
+domain renew yearly.
+
 ## Support, contested charges and disputes
 
 Charging a saved card after someone misses is the setup most likely to end
@@ -476,26 +538,60 @@ closed. So the app sends people to us first:
       "Habit app where users pre-authorize a penalty charge, set by them, if
       they miss a commitment they made." A surprise review is how accounts get
       frozen.
-- [ ] A support page at useanteapp.com/support. App Store Connect requires a
-      Support URL (guideline 1.5). Put a refund and contest policy in the
-      Terms.
+- [x] A support page at useanteapp.com/support (2026-10-01). App Store
+      Connect requires a Support URL (guideline 1.5). The Terms carry the
+      refund and contest policy.
 - [x] RevenueCat → Lifecycle → Refund Control: the default policy is "Send
       consumption data only" (2026-10-01). It answers Apple's refund requests
       for Ante Pro with delivery data and no preference; blanket declines are
       discounted by Apple and push people toward chargebacks. It relies on
       App Store Connect → App Information → App Store Server Notifications
       (production and sandbox) pointing at RevenueCat, set the same day.
-- [ ] Privacy policy: say that purchase and delivery details are shared with
-      Apple when a user asks Apple for a refund. RevenueCat tells Apple the
-      user consented (`customerConsented`).
+- [x] Privacy policy: say that purchase and delivery details are shared with
+      Apple when a user asks Apple for a refund (2026-10-01). RevenueCat tells
+      Apple the user consented (`customerConsented`).
 
-**App Review notes (draft):**
+**App Review notes** (App Store Connect → the version → App Review
+Information → Notes; attach the money-flow video there too):
 
-> Ante is a habit and goal tracker with optional stakes. When a user creates a
-> commitment they may choose a money stake: an amount they set (from $1, up to $250 in
-> total), charged to their own card through Stripe only if they miss the
-> commitment. It is a penalty the user sets for themselves. Nobody wins money,
-> nothing is paid out, and the charge unlocks no digital content or feature.
-> Ante Pro, the subscription that unlocks the app, is sold through In-App
-> Purchase. Users can contest any charge in the app ("Something wrong with
-> this charge?") and reach support from Me → Contact support.
+> Ante is a habit and goal tracker built on commitment contracts. A user
+> writes down a habit or goal, how they'll prove it (a photo, a location
+> check-in or a timer), and what happens if they don't follow through, then
+> signs it with their finger.
+>
+> STAKES. Each commitment has one consequence: tell a friend (we email someone
+> they name), lock out (their habits freeze for a few days), just their word,
+> or money. With money, the user sets the amount ($1–$50 per commitment, at
+> most $250 across all of them) and saves their card through Stripe. Nothing
+> is charged then. If they miss, that amount is charged once to their own card.
+>
+> - It is a penalty the user sets for themselves, not a wager or a game: there
+>   is no chance, no prize and no payout to anyone, and the outcome is
+>   entirely in the user's hands.
+> - The charge buys and unlocks nothing in the app. Ante Pro, the
+>   subscription that unlocks the app, is sold only through In-App Purchase.
+> - Ante holds no money for users, sends money to no one, and doesn't lend.
+> - Money stakes are for adults: the user confirms they're 18 or older and
+>   signs a contract that authorizes the charge, next to a link to the Terms.
+> - A user's first missed stake is forgiven once. Any charge can be contested
+>   in the app ("Something wrong with this charge?") within 120 days, and
+>   refunds go back to the card.
+>
+> HOW TO REVIEW
+>
+> 1. Sign in with Apple.
+> 2. Subscribe to Ante Pro (sandbox). The yearly plan has a 7-day free trial.
+> 3. Make a habit or goal. To try a stake without a card, pick "Tell a friend"
+>    or "Just my word". A money stake asks for a real card because Stripe runs
+>    in live mode; nothing is charged when it's saved. The attached video
+>    shows the whole money flow: setting it, a miss, the loss screen and
+>    contesting the charge.
+>
+> AI. Commitment names, proof photos and check-in places are checked by
+> Google's Gemini model through OpenRouter. The app asks before anything is
+> sent ("Use AI to help?" and "Let AI check your proof?"), and it can be
+> switched off in Me → Preferences.
+>
+> Account deletion: Me → Delete account, or "Delete account" on the
+> subscription screen during sign-up. Support: support@useanteapp.com,
+> Me → Contact support, https://useanteapp.com/support.

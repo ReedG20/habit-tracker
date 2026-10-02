@@ -19,6 +19,7 @@ import { PROOF_INK } from './ink';
 import { ProofResult } from './proof-result';
 import { CircleButton, ProofShell, QuietButton, RuleText } from './proof-shell';
 import { ScanLine } from './scan-line';
+import { useAiProofConsent } from './use-ai-proof-consent';
 import { useVerdict } from './use-verdict';
 
 import { ActionButton } from '@/components/action-button';
@@ -54,6 +55,7 @@ export function PhotoStage({ habit, onClose }: { habit: Habit; onClose: () => vo
   const [permission, requestPermission] = useCameraPermissions();
   const generateUploadUrl = useMutation(api.verifications.generateUploadUrl);
   const submit = useMutation(api.verifications.submit);
+  const aiAllowed = useAiProofConsent(onClose);
 
   const camera = useRef<CameraView>(null);
   /** A second tap while the first photo is still being taken must not send two. */
@@ -69,6 +71,7 @@ export function PhotoStage({ habit, onClose }: { habit: Habit; onClose: () => vo
   const flashStyle = useAnimatedStyle(() => ({ opacity: flash.get() }));
 
   const send = async (next: Photo, origin: PhotoOrigin) => {
+    if (!aiAllowed) return;
     setPhoto(next);
     try {
       const storageId = await uploadPhoto(await generateUploadUrl(), next);

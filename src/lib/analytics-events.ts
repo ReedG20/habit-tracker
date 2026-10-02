@@ -38,6 +38,7 @@ export type AnalyticsEvents = {
   'signed in': { method: SignInMethod };
   'signed out': undefined;
   'account deleted': undefined;
+  'ai consent answered': { consent: 'granted' | 'declined'; purpose: 'ideas' | 'proof' };
 
   'commitment created': {
     kind: CommitmentKind;

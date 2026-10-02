@@ -13,6 +13,8 @@ import { ProofPage } from './proof-page';
 import { useNameCheck, type NameCheckResult } from './use-name-check';
 import { useWordingCheck } from './use-wording-check';
 
+import { ensureAiConsent } from '@/lib/ai-consent';
+
 /**
  * The step has two pages under its own titles, like the stakes step: the
  * `name` (and how often, or by when), then the `proof`.
@@ -59,10 +61,16 @@ export function WhatStep({
 
   // A name that's already there (a saved draft, going again, Back from the
   // stakes) gets its check and ideas without waiting for a keystroke.
+  // First, once, whether AI may help at all: the name check and ideas send the name to it.
   const { ensure } = nameCheck;
   const initialTitle = useRef(draft.title);
+  const asked = useRef(false);
   useEffect(() => {
-    if (initialTitle.current.trim().length > 0) void ensure(initialTitle.current);
+    if (asked.current) return;
+    asked.current = true;
+    void ensureAiConsent('ideas').then((allowed) => {
+      if (allowed && initialTitle.current.trim().length > 0) void ensure(initialTitle.current);
+    });
   }, [ensure]);
 
   const nameChecked = (result: NameCheckResult) => {
