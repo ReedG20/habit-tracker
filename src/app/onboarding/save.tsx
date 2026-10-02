@@ -46,9 +46,24 @@ export default function SaveScreen() {
         </View>
       }>
       <CommitmentSummary draft={draft} />
-      <ThemedText type="small" themeColor="textSecondary">
-        Changed your mind? Go back and edit it — nothing is saved until you sign in.
-      </ThemedText>
+      {router.canGoBack() ? (
+        <ThemedText type="small" themeColor="textSecondary">
+          Changed your mind? Go back and edit it — nothing is saved until you sign in.
+        </ThemedText>
+      ) : (
+        // Reopened straight onto this step after a relaunch: there's no Back, so offer the way in.
+        <ThemedText type="small" themeColor="textSecondary">
+          {'Changed your mind? '}
+          <ThemedText
+            type="small"
+            themeColor="primary"
+            accessibilityRole="link"
+            onPress={() => router.replace('/onboarding/commitment')}>
+            Edit it
+          </ThemedText>
+          {' — nothing is saved until you sign in.'}
+        </ThemedText>
+      )}
     </OnboardingScreen>
   );
 }

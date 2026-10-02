@@ -25,7 +25,7 @@ const RULES: Rule[] = [
     icon: Camera01Icon,
     tint: 'primary',
     title: 'Prove it, every time',
-    body: 'A photo AI checks, a check-in where you said you’d be, or a timer you can’t leave. There is no honour system.',
+    body: 'A photo AI checks, a check-in where you said you’d be, or a timer you can’t leave. There is no honor system.',
   },
   {
     icon: CoinsDollarIcon,
@@ -70,7 +70,7 @@ export default function HowScreen() {
           </View>
         ))}
       </View>
-      <Note>an ante is the chip you put in before the hand. no chip, no game.</Note>
+      <Note>a promise with nothing behind it is easy to break.</Note>
     </OnboardingScreen>
   );
 }

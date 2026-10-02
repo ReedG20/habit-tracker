@@ -8,7 +8,7 @@ import { ThemedText } from './themed-text';
 import { AppleIcon } from '@/constants/icons';
 import { PillRadius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { track } from '@/lib/analytics';
+import { captureError, track } from '@/lib/analytics';
 
 export function AppleSignInButton() {
   const { startAppleAuthenticationFlow } = useSignInWithApple();
@@ -36,6 +36,7 @@ export function AppleSignInButton() {
     } catch (error) {
       // Dismissing the Apple sheet is not a failure worth surfacing.
       if ((error as { code?: string }).code !== 'ERR_REQUEST_CANCELED') {
+        captureError(error, 'apple sign in');
         Alert.alert('Could not sign in with Apple', describe(error));
       }
     } finally {
@@ -64,8 +65,14 @@ export function AppleSignInButton() {
   );
 }
 
+/** Clerk's own message when it has one (it's written for people); never a raw native exception. */
 function describe(error: unknown): string {
-  return error instanceof Error ? error.message : 'Please try again.';
+  const clerk = (error as { errors?: { longMessage?: string; message?: string }[] }).errors?.[0];
+  return (
+    clerk?.longMessage ??
+    clerk?.message ??
+    'Check that this iPhone is signed in to an Apple Account in Settings, then try again.'
+  );
 }
 
 const styles = StyleSheet.create({

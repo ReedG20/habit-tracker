@@ -60,7 +60,8 @@ const config: ExpoConfig = {
       },
     ],
     '@clerk/expo',
-    'expo-secure-store',
+    // No biometric prompts, so no Face ID purpose string in the plist.
+    ['expo-secure-store', { faceIDPermission: false }],
     [
       'expo-image-picker',
       {
@@ -89,6 +90,10 @@ const config: ExpoConfig = {
       {
         locationWhenInUsePermission:
           'Ante checks where you are only when you tap Check in, to prove a location habit.',
+        // Foreground only: keep the unused "Always" and motion strings out of the plist.
+        locationAlwaysAndWhenInUsePermission: false,
+        locationAlwaysPermission: false,
+        motionUsagePermission: false,
         isIosBackgroundLocationEnabled: false,
         isAndroidBackgroundLocationEnabled: false,
       },

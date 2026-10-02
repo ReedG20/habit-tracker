@@ -3,7 +3,7 @@ import { Image } from 'expo-image';
 import { Redirect, router, useFocusEffect } from 'expo-router';
 import { setStatusBarStyle } from 'expo-status-bar';
 import { useCallback } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -45,11 +45,14 @@ export default function WelcomeScreen() {
   }
 
   return (
-    <View
-      style={[
-        styles.screen,
+    // Scrolls only when it must: at the largest text sizes the buttons would otherwise fall off.
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={[
+        styles.scrollContent,
         { paddingTop: insets.top + Spacing.five, paddingBottom: insets.bottom + Spacing.four },
-      ]}>
+      ]}
+      bounces={false}>
       <View style={styles.content}>
         <Image
           source={require('@/assets/brand/ante-mark.svg')}
@@ -60,7 +63,9 @@ export default function WelcomeScreen() {
         />
 
         <View style={styles.copy}>
-          <ThemedText style={styles.headline}>Put something on the line.</ThemedText>
+          <ThemedText style={styles.headline} maxFontSizeMultiplier={1.3}>
+            Put something on the line.
+          </ThemedText>
           <ThemedText style={styles.lede}>
             Ante holds you to the habits and goals you keep putting off — with proof, and with
             money.
@@ -94,7 +99,7 @@ export default function WelcomeScreen() {
           </Pressable>
         </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -102,6 +107,9 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: BRAND,
+  },
+  scrollContent: {
+    flexGrow: 1,
     paddingHorizontal: Spacing.three,
   },
   content: {

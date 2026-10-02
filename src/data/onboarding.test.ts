@@ -54,7 +54,7 @@ describe('suggestionsFor', () => {
       'Work out for 20 minutes',
       'Read 10 pages',
       'Walk 8,000 steps',
-      'Practise a language for 15 minutes',
+      'Practice a language for 15 minutes',
     ]);
   });
 
