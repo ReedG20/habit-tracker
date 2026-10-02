@@ -103,6 +103,7 @@ export async function notifyHabitVerdict(
   verification: Doc<'habitVerifications'>,
   status: 'approved' | 'rejected' | 'failed',
   reason: string,
+  milestoneId?: Id<'milestones'> | null,
 ): Promise<void> {
   if (status === 'failed' || verification.method === 'timer') return;
   const [user, habit] = await Promise.all([
@@ -117,18 +118,18 @@ export async function notifyHabitVerdict(
   if (status === 'approved') {
     const settings = await reminderSettings(ctx, user._id);
     if (!settings.approvals) return;
-    const message: EventMessage = {
-      kind: 'approved',
-      subject: 'habit',
-      title: habit.title,
-      stakeCents: null,
-    };
+    // A log that reached a milestone says so, out loud, and opens its moment.
+    const milestone = milestoneId == null ? null : await ctx.db.get('milestones', milestoneId);
+    const message: EventMessage =
+      milestone === null
+        ? { kind: 'approved', subject: 'habit', title: habit.title, stakeCents: null }
+        : { kind: 'milestone', title: habit.title, count: milestone.count, unit: milestone.unit };
     await deliver(ctx, user._id, [
       eventPush(eventCopy(message), {
-        data,
+        data: milestone === null ? data : { kind: 'moment', url: `/milestone/${milestone._id}` },
         collapseId: `proof:${habit._id}:${verification.day}`,
         threadId: 'proof',
-        quiet: true,
+        quiet: milestone === null,
         expiresAt: now + 12 * HOUR_MS,
       }),
     ]);

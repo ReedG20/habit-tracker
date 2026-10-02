@@ -13,6 +13,7 @@ import { skipConsequence, stakeCost } from '@/data/stakes';
 import { DAY_ENDS_AT_HOUR, daysBetween, nextDay } from '@/convex/lib/days';
 import { targetPerWeek } from '@/convex/lib/frequency';
 import { firstJudgedWeek, habitWeekEnd, habitWeekStart } from '@/convex/lib/habitWeek';
+import { nextMilestone, streakLabel } from '@/convex/lib/milestones';
 import { dayKeyAt, endOfDay, formatShortDate, fromDayKey } from '@/lib/dates';
 import { formatCents } from '@/lib/money';
 
@@ -35,9 +36,8 @@ export const LAST_CALL_MS = (3 + DAY_ENDS_AT_HOUR) * HOUR;
 export const GOAL_CRUNCH_MS = 3 * HOUR;
 /** A shorter run is not worth leading with; the stake lands harder. */
 const STREAK_WORTH_LEADING = 3;
-const MILESTONES = [7, 14, 30, 50, 100, 365];
-/** How close a milestone has to be to get a mention. */
-const MILESTONE_WINDOW = 7;
+/** How close a milestone has to be to get a mention, in the streak's own unit. */
+const MILESTONE_WINDOW = { day: 7, week: 2 };
 const MAX_ALSO = 4;
 
 export type MomentFigure =
@@ -218,12 +218,11 @@ function streakAtRisk(owed: HabitWithProgress[]): { streak: Streak; habit?: Habi
   return { streak, habit: streak.count > 0 ? habit : undefined };
 }
 
-function nextMilestone({ count, unit }: Streak): string | null {
-  if (unit !== 'day' || count < STREAK_WORTH_LEADING) return null;
-  const milestone = MILESTONES.find((candidate) => candidate > count);
-  if (milestone === undefined || milestone - count > MILESTONE_WINDOW) return null;
-  const left = milestone - count;
-  return `${left} ${left === 1 ? 'day' : 'days'} to a ${milestone}-day streak`;
+function milestoneLine({ count, unit }: Streak): string | null {
+  if (count < STREAK_WORTH_LEADING) return null;
+  const milestone = nextMilestone(count, unit);
+  if (milestone === null || milestone - count > MILESTONE_WINDOW[unit]) return null;
+  return `${streakLabel(milestone - count, unit)} to a ${milestone}-${unit} streak`;
 }
 
 function weeklySlack(habits: HabitWithProgress[], today: string): string[] {
@@ -279,7 +278,7 @@ export function pickTodayMoment({
   const owed =
     frozenUntil === null ? habits.filter((habit) => isOwed(habit, today, accountableFrom)) : [];
   const risk = streakAtRisk(owed);
-  const milestone = nextMilestone(risk.streak);
+  const milestone = milestoneLine(risk.streak);
   const slack = weeklySlack(habits, today);
 
   // The "also" line: every stake the headline left out, most pressing first.
@@ -601,7 +600,7 @@ export function pickTodayMoment({
     sentence = 'See you tomorrow.';
   }
 
-  const headlineMilestone = nextMilestone(headline);
+  const headlineMilestone = milestoneLine(headline);
   const lines = [
     ...(headlineMilestone === null ? [] : [headlineMilestone]),
     ...openGoals

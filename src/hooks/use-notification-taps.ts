@@ -4,7 +4,14 @@ import { useEffect, useRef } from 'react';
 
 import { openKept } from '@/lib/kept-screen';
 import { openLoss } from '@/lib/loss-screen';
-import { keptOfPush, lossOfPush, routeForPush, type PushData } from '@/lib/notifications';
+import { openMilestone } from '@/lib/milestone-screen';
+import {
+  keptOfPush,
+  lossOfPush,
+  milestoneOfPush,
+  routeForPush,
+  type PushData,
+} from '@/lib/notifications';
 import { isProofOpen } from '@/lib/proof-watch';
 
 /**
@@ -27,11 +34,13 @@ export function useNotificationTaps({ ready }: { ready: boolean }) {
     const lossId = lossOfPush(data);
     // Through `openKept`, so the presenter can't open the same page on top.
     const keptId = keptOfPush(data);
+    const milestoneId = milestoneOfPush(data);
     // A stopped timer's prove screen is usually still open, and says so itself.
     const alreadyThere =
       data.kind === 'timer' && data.habitId !== undefined && isProofOpen(data.habitId);
     if (lossId !== null) openLoss(lossId);
     else if (keptId !== null) openKept(keptId);
+    else if (milestoneId !== null) openMilestone(milestoneId);
     else if (!alreadyThere) router.push(routeForPush(data) as Href);
     void Notifications.clearLastNotificationResponseAsync().catch(() => {});
   }, [ready, response]);

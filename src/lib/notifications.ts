@@ -199,6 +199,13 @@ export function keptOfPush(data: PushData): string | null {
   return match?.[1] ?? null;
 }
 
+/** The milestone a push opens the moment for, if it does. */
+export function milestoneOfPush(data: PushData): string | null {
+  const match =
+    typeof data.url === 'string' ? /^\/milestone\/([a-z0-9]+)$/.exec(data.url) : null;
+  return match?.[1] ?? null;
+}
+
 /** Where a tapped push goes, when it isn't about a loss. */
 export function routeForPush(data: PushData): string {
   return typeof data.url === 'string' && data.url.startsWith('/') ? data.url : '/';

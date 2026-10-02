@@ -53,6 +53,7 @@ const SOURCES: readonly ShareSource[] = [
   'restart',
   'detail',
   'kept',
+  'milestone',
 ];
 const CARD_LABELS: Record<ShareCardKind, string> = {
   streak: 'Streak',

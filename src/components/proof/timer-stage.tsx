@@ -204,6 +204,7 @@ function Footer({
       return (
         <ProofResult
           method="timer"
+          habitId={habit._id}
           verdict={verdictFor(phase)}
           onDone={onClose}
           onRetry={onRetry}

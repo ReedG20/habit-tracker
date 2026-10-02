@@ -11,6 +11,7 @@ import { holdEvidence } from './evidence';
 import { frozenDaysBetween } from './freezes';
 import { friendInputValidator, resolveFriend } from './friends';
 import { currentStreak } from './habitStreaks';
+import { deleteMilestones } from './milestones';
 import { getCurrentUserOrNull } from './lib/auth';
 import { armComeback } from './lib/comebacks';
 import { habitCallOffUntil, isCallOffOpen } from './lib/callOff';
@@ -894,6 +895,7 @@ export async function deleteHabit(
     await ctx.db.delete('habitTimerRuns', run._id);
   }
 
+  await deleteMilestones(ctx, habitId);
   await ctx.db.delete('habits', habitId);
   if (habit !== null) {
     await armComeback(ctx, habit.userId, {

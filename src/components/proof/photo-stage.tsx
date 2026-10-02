@@ -195,6 +195,7 @@ export function PhotoStage({ habit, onClose }: { habit: Habit; onClose: () => vo
       {verdict !== null ? (
         <ProofResult
           method="photo"
+          habitId={habit._id}
           verdict={verdict}
           onDone={onClose}
           onRetry={retry}

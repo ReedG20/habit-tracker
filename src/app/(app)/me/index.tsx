@@ -48,6 +48,8 @@ import { useTheme } from '@/hooks/use-theme';
 import { todayKey } from '@/lib/dates';
 import { setForceDelete, showDevTools, useForceDelete } from '@/lib/dev-tools';
 import { openKept } from '@/lib/kept-screen';
+import { openMilestone } from '@/lib/milestone-screen';
+import { userErrorMessage } from '@/lib/user-errors';
 import { openGrace } from '@/lib/grace-screen';
 import { openLoss } from '@/lib/loss-screen';
 import { formatCents } from '@/lib/money';
@@ -99,6 +101,7 @@ export default function MeScreen() {
   const devLose = useMutation(api.stakes.devLose);
   const devGrace = useMutation(api.graces.devGrace);
   const devKept = useMutation(api.accomplishments.devPreview);
+  const devMilestone = useMutation(api.milestones.devPreview);
   const devFreeze = useMutation(api.freezes.devFreeze);
   const devLift = useMutation(api.freezes.devLift);
   const freeze = useQuery(api.freezes.current, showDevTools ? {} : 'skip');
@@ -389,6 +392,27 @@ export default function MeScreen() {
                   ]}>
                   <Icon icon={Flag02Icon} size={22} themeColor="textSecondary" />
                   <ThemedText style={styles.settingLabel}>Preview kept</ThemedText>
+                </Pressable>
+                {/* A made-up milestone on the first habit: nothing real changes. */}
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    devMilestone({ count: 30 })
+                      .then(openMilestone)
+                      .catch((error: unknown) => {
+                        Alert.alert(
+                          'Couldn’t preview',
+                          userErrorMessage(error, 'Make a habit first.'),
+                        );
+                      });
+                  }}
+                  style={({ pressed }) => [
+                    styles.settingRow,
+                    { borderTopWidth: 1, borderTopColor: theme.border },
+                    pressed && styles.pressed,
+                  ]}>
+                  <Icon icon={SparklesIcon} size={22} themeColor="textSecondary" />
+                  <ThemedText style={styles.settingLabel}>Preview a milestone</ThemedText>
                 </Pressable>
                 <Pressable
                   accessibilityRole="button"

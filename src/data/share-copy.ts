@@ -1,4 +1,5 @@
 import { DAILY, frequencyLabel } from '@/convex/lib/frequency';
+import { isMilestone } from '@/convex/lib/milestones';
 import type { ShareStake, ShareSubject } from '@/convex/share';
 import { howEarly } from '@/data/kept-story';
 import { formatCents } from '@/lib/money';
@@ -12,8 +13,18 @@ import { formatCents } from '@/lib/money';
 
 export type ShareCardKind = 'stake' | 'streak' | 'kept';
 
-/** Where the share sheet was opened from. `onboarding` is the first commitment's "It's on." */
-export type ShareSource = 'locked_in' | 'onboarding' | 'raise' | 'restart' | 'detail' | 'kept';
+/**
+ * Where the share sheet was opened from. `onboarding` is the first
+ * commitment's "It's on."; `milestone` is a streak milestone's moment.
+ */
+export type ShareSource =
+  | 'locked_in'
+  | 'onboarding'
+  | 'raise'
+  | 'restart'
+  | 'detail'
+  | 'kept'
+  | 'milestone';
 
 export type ShareCopy = {
   kicker: string;
@@ -130,8 +141,10 @@ function streakCard(subject: ShareSubject, showAmount: boolean): ShareCopy {
   const run = subject.streak ?? { count: 0, unit: 'day' };
   const unit = run.unit === 'week' ? 'week' : 'day';
   const stakeLine = streakStakeLine(subject.stake, showAmount);
+  // On the day it reaches one, the card says which.
+  const milestone = isMilestone(run.count, unit);
   return {
-    kicker: 'Still going',
+    kicker: milestone ? `${plural(run.count, unit)} straight` : 'Still going',
     hero: String(run.count),
     heroUnit: `${unit}${run.count === 1 ? '' : 's'} in a row`,
     cadence: cadenceOf(subject),
@@ -139,7 +152,9 @@ function streakCard(subject: ShareSubject, showAmount: boolean): ShareCopy {
     line: unit === 'day' ? 'Not one day missed.' : 'Not one week short.',
     stakeLine,
     note: 'not stopping now.',
-    caption: `${plural(run.count, unit)} in a row of “${subject.title}”, and counting. ${stakeLine}`,
+    caption: milestone
+      ? `${plural(run.count, unit)} straight of “${subject.title}”. Not stopping now. ${stakeLine}`
+      : `${plural(run.count, unit)} in a row of “${subject.title}”, and counting. ${stakeLine}`,
   };
 }
 

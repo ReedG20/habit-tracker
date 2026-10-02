@@ -162,6 +162,7 @@ export function LocationStage({ habit, onClose }: { habit: Habit; onClose: () =>
       {verdict !== null ? (
         <ProofResult
           method="location"
+          habitId={habit._id}
           verdict={verdict}
           onDone={onClose}
           onRetry={retry}
