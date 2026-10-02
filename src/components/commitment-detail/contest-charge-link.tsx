@@ -18,7 +18,7 @@ export function ContestChargeLink({ stake }: { stake: StakeView | null | undefin
 
   const label =
     review === null
-      ? 'Something wrong with this charge?'
+      ? 'Something wrong, or did something come up?'
       : review.status === 'open'
         ? 'Charge under review. We’ll get back to you.'
         : 'See what we found about this charge';

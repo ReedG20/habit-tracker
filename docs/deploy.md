@@ -418,7 +418,7 @@ closed. So the app sends people to us first:
 
 - **Me → Contact support** opens an email to support@useanteapp.com with the
   app version filled in. Terms and Privacy are linked there too.
-- **"Something wrong with this charge?"** sits on the loss screen and under
+- **"Something wrong, or did something come up?"** sits on the loss screen and under
   "the deal" on a commitment whose money was charged. It opens
   `/contest/[stakeId]`, which records a `chargeReviews` row and emails support
   the whole case: the signed contract, how the run ended, the last proof with
@@ -437,6 +437,12 @@ closed. So the app sends people to us first:
   with `{ stakeId, response }`. The response is pushed to the user word for
   word, so keep it short and kind. Replying to the email reaches the user too,
   unless they signed in with Apple's private relay.
+- **"Something serious came up"** is the one reason that isn't about the app
+  getting it wrong, so its email's subject starts "Something came up" and it
+  always carries a note. It's a judgment call: refund a real emergency (a
+  hospital stay, a family emergency) in Stripe; decline anything that's just a
+  hard week with a kind response. Excusing ordinary bad days would undo what
+  the stake is for.
 
 **Disputes and fraud warnings** are handled by the webhook:
 

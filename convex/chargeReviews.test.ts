@@ -93,6 +93,31 @@ describe('chargeReviews.request', () => {
     });
   });
 
+  test('claiming something serious came up takes a note', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    const stakeId = await chargedStake(t, alice.userId);
+
+    await expect(
+      alice.as.mutation(api.chargeReviews.request, {
+        stakeId,
+        reason: 'something_came_up',
+        note: '   ',
+      }),
+    ).rejects.toThrow(/what happened/);
+    expect(await reviews(t)).toHaveLength(0);
+
+    await alice.as.mutation(api.chargeReviews.request, {
+      stakeId,
+      reason: 'something_came_up',
+      note: 'I was in the hospital that night.',
+    });
+    expect(await reviews(t)).toMatchObject([
+      { stakeId, reason: 'something_came_up', note: 'I was in the hospital that night.' },
+    ]);
+    expect(await scheduled(t, 'emails:sendSupportCase')).toHaveLength(1);
+  });
+
   test('another user can neither contest nor see it', async () => {
     const t = setup();
     const alice = await signIn(t, 'alice');

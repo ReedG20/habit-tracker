@@ -48,6 +48,7 @@ export const CONTEST_REASON_LABELS: Record<ContestReason, string> = {
   proof_should_count: 'My proof should have counted',
   did_it_not_recorded: 'I did it, but it wasn’t recorded',
   app_problem: 'A reminder or the app let me down',
+  something_came_up: 'Something serious came up',
   dont_recognize: 'I don’t recognize this charge',
   other: 'Something else',
 };
@@ -67,11 +68,16 @@ const NEXT_STEPS: Record<SupportCaseKind, string> = {
     'The charge was refunded so it can’t become a chargeback. Money stakes are now off for this user; clear users.moneyBlocked to turn them back on.',
 };
 
+/** An emergency claim reads differently from "you got it wrong", so it says so up front. */
+const EMERGENCY_HEADLINE = 'Something came up (contested in the app)';
+
 export function supportCaseEmail(input: SupportCaseInput): EmailContent {
   const amount = formatMoney(input.amountCents);
-  const subject = oneLine(
-    `${HEADLINES[input.kind]}: ${amount}, ${input.userName}, “${input.title}”`,
-  );
+  const headline =
+    input.kind === 'contest' && input.reason === 'something_came_up'
+      ? EMERGENCY_HEADLINE
+      : HEADLINES[input.kind];
+  const subject = oneLine(`${headline}: ${amount}, ${input.userName}, “${input.title}”`);
 
   const facts: [string, string][] = [
     ['User', `${input.userName} <${input.userEmail || 'no email'}>`],
@@ -106,7 +112,7 @@ export function supportCaseEmail(input: SupportCaseInput): EmailContent {
         );
 
   const text = [
-    HEADLINES[input.kind],
+    headline,
     facts.map(([label, value]) => `${label}: ${value}`).join('\n'),
     said.length === 0 ? null : said.map(([label, value]) => `${label}: ${value}`).join('\n'),
     `Contract: ${contract}`,
@@ -117,7 +123,7 @@ export function supportCaseEmail(input: SupportCaseInput): EmailContent {
     .join('\n\n');
 
   const html = `<!doctype html><html><body style="margin:0;padding:24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;line-height:20px;color:#111113;">
-<h2 style="margin:0 0 16px;font-size:18px;">${escapeHtml(HEADLINES[input.kind])}</h2>
+<h2 style="margin:0 0 16px;font-size:18px;">${escapeHtml(headline)}</h2>
 ${table(facts)}
 ${said.length === 0 ? '' : table(said)}
 <p style="margin:16px 0 8px;font-weight:600;">Contract</p>

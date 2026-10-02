@@ -496,7 +496,7 @@ function ContestLink({ stakeId }: { stakeId: Id<'stakes'> }) {
 
   const label =
     review === null
-      ? 'Something wrong with this charge?'
+      ? 'Something wrong, or did something come up?'
       : review.status === 'open'
         ? 'Under review. We’ll get back to you.'
         : 'See what we found';

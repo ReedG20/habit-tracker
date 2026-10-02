@@ -10,7 +10,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
-import type { ContestReason } from '@/convex/lib/chargeReviewSchema';
+import { contestNeedsNote, type ContestReason } from '@/convex/lib/chargeReviewSchema';
 import { CONTEST_REASONS } from '@/data/contest';
 import { track } from '@/lib/analytics';
 import { cardLabel, formatCents } from '@/lib/money';
@@ -84,8 +84,10 @@ function ContestForm({
 }) {
   const request = useMutation(api.chargeReviews.request);
   const [reason, setReason] = useState<ContestReason | null>(null);
+  const [hasNote, setHasNote] = useState(false);
   const [sending, setSending] = useState(false);
   const readNote = useRef<(() => string) | null>(null);
+  const needsNote = reason !== null && contestNeedsNote(reason);
 
   const send = async () => {
     if (reason === null || sending) return;
@@ -106,10 +108,10 @@ function ContestForm({
     <FormSheet
       title="Something wrong with this charge?"
       submitLabel={sending ? 'Sending…' : 'Send'}
-      submitDisabled={reason === null || sending}
+      submitDisabled={reason === null || (needsNote && !hasNote) || sending}
       onSubmit={() => void send()}>
       <ThemedText themeColor="textSecondary">
-        {`${amount} on ${card} for “${title}”. Tell us what happened. A person reads every one, usually within a day. If we got it wrong, you get your money back.`}
+        {`${amount} on ${card} for “${title}”. Tell us what happened. A person reads every one, usually within a day. If we got it wrong, or something serious came up, you can get your money back.`}
       </ThemedText>
       <View style={styles.reasons} accessibilityRole="radiogroup">
         {CONTEST_REASONS.map((option) => (
@@ -121,9 +123,16 @@ function ContestForm({
           />
         ))}
       </View>
+      {needsNote ? (
+        <ThemedText type="small" themeColor="textSecondary">
+          We refund real emergencies, like a hospital stay or a family emergency. A busy week
+          doesn’t count.
+        </ThemedText>
+      ) : null}
       <TextField
-        label="Anything we should know? (optional)"
+        label={needsNote ? 'What happened?' : 'Anything we should know? (optional)'}
         readValueRef={readNote}
+        onChangeText={(value) => setHasNote(value.trim().length > 0)}
         placeholder="What happened, in a sentence or two"
         maxLength={1000}
         multiline

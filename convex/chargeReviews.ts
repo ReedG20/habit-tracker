@@ -5,7 +5,11 @@ import { components, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import { internalMutation, query, type MutationCtx } from './_generated/server';
 import { getCurrentUserOrNull } from './lib/auth';
-import { chargeReviewStatusValidator, contestReasonValidator } from './lib/chargeReviewSchema';
+import {
+  chargeReviewStatusValidator,
+  contestNeedsNote,
+  contestReasonValidator,
+} from './lib/chargeReviewSchema';
 import { authedMutation } from './lib/customFunctions';
 import { notifyContestDeclined } from './lib/notify';
 
@@ -89,6 +93,9 @@ export const request = authedMutation({
     const note = args.note?.trim();
     if (note !== undefined && note.length > MAX_NOTE_LENGTH) {
       throw new ConvexError(`Keep it under ${MAX_NOTE_LENGTH} characters`);
+    }
+    if (contestNeedsNote(args.reason) && (note === undefined || note.length === 0)) {
+      throw new ConvexError('Tell us what happened so we can look into it');
     }
 
     const limit = await contestLimiter.limit(ctx, 'contest', { key: ctx.user._id });
