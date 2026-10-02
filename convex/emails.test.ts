@@ -100,11 +100,14 @@ describe('delivery reports', () => {
   });
 
   test('without EMAIL_DELIVERY nothing leaves Convex', async () => {
+    vi.useFakeTimers();
     const t = setup();
     const log = vi.spyOn(console, 'log').mockImplementation(() => {});
     await namedFriend(t);
-    await t.finishAllScheduledFunctions(() => {});
+    // The heads-up waits until the habit can no longer be called off.
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
     expect(log.mock.calls.some(([line]) => String(line).startsWith('[email not sent]'))).toBe(true);
     log.mockRestore();
+    vi.useRealTimers();
   });
 });

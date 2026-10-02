@@ -680,6 +680,9 @@ describe('goals', () => {
       await ctx.db.patch('goals', kept, { completedAt: Date.now() });
       await ctx.db.patch('stakes', goal!.stakeId!, {});
     });
+    // Past the moments it could still be called off.
+    const callOffUntil = await t.run(async (ctx) => (await ctx.db.get('goals', missed))!.callOffUntil!);
+    vi.setSystemTime(callOffUntil);
     await expect(alice.as.mutation(api.goals.remove, { goalId: missed })).rejects.toThrow(
       /friend on it/,
     );

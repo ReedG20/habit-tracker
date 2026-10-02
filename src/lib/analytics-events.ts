@@ -61,6 +61,17 @@ export type AnalyticsEvents = {
   'raise nudge shown': { kind: CommitmentKind; stake_kind: StakeKind };
   'raise nudge dismissed': { kind: CommitmentKind; stake_kind: StakeKind };
   'commitment deleted': { kind: CommitmentKind };
+  /** Taken back in its first moments (`convex/lib/callOff.ts`), instead of `commitment deleted`. */
+  'commitment called off': { kind: CommitmentKind; stake_kind: StakeKind; minutes_left: number };
+  /** Its terms changed in those moments, instead of `commitment created`. */
+  'commitment terms changed': {
+    kind: CommitmentKind;
+    stake_kind: StakeKind;
+    from_stake_kind: StakeKind;
+    /** 0 unless the stake is money. */
+    amount_cents: number;
+    days_until_due: number | null;
+  };
   /** A staked habit given its notice (`habits.remove` scheduled it), or that notice taken back. */
   'habit ending started': { notice_days: number; stake_kind: StakeKind };
   'habit ending cancelled': { days_left: number };

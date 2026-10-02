@@ -4,10 +4,12 @@ import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { recordKeptGoal } from './accomplishments';
+import { requireCallOffOpen, voidDeal } from './callOff';
 import { newIconFields, repickIconOnRename, requireNewIcon } from './commitmentIcons';
 import { holdEvidence } from './evidence';
 import { friendInputValidator, resolveFriend } from './friends';
 import { getCurrentUserOrNull } from './lib/auth';
+import { goalCallOffUntil, isCallOffOpen } from './lib/callOff';
 import { requireCommitmentIcon } from './lib/commitmentIcons';
 import { requireCommitmentText } from './lib/commitmentText';
 import { authedAction, authedMutation, authedQuery } from './lib/customFunctions';
@@ -180,6 +182,32 @@ async function nextOrder(ctx: MutationCtx, userId: Id<'users'>): Promise<number>
 }
 
 /**
+ * Changing a goal's terms while it can still be called off: the old one is
+ * called off and deleted, and the window it had carries over to the new one.
+ * Runs before the room and money checks, so the slot and the dollars it held
+ * are free again in the same transaction; a failure later rolls it all back.
+ */
+async function takeOverGoal(
+  ctx: MutationCtx,
+  userId: Id<'users'>,
+  goalId: Id<'goals'>,
+): Promise<number> {
+  const goal = await ctx.db.get('goals', goalId);
+  if (goal === null || goal.userId !== userId) throw new Error('Goal not found');
+  if (goal.completedAt !== undefined) throw new ConvexError('The goal is already done');
+  const callOffUntil = requireCallOffOpen(goal, Date.now(), 'It’s past the time to change this one');
+  await voidDeal(ctx, { goal });
+  await deleteGoal(ctx, goal, await materializeGoalStake(ctx, goal));
+  return callOffUntil;
+}
+
+/** A new goal's window, never past the one it replaces (so swapping can't stretch it). */
+function newCallOffUntil(dueAt: number, carried: number | undefined): number {
+  const fresh = goalCallOffUntil(Date.now(), dueAt);
+  return carried === undefined ? fresh : Math.min(fresh, carried);
+}
+
+/**
  * Same tolerance as `habits.list`: a missing user row on first sign-in resolves
  * itself once `users.storeUser` lands.
  */
@@ -239,12 +267,18 @@ export const create = authedMutation({
     description: v.optional(v.string()),
     dueAt: v.number(),
     stake: v.optional(v.object({ kind: v.literal('friend'), friend: friendInputValidator })),
+    /** A goal of theirs, still in its window, that this one takes the place of. */
+    replaces: v.optional(v.id('goals')),
     ...newIconFields,
   },
   returns: v.id('goals'),
   handler: async (ctx, args): Promise<Id<'goals'>> => {
     await requireUnlocked(ctx, ctx.user._id);
     await requirePro(ctx, ctx.user._id);
+    const carried =
+      args.replaces === undefined
+        ? undefined
+        : await takeOverGoal(ctx, ctx.user._id, args.replaces);
     await requireRoomFor(ctx, ctx.user._id, 'goal');
     requireLead(args.dueAt);
     requireCommitmentText(args.title, args.description);
@@ -257,6 +291,7 @@ export const create = authedMutation({
       title: args.title,
       description: args.description,
       dueAt: args.dueAt,
+      callOffUntil: newCallOffUntil(args.dueAt, carried),
       ...icon,
       order: await nextOrder(ctx, ctx.user._id),
     });
@@ -291,6 +326,8 @@ export const createStaked = authedAction({
     setupIntentId: v.optional(v.string()),
     /** …or the one an earlier stake of theirs was on ("set it again"). */
     reuseFromStakeId: v.optional(v.id('stakes')),
+    /** A goal of theirs, still in its window, that this one takes the place of. */
+    replaces: v.optional(v.id('goals')),
     ...newIconFields,
   },
   returns: v.id('goals'),
@@ -314,6 +351,7 @@ export const createStaked = authedAction({
       dueAt: args.dueAt,
       icon: args.icon,
       iconChosen: args.iconChosen,
+      replaces: args.replaces,
       ...card,
     });
 
@@ -334,21 +372,25 @@ export const insertStaked = internalMutation({
     cardBrand: moneyFields.cardBrand,
     cardLast4: moneyFields.cardLast4,
     cardFingerprint: moneyFields.cardFingerprint,
+    replaces: v.optional(v.id('goals')),
     ...newIconFields,
   },
   returns: v.id('goals'),
   handler: async (ctx, args): Promise<Id<'goals'>> => {
     await requireUnlocked(ctx, args.userId);
     await requirePro(ctx, args.userId);
+    const { userId, title, description, dueAt, icon, iconChosen, replaces, ...card } = args;
+    // Frees the old goal's slot and dollars before they're checked.
+    const carried = replaces === undefined ? undefined : await takeOverGoal(ctx, userId, replaces);
     await requireRoomFor(ctx, args.userId, 'goal');
     requireLead(args.dueAt);
-    const { userId, title, description, dueAt, icon, iconChosen, ...card } = args;
 
     const goalId = await ctx.db.insert('goals', {
       userId,
       title,
       description,
       dueAt,
+      callOffUntil: newCallOffUntil(dueAt, carried),
       ...requireNewIcon({ icon, iconChosen }),
       order: await nextOrder(ctx, userId),
     });
@@ -419,7 +461,9 @@ export const update = authedMutation({
 /**
  * A goal with something staked on it runs to its deadline: deleting it would
  * call the bet off, so that is refused until it resolves (or is released by
- * proof). `force` calls it off anyway, on dev and preview only.
+ * proof). The exception is its first moments (`lib/callOff.ts`), when the
+ * deal can still be called off as if it never stood. `force` calls it off
+ * anyway, on dev and preview only.
  */
 export const remove = authedMutation({
   args: { goalId: v.id('goals'), force: v.optional(v.boolean()) },
@@ -429,7 +473,9 @@ export const remove = authedMutation({
     await requireUnlocked(ctx, ctx.user._id);
 
     const stake = await materializeGoalStake(ctx, goal);
-    if (args.force === true) {
+    if (goal.completedAt === undefined && isCallOffOpen(goal.callOffUntil, Date.now())) {
+      await voidDeal(ctx, { goal });
+    } else if (args.force === true) {
       requireDevOverrides();
     } else if (stake !== null && isStakeViewLive(stake)) {
       throw new ConvexError(
@@ -439,25 +485,37 @@ export const remove = authedMutation({
       );
     }
 
-    if (stake !== null) {
-      await dropGoalStake(ctx, stake);
-    }
-
-    const keepProof = await holdEvidence(ctx, { goalId: args.goalId });
-    const submissions = await ctx.db
-      .query('goalSubmissions')
-      .withIndex('by_goal', (q) => q.eq('goalId', args.goalId))
-      .take(100);
-    for (const submission of submissions) {
-      if (keepProof && submission.status !== 'pending') continue;
-      for (const photoId of submission.photoIds) {
-        await ctx.storage.delete(photoId);
-      }
-      await ctx.db.delete('goalSubmissions', submission._id);
-    }
-
-    await ctx.db.delete('goals', args.goalId);
-
+    await deleteGoal(ctx, goal, stake);
     return null;
   },
 });
+
+/**
+ * The goal and its submissions, photos included. Its stake is let go (the
+ * goal ended before it came due) and kept as a record; proof behind money
+ * that came due is held a while longer (`evidence.ts`).
+ */
+async function deleteGoal(
+  ctx: MutationCtx,
+  goal: Doc<'goals'>,
+  stake: Doc<'stakes'> | null,
+): Promise<void> {
+  if (stake !== null) {
+    await dropGoalStake(ctx, stake);
+  }
+
+  const keepProof = await holdEvidence(ctx, { goalId: goal._id });
+  const submissions = await ctx.db
+    .query('goalSubmissions')
+    .withIndex('by_goal', (q) => q.eq('goalId', goal._id))
+    .take(100);
+  for (const submission of submissions) {
+    if (keepProof && submission.status !== 'pending') continue;
+    for (const photoId of submission.photoIds) {
+      await ctx.storage.delete(photoId);
+    }
+    await ctx.db.delete('goalSubmissions', submission._id);
+  }
+
+  await ctx.db.delete('goals', goal._id);
+}
