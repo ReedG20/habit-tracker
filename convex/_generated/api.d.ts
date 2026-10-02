@@ -59,6 +59,7 @@ import type * as lib_graceCopy from "../lib/graceCopy.js";
 import type * as lib_graceSchema from "../lib/graceSchema.js";
 import type * as lib_habitHistory from "../lib/habitHistory.js";
 import type * as lib_habitWeek from "../lib/habitWeek.js";
+import type * as lib_invite from "../lib/invite.js";
 import type * as lib_lockout from "../lib/lockout.js";
 import type * as lib_notify from "../lib/notify.js";
 import type * as lib_openrouter from "../lib/openrouter.js";
@@ -153,6 +154,7 @@ declare const fullApi: ApiFromModules<{
   "lib/graceSchema": typeof lib_graceSchema;
   "lib/habitHistory": typeof lib_habitHistory;
   "lib/habitWeek": typeof lib_habitWeek;
+  "lib/invite": typeof lib_invite;
   "lib/lockout": typeof lib_lockout;
   "lib/notify": typeof lib_notify;
   "lib/openrouter": typeof lib_openrouter;

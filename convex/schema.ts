@@ -39,6 +39,16 @@ export const onboardingValidator = v.object({
   motivator: v.optional(
     v.union(v.literal('money'), v.literal('proof'), v.literal('streak'), v.literal('unsure')),
   ),
+  /** Self-reported attribution: how they found Ante. */
+  heardFrom: v.optional(
+    v.union(
+      v.literal('friend_stake'),
+      v.literal('friend'),
+      v.literal('social'),
+      v.literal('app_store'),
+      v.literal('other'),
+    ),
+  ),
   completedAt: v.number(),
 });
 

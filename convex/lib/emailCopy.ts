@@ -16,6 +16,8 @@ export type HeadsUpInput = {
   cadence: string;
   subject: 'habit' | 'goal';
   optOutUrl: string;
+  /** The `/get` link, tagged with the user's invite code (`lib/invite.ts`). */
+  inviteUrl: string;
 };
 
 export type LossInput = {
@@ -33,6 +35,8 @@ export type LossInput = {
   /** Replies reach the user directly (their address is on Reply-To). */
   replyable: boolean;
   optOutUrl: string;
+  /** The `/get` link, tagged with the user's invite code (`lib/invite.ts`). */
+  inviteUrl: string;
 };
 
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -80,6 +84,12 @@ export function headsUpEmail(input: HeadsUpInput): EmailContent {
     `They picked you because you’re someone they don’t want to let down.`,
   ];
 
+  const ps = postscript(
+    'Got something you keep putting off?',
+    'Ante works for you too',
+    input.inviteUrl,
+  );
+
   return {
     subject,
     text: [
@@ -87,6 +97,7 @@ export function headsUpEmail(input: HeadsUpInput): EmailContent {
       `${title} (${cadence})`,
       ...after,
       '— Ante',
+      ps.text,
       footerText(userName, input.optOutUrl),
     ].join('\n\n'),
     html: layout(
@@ -95,6 +106,7 @@ export function headsUpEmail(input: HeadsUpInput): EmailContent {
         card(title, cadence),
         ...after.map(paragraph),
         paragraph('— Ante'),
+        ps.html,
       ].join(''),
       footerHtml(userName, input.optOutUrl),
     ),
@@ -134,11 +146,32 @@ export function lossEmail(input: LossInput): EmailContent {
     paragraphs.push(`Just hit reply: it goes straight to ${userName}.`);
   }
   paragraphs.push('— Ante');
+  // Ties to the line above: doing it with them is the best kind of check-in.
+  const ps = postscript(
+    `Doing it with ${userName} next time?`,
+    'Ante can hold you to it too',
+    input.inviteUrl,
+  );
 
   return {
     subject: oneLine(subject),
-    text: [...paragraphs, footerText(userName, input.optOutUrl)].join('\n\n'),
-    html: layout(paragraphs.map(paragraph).join(''), footerHtml(userName, input.optOutUrl)),
+    text: [...paragraphs, ps.text, footerText(userName, input.optOutUrl)].join('\n\n'),
+    html: layout(
+      paragraphs.map(paragraph).join('') + ps.html,
+      footerHtml(userName, input.optOutUrl),
+    ),
+  };
+}
+
+/**
+ * The one line in a friend email that's about the friend: a quiet P.S. after
+ * the sign-off, never a button, so the email still reads as a note about
+ * someone they know rather than an ad.
+ */
+function postscript(lead: string, linkText: string, url: string): { text: string; html: string } {
+  return {
+    text: `P.S. ${lead} ${linkText}: ${url}`,
+    html: `<p style="margin:0 0 16px;font-size:14px;line-height:20px;color:#6B6B76;">P.S. ${escapeHtml(lead)} <a href="${escapeHtml(url)}" style="color:#4121FF;">${escapeHtml(linkText)}</a>.</p>`,
   };
 }
 

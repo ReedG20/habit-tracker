@@ -156,10 +156,6 @@ function RootNavigator() {
           options={{ ...sheetScreenOptions, sheetAllowedDetents: [0.9] }}
         />
         <Stack.Screen name="raise" options={{ presentation: 'fullScreenModal' }} />
-        <Stack.Screen
-          name="share"
-          options={{ ...sheetScreenOptions, sheetAllowedDetents: [0.9] }}
-        />
         {/* Its counterpart for a commitment seen through: a moment, answered with a tap. */}
         <Stack.Screen
           name="kept/[accomplishmentId]"
@@ -169,6 +165,14 @@ function RootNavigator() {
 
       <Stack.Protected guard={!isAuthenticated && !onboarding}>
         <Stack.Screen name="(auth)" />
+      </Stack.Protected>
+
+      {/* Signed in, onboarding or not: the first commitment's "It's on." shares it too. */}
+      <Stack.Protected guard={isAuthenticated}>
+        <Stack.Screen
+          name="share"
+          options={{ ...sheetScreenOptions, sheetAllowedDetents: [0.9] }}
+        />
       </Stack.Protected>
 
       {/* Unguarded: onboarding's first commitment picks an icon before there's an account. */}

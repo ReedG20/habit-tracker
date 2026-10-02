@@ -1,16 +1,13 @@
+import { INVITE_DISPLAY_URL, inviteUrl } from '@/convex/lib/invite';
 import type { ShareCardKind } from '@/data/share-copy';
 
-/**
- * Where a shared card sends people: a page on the website, which redirects to
- * the App Store (or shows a download button). It lives outside this repo, so
- * the `from` tag is the only thing the app controls; the page can carry it on
- * as an App Store campaign token.
- */
-export const SHARE_BASE_URL = 'https://useanteapp.com/get';
-
 /** What the cards print in their footer, for posts that drop the caption's link. */
-export const SHARE_DISPLAY_URL = 'useanteapp.com';
+export const SHARE_DISPLAY_URL = INVITE_DISPLAY_URL;
 
-export function shareUrl(card: ShareCardKind): string {
-  return `${SHARE_BASE_URL}?from=${card}`;
+/**
+ * Where a shared card sends people: the website's `/get` page, tagged with
+ * the card and, once signed in, the sharer's invite code (`convex/lib/invite.ts`).
+ */
+export function shareUrl(card: ShareCardKind, ref?: string): string {
+  return inviteUrl(card, ref);
 }
