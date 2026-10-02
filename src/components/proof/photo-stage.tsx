@@ -31,19 +31,24 @@ import type { Habit } from '@/data/habits';
 import { captureError, track } from '@/lib/analytics';
 import { todayKey } from '@/lib/dates';
 import { pressHaptic } from '@/lib/haptics';
+import {
+  CAMERA_ORIGIN,
+  isFreshForHabit,
+  originFromExif,
+  type PhotoOrigin,
+} from '@/lib/photo-origin';
 import { userErrorMessage } from '@/lib/user-errors';
 import { uploadPhoto } from '@/lib/proof-upload';
 
 /** The simulator has no camera. */
 const HAS_CAMERA = Device.isDevice;
-/** The library is a development escape hatch only: proof is a photo taken now. */
-const CAN_PICK_FROM_LIBRARY = __DEV__ || !Device.isDevice;
 
 type Photo = { uri: string; mimeType: string };
 
 /**
  * Photo proof, in Ante's own camera: frame it, shoot, and the frame freezes
- * while a scan runs over it until the verdict lands.
+ * while a scan runs over it until the verdict lands. A photo the user's camera
+ * took earlier today can be picked from the library instead.
  */
 export function PhotoStage({ habit, onClose }: { habit: Habit; onClose: () => void }) {
   const [permission, requestPermission] = useCameraPermissions();
@@ -63,12 +68,23 @@ export function PhotoStage({ habit, onClose }: { habit: Habit; onClose: () => vo
   const flash = useSharedValue(0);
   const flashStyle = useAnimatedStyle(() => ({ opacity: flash.get() }));
 
-  const send = async (next: Photo, source: 'camera' | 'library') => {
+  const send = async (next: Photo, origin: PhotoOrigin) => {
     setPhoto(next);
     try {
       const storageId = await uploadPhoto(await generateUploadUrl(), next);
-      setVerificationId(await submit({ habitId: habit._id, day: todayKey(), photoId: storageId }));
-      track('habit checked in', { method: 'photo', photo_source: source });
+      setVerificationId(
+        await submit({
+          habitId: habit._id,
+          day: todayKey(),
+          photoId: storageId,
+          photoOrigin: origin,
+        }),
+      );
+      track('habit checked in', {
+        method: 'photo',
+        photo_source: origin.source,
+        has_camera_metadata: origin.source === 'camera' || origin.takenAt !== undefined,
+      });
     } catch (error: unknown) {
       console.error('Failed to submit the photo', error);
       captureError(error, 'habit photo proof');
@@ -87,7 +103,7 @@ export function PhotoStage({ habit, onClose }: { habit: Habit; onClose: () => vo
     flash.set(withSequence(withTiming(0.85, { duration: 60 }), withTiming(0, { duration: 260 })));
     try {
       const picture = await camera.current.takePictureAsync({ quality: 0.5, exif: false });
-      await send({ uri: picture.uri, mimeType: 'image/jpeg' }, 'camera');
+      await send({ uri: picture.uri, mimeType: 'image/jpeg' }, CAMERA_ORIGIN);
     } catch (error: unknown) {
       console.error('Failed to take the photo', error);
       Alert.alert('Couldn’t take the photo', 'Try again.');
@@ -96,17 +112,27 @@ export function PhotoStage({ habit, onClose }: { habit: Habit; onClose: () => vo
     }
   };
 
+  /**
+   * A photo from earlier today counts, as long as the user's camera took it
+   * today. Its EXIF says when; one with no date goes to the check flagged.
+   */
   const pickFromLibrary = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.5,
-      exif: false,
+      exif: true,
       preferredAssetRepresentationMode:
         ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
     });
     const asset = result.canceled ? undefined : result.assets[0];
-    if (asset !== undefined)
-      await send({ uri: asset.uri, mimeType: asset.mimeType ?? 'image/jpeg' }, 'library');
+    if (asset === undefined) return;
+
+    const origin = originFromExif(asset.exif);
+    if (!isFreshForHabit(origin, todayKey())) {
+      Alert.alert('That photo isn’t from today', 'Take one now, or pick one you took today.');
+      return;
+    }
+    await send({ uri: asset.uri, mimeType: asset.mimeType ?? 'image/jpeg' }, origin);
   };
 
   const retry = () => {
@@ -190,14 +216,12 @@ export function PhotoStage({ habit, onClose }: { habit: Habit; onClose: () => vo
           </RuleText>
           <View style={styles.controls}>
             <View style={styles.controlSide}>
-              {CAN_PICK_FROM_LIBRARY ? (
-                <CircleButton
-                  icon={Image01Icon}
-                  label="Pick from library (development only)"
-                  size={48}
-                  onPress={() => void pickFromLibrary()}
-                />
-              ) : null}
+              <CircleButton
+                icon={Image01Icon}
+                label="Pick from library"
+                size={48}
+                onPress={() => void pickFromLibrary()}
+              />
             </View>
             <Shutter disabled={!ready} onPress={() => void shoot()} />
             <View style={[styles.controlSide, styles.controlRight]}>
