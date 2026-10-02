@@ -119,7 +119,7 @@ export type AuthedCtx<T> = T & { user: Doc<'users'> };
  * A daily habit's streak counts days; a weekly one's counts weeks that hit the
  * target. Frozen days bridge it. A broken habit's streak is over.
  */
-function habitStreak(
+export function habitStreak(
   habit: Doc<'habits'>,
   days: Set<string>,
   today: string,

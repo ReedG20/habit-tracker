@@ -6,7 +6,7 @@ import { ActionButton } from './action-button';
 import { Icon } from './icon';
 import { ThemedText } from './themed-text';
 
-import { ArrowLeft01Icon, Delete02Icon, Edit02Icon } from '@/constants/icons';
+import { ArrowLeft01Icon, Delete02Icon, Edit02Icon, Share03Icon } from '@/constants/icons';
 import { ScreenHeadingTypography, Spacing } from '@/constants/theme';
 
 export type DetailHeaderProps = {
@@ -19,6 +19,8 @@ export type DetailHeaderProps = {
   /** The button's visible text and icon: "End" with a flag for a habit that gives notice. */
   deleteText?: string;
   deleteIcon?: IconSvgElement;
+  /** Leave out to hide the button: there's nothing live to show off. */
+  onShare?: () => void;
 };
 
 /** Back row, heading, and the edit/delete pair shared by both detail screens. */
@@ -30,6 +32,7 @@ export function DetailHeader({
   deleteLabel,
   deleteText = 'Delete',
   deleteIcon = Delete02Icon,
+  onShare,
 }: DetailHeaderProps) {
   return (
     <View style={styles.header}>
@@ -59,6 +62,9 @@ export function DetailHeader({
           size="small"
           onPress={onEdit}
         />
+        {onShare === undefined ? null : (
+          <ActionButton label="Share" icon={Share03Icon} size="small" onPress={onShare} />
+        )}
         {onDelete === undefined ? null : (
           <ActionButton
             label={deleteText}

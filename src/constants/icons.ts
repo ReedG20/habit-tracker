@@ -52,6 +52,7 @@ import Notification01Icon from '@hugeicons/core-free-icons/Notification01Icon';
 import NotificationOff01Icon from '@hugeicons/core-free-icons/NotificationOff01Icon';
 import RepeatIcon from '@hugeicons/core-free-icons/RepeatIcon';
 import Settings02Icon from '@hugeicons/core-free-icons/Settings02Icon';
+import Share03Icon from '@hugeicons/core-free-icons/Share03Icon';
 import SparklesIcon from '@hugeicons/core-free-icons/SparklesIcon';
 import Sun03Icon from '@hugeicons/core-free-icons/Sun03Icon';
 import Target02Icon from '@hugeicons/core-free-icons/Target02Icon';
@@ -110,6 +111,7 @@ export {
   NotificationOff01Icon,
   RepeatIcon,
   Settings02Icon,
+  Share03Icon,
   SparklesIcon,
   Sun03Icon,
   Target02Icon,

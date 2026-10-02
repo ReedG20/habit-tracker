@@ -11,6 +11,7 @@ import { HabitNowPanel } from '@/components/commitment-detail/habit-now-panel';
 import { StatTiles, type Stat } from '@/components/commitment-detail/stat-tiles';
 import { TermsCard } from '@/components/commitment-detail/terms-card';
 import { RaiseButton } from '@/components/raise/raise-button';
+import { openShare } from '@/components/share/open-share';
 import { DetailHeader } from '@/components/detail-header';
 import { EmptyState } from '@/components/empty-state';
 import { EndingBanner } from '@/components/ending-banner';
@@ -145,6 +146,7 @@ export default function HabitDetailScreen() {
         deleteIcon={givesNotice ? Flag02Icon : undefined}
         onEdit={() => router.push(`/habit/${habitId}/edit`)}
         onDelete={ending ? undefined : onDelete}
+        onShare={habit.brokenAt === undefined ? () => openShare({ habitId }, 'detail') : undefined}
       />
 
       {ending && progress !== undefined ? (

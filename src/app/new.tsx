@@ -30,6 +30,7 @@ import { WhatStep, whatTitle, type WhatPhase } from '@/components/commitment/wha
 import { Icon } from '@/components/icon';
 import { DismissKeyboardArea } from '@/components/keyboard/dismiss-keyboard-area';
 import { ProPaywallScreen } from '@/components/pro-paywall-screen';
+import { openShare, type ShareTarget } from '@/components/share/open-share';
 import type { Signed } from '@/components/signed-contract/types';
 import { ThemedText } from '@/components/themed-text';
 import { ArrowLeft01Icon, Cancel01Icon } from '@/constants/icons';
@@ -93,6 +94,8 @@ export default function NewCommitmentScreen() {
   const [whatPhase, setWhatPhase] = useState<WhatPhase>('name');
   const [stakesPhase, setStakesPhase] = useState<StakesPhase>('pick');
   const [busy, setBusy] = useState(false);
+  // What lockIn made, so "It’s on." can share it.
+  const [created, setCreated] = useState<ShareTarget | null>(null);
   const [draft, setDraft] = useState<CommitmentDraft>(() => {
     const kind = params.kind === 'goal' ? 'goal' : 'habit';
     return {
@@ -204,6 +207,7 @@ export default function NewCommitmentScreen() {
             stake: plainStake(draft),
           });
           signContract({ habitId }, signed);
+          setCreated({ habitId });
         } else {
           const goalId = await createGoal({
             title,
@@ -216,6 +220,7 @@ export default function NewCommitmentScreen() {
                 : undefined,
           });
           signContract({ goalId }, signed);
+          setCreated({ goalId });
         }
         track('commitment created', createdProperties);
         goTo('done');
@@ -241,6 +246,7 @@ export default function NewCommitmentScreen() {
           setupIntentId: card.setupIntentId,
         });
         signContract({ habitId }, signed);
+        setCreated({ habitId });
       } else {
         const goalId = await createStaked({
           title,
@@ -253,6 +259,7 @@ export default function NewCommitmentScreen() {
             : { reuseFromStakeId: reuse?.fromStakeId }),
         });
         signContract({ goalId }, signed);
+        setCreated({ goalId });
       }
       track('commitment created', { ...createdProperties, reused_card: card === null });
       goTo('done');
@@ -333,7 +340,13 @@ export default function NewCommitmentScreen() {
         {step === 'sign' ? (
           <SignStep draft={draft} busy={busy} onConfirm={(signed) => void lockIn(signed)} />
         ) : null}
-        {step === 'done' ? <LockedIn draft={draft} onDone={() => router.back()} /> : null}
+        {step === 'done' ? (
+          <LockedIn
+            draft={draft}
+            onDone={() => router.back()}
+            onShare={created === null ? undefined : () => openShare(created, 'locked_in', 'stake')}
+          />
+        ) : null}
       </Animated.View>
     </View>
   );

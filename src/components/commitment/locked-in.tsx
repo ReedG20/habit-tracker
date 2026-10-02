@@ -10,6 +10,7 @@ import { Countdown } from '@/components/countdown';
 import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
 import { commitmentIcon } from '@/constants/commitment-icons';
+import { Share03Icon } from '@/constants/icons';
 import {
   ActionCardRadius,
   CardRadius,
@@ -29,16 +30,26 @@ export type LockedInProps = {
   title?: string;
   /** The handwritten aside under the card, when the usual one doesn't fit. */
   note?: string;
+  /** Offers to share the new stakes, beside Done. */
+  onShare?: () => void;
 };
 
 /** The confirmation after locking in: what was just agreed to, in one card. */
-export function LockedIn({ draft, onDone, title = 'It’s on.', note }: LockedInProps) {
+export function LockedIn({ draft, onDone, title = 'It’s on.', note, onShare }: LockedInProps) {
   const theme = useTheme();
   const daily = draft.timesPerWeek >= DAILY;
   const stakes = stakesLine(draft, daily);
 
   return (
-    <StepLayout footer={<ActionButton label="Done" variant="primary" fill onPress={onDone} />}>
+    <StepLayout
+      footer={
+        <View style={styles.actions}>
+          {onShare === undefined ? null : (
+            <ActionButton label="Share" icon={Share03Icon} onPress={onShare} />
+          )}
+          <ActionButton label="Done" variant="primary" fill onPress={onDone} style={styles.done} />
+        </View>
+      }>
       <ThemedText style={styles.title} themeColor="text">
         {title}
       </ThemedText>
@@ -142,6 +153,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   titleText: {
+    flex: 1,
+  },
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  done: {
     flex: 1,
   },
 });

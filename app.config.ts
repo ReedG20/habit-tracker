@@ -27,6 +27,8 @@ const config: ExpoConfig = {
     infoPlist: {
       // Only HTTPS, so exempt from export compliance; stops EAS asking each build.
       ITSAppUsesNonExemptEncryption: false,
+      // "Save Image" in the share sheet writes a share card to Photos; iOS kills an app without it.
+      NSPhotoLibraryAddUsageDescription: 'Ante saves the cards you share to your photos.',
     },
     entitlements: {
       // Lets a deadline's last call through Focus modes, when the user allows it

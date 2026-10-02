@@ -71,6 +71,7 @@ import type * as push from "../push.js";
 import type * as raises from "../raises.js";
 import type * as reminders from "../reminders.js";
 import type * as revenuecat from "../revenuecat.js";
+import type * as share from "../share.js";
 import type * as stakes from "../stakes.js";
 import type * as stripe from "../stripe.js";
 import type * as subscriptions from "../subscriptions.js";
@@ -148,6 +149,7 @@ declare const fullApi: ApiFromModules<{
   raises: typeof raises;
   reminders: typeof reminders;
   revenuecat: typeof revenuecat;
+  share: typeof share;
   stakes: typeof stakes;
   stripe: typeof stripe;
   subscriptions: typeof subscriptions;

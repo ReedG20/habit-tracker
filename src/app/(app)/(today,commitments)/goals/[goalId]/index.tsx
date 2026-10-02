@@ -9,6 +9,7 @@ import { DevResetProof } from '@/components/commitment-detail/dev-reset-proof';
 import { GoalNowPanel } from '@/components/commitment-detail/goal-now-panel';
 import { TermsCard } from '@/components/commitment-detail/terms-card';
 import { RaiseButton } from '@/components/raise/raise-button';
+import { openShare } from '@/components/share/open-share';
 import { DetailHeader } from '@/components/detail-header';
 import { EmptyState } from '@/components/empty-state';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
@@ -95,6 +96,7 @@ export default function GoalDetailScreen() {
         title={goal.title}
         deleteLabel="Delete goal"
         onEdit={() => router.push(`/goals/${goalId}/edit`)}
+        onShare={done || missed ? undefined : () => openShare({ goalId }, 'detail')}
         onDelete={() => {
           if (stakeLive && !forceDelete) {
             notify(

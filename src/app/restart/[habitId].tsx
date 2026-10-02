@@ -23,6 +23,7 @@ import {
 } from '@/components/commitment/stakes-step';
 import { Icon } from '@/components/icon';
 import { ProPaywallScreen } from '@/components/pro-paywall-screen';
+import { openShare } from '@/components/share/open-share';
 import type { Signed } from '@/components/signed-contract/types';
 import { ThemedText } from '@/components/themed-text';
 import { ArrowLeft01Icon, Cancel01Icon } from '@/constants/icons';
@@ -245,7 +246,13 @@ function RestartFlow({
         {step === 'sign' ? (
           <SignStep draft={draft} busy={busy} onConfirm={(signed) => void lockIn(signed)} />
         ) : null}
-        {step === 'done' ? <LockedIn draft={draft} onDone={() => router.back()} /> : null}
+        {step === 'done' ? (
+          <LockedIn
+            draft={draft}
+            onDone={() => router.back()}
+            onShare={() => openShare({ habitId: habit._id }, 'restart', 'stake')}
+          />
+        ) : null}
       </Animated.View>
     </>
   );

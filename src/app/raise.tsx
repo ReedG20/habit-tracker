@@ -22,6 +22,7 @@ import {
 import { Icon } from '@/components/icon';
 import { ProPaywallScreen } from '@/components/pro-paywall-screen';
 import { StakeLadder } from '@/components/raise/stake-ladder';
+import { openShare } from '@/components/share/open-share';
 import type { Signed } from '@/components/signed-contract/types';
 import { ThemedText } from '@/components/themed-text';
 import { ArrowLeft01Icon, Cancel01Icon } from '@/constants/icons';
@@ -304,6 +305,7 @@ function RaiseFlow({
             title="Raised."
             note="no climbing back down."
             onDone={() => router.back()}
+            onShare={() => openShare(target, 'raise', 'stake')}
           />
         ) : null}
       </Animated.View>
