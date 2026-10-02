@@ -16,7 +16,13 @@ const HABIT: GoAgain = {
   timesPerWeek: 3,
   proofMethod: 'location',
   lengthDays: 30,
-  stake: { kind: 'money', stakeId: STAKE_ID, amountCents: 2000, cardBrand: 'visa', cardLast4: '4242' },
+  stake: {
+    kind: 'money',
+    stakeId: STAKE_ID,
+    amountCents: 2000,
+    cardBrand: 'visa',
+    cardLast4: '4242',
+  },
   complete: true,
 };
 
@@ -66,9 +72,9 @@ describe('going again after one that was kept', () => {
 describe('going again, higher', () => {
   test('climbs a rung', () => {
     expect(higherStakePatch(null, 'habit')).toEqual({ stakeKind: 'lockout', lockoutDays: 1 });
-    expect(
-      higherStakePatch({ kind: 'lockout', days: 3 }, 'habit'),
-    ).toEqual({ stakeKind: 'friend' });
+    expect(higherStakePatch({ kind: 'lockout', days: 3 }, 'habit')).toEqual({
+      stakeKind: 'friend',
+    });
     expect(
       higherStakePatch(
         { kind: 'friend', friendId: FRIEND_ID, name: 'Sam', email: 'sam@example.com' },
