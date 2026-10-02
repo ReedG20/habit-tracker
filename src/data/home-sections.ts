@@ -1,4 +1,4 @@
-import { isMissed, type GoalWithStatus } from '@/data/goals';
+import { isGoalOver, type GoalWithStatus } from '@/data/goals';
 import { isDaily, isDoneForToday, mustLogToday, type HabitWithProgress } from '@/data/habits';
 import { habitWeekEnd } from '@/convex/lib/habitWeek';
 import { endOfDay } from '@/lib/dates';
@@ -8,7 +8,7 @@ export type HomeItem =
   | { kind: 'habit'; habit: HabitWithProgress; deadlineAt?: number }
   | { kind: 'goal'; goal: GoalWithStatus };
 
-export type HomeSectionId = 'today' | 'upcoming' | 'done' | 'missed' | 'paused';
+export type HomeSectionId = 'today' | 'upcoming' | 'done' | 'paused';
 
 export type HomeSection = {
   id: HomeSectionId;
@@ -41,10 +41,10 @@ function byDeadline(entries: Sorted[]): HomeItem[] {
  * - coming up: weekly habits that still have slack, and goals due later.
  * - done: done for today or the week, plus proof waiting on review (the
  *   user's part is done; a rejection sends it back up).
- * - missed: goals past their deadline, last but never hidden, since a charge
- *   should always be visible.
  * - paused: without Ante Pro, every habit, below it all. Nothing is owed on
  *   them, so they must not crowd out goals that still settle.
+ *
+ * Goals done or missed are over: they live in Past on Commitments, not here.
  */
 export function groupIntoHomeSections(
   habits: HabitWithProgress[],
@@ -57,7 +57,6 @@ export function groupIntoHomeSections(
   const dueToday: Sorted[] = [];
   const upcoming: Sorted[] = [];
   const done: HomeItem[] = [];
-  const missed: HomeItem[] = [];
   const pausedHabits: HomeItem[] = [];
 
   for (const habit of habits) {
@@ -78,11 +77,9 @@ export function groupIntoHomeSections(
   }
 
   for (const goal of goals) {
-    if (goal.completedAt !== undefined) continue;
+    if (isGoalOver(goal, now)) continue;
     const item: HomeItem = { kind: 'goal', goal };
-    if (isMissed(goal, now)) {
-      missed.push(item);
-    } else if (goal.submission?.status === 'pending') {
+    if (goal.submission?.status === 'pending') {
       done.push(item);
     } else {
       (goal.dueAt < dayEnd ? dueToday : upcoming).push({ item, key: goal.dueAt });
@@ -93,7 +90,6 @@ export function groupIntoHomeSections(
     { id: 'today', title: 'today', items: byDeadline(dueToday) },
     { id: 'upcoming', title: 'coming up', items: byDeadline(upcoming) },
     { id: 'done', title: 'done', items: done },
-    { id: 'missed', title: 'missed', items: missed },
     { id: 'paused', title: 'paused', items: pausedHabits },
   ];
 

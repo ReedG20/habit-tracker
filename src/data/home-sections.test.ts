@@ -119,14 +119,9 @@ describe('groupIntoHomeSections, goals', () => {
     expect(sectionOfGoal(later)).toBe('upcoming');
   });
 
-  test('missed goals are listed last', () => {
-    const missed = goal({ dueAt: morning - HOUR });
-    const sections = groupIntoHomeSections([habit({})], [missed], SATURDAY, morning);
-    expect(sections.at(-1)?.id).toBe('missed');
-  });
-
-  test('completed goals stay on Commitments', () => {
+  test('done and missed goals stay on Commitments', () => {
     expect(sectionOfGoal(goal({ completedAt: morning, dueAt: midnight }))).toBeUndefined();
+    expect(sectionOfGoal(goal({ dueAt: morning - HOUR }))).toBeUndefined();
   });
 
   test('a submitted goal waits in done', () => {
@@ -147,7 +142,7 @@ describe('groupIntoHomeSections, without Ante Pro', () => {
     const sections = groupIntoHomeSections(habits, [soon, missed], SATURDAY, morning, {
       paused: true,
     });
-    expect(sections.map((section) => section.id)).toEqual(['today', 'missed', 'paused']);
+    expect(sections.map((section) => section.id)).toEqual(['today', 'paused']);
     expect(sections[0].items).toEqual([{ kind: 'goal', goal: soon }]);
     expect(sections.at(-1)?.items).toHaveLength(3);
     expect(sections.at(-1)?.items[0]).not.toHaveProperty('deadlineAt');

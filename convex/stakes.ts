@@ -72,7 +72,9 @@ export type ArmSpec =
  * Puts a new stake on a goal or habit and points it there. Money is checked
  * against the cap here, inside the transaction that arms it, so two stakes
  * started at once can't both slip under it. A goal's stake is resolved by a
- * job at its deadline; a friend hears about it straight away.
+ * job at its deadline. A friend hears about it once the commitment can no
+ * longer be called off (`lib/callOff.ts`), so they never hear about one that
+ * was taken back.
  */
 export async function armStake(
   ctx: MutationCtx,
@@ -120,7 +122,8 @@ export async function armStake(
         friendName: spec.friend.name,
         friendEmail: spec.friend.email,
       });
-      await ctx.scheduler.runAfter(0, internal.emails.sendHeadsUp, { stakeId });
+      const headsUpAt = Math.max(Date.now(), subject.callOffUntil ?? 0);
+      await ctx.scheduler.runAt(headsUpAt, internal.emails.sendHeadsUp, { stakeId });
       break;
     }
     case 'lockout':

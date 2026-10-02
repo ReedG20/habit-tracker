@@ -103,7 +103,7 @@ const suggestions: Record<Exclude<FocusArea, 'other'>, Record<CommitmentKind, Su
     ],
     goal: [
       { title: 'Run a 5K', proof: 'My watch or running app showing a finished 5 km run' },
-      { title: 'Go to three classes', proof: 'Me at each class, with the studio in view' },
+      { title: 'Hike to a summit', proof: 'Me at the top, with the summit sign in view' },
     ],
   },
   health: {
@@ -112,21 +112,18 @@ const suggestions: Record<Exclude<FocusArea, 'other'>, Record<CommitmentKind, Su
       { title: 'In bed by 11', proof: 'The clock showing before 11, taken from bed' },
     ],
     goal: [
-      { title: 'Book a checkup', proof: 'The booking confirmation with the date on it' },
+      { title: 'Hit my goal weight', proof: 'The scale showing my goal weight' },
       { title: 'Cook every dinner this week', proof: 'Each plate I cooked, on my table' },
     ],
   },
   focus: {
     habit: [
-      { title: 'Two hours of deep work', proof: 'My desk mid-session, phone out of reach' },
-      { title: 'Inbox zero by 6', proof: 'My empty inbox with the time showing' },
+      { title: 'Focus for an hour, phone away', proof: 'My desk mid-session, phone out of reach' },
+      { title: 'Plan tomorrow before bed', proof: 'Tomorrow’s to-do list, written out' },
     ],
     goal: [
-      {
-        title: 'Ship the landing page',
-        proof: 'The live site open on my laptop, not a screenshot',
-      },
-      { title: 'Send the proposal', proof: 'The sent email with the date showing' },
+      { title: 'Pass the certification exam', proof: 'My pass result, with my name on it' },
+      { title: 'Open my online shop', proof: 'My shop live on my phone, first item listed' },
     ],
   },
   learning: {
@@ -146,7 +143,7 @@ const suggestions: Record<Exclude<FocusArea, 'other'>, Record<CommitmentKind, Su
     ],
     goal: [
       { title: 'Set up automatic savings', proof: 'The scheduled transfer in my bank app' },
-      { title: 'Cancel three subscriptions', proof: 'Each cancellation confirmation' },
+      { title: 'Pay off my credit card', proof: 'My card balance showing $0' },
     ],
   },
   mind: {
@@ -165,7 +162,7 @@ const suggestions: Record<Exclude<FocusArea, 'other'>, Record<CommitmentKind, Su
       { title: 'Ten-minute tidy', proof: 'The room afterwards, floor and surfaces clear' },
     ],
     goal: [
-      { title: 'Clear out the closet', proof: 'The bags going out the door' },
+      { title: 'Paint the bedroom', proof: 'The finished walls, tape off and brushes washed' },
       { title: 'Fix the thing I keep ignoring', proof: 'It, fixed and working' },
     ],
   },

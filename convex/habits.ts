@@ -4,12 +4,15 @@ import { ConvexError, v } from 'convex/values';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
+import { requireCallOffOpen, voidDeal } from './callOff';
 import { newIconFields, repickIconOnRename, requireNewIcon } from './commitmentIcons';
+import { recordEndedHabit } from './endedHabits';
 import { holdEvidence } from './evidence';
 import { frozenDaysBetween } from './freezes';
 import { friendInputValidator, resolveFriend } from './friends';
 import { currentStreak } from './habitStreaks';
 import { getCurrentUserOrNull } from './lib/auth';
+import { habitCallOffUntil, isCallOffOpen } from './lib/callOff';
 import { authedAction, authedMutation, authedQuery } from './lib/customFunctions';
 import { requireCommitmentIcon } from './lib/commitmentIcons';
 import { requireCommitmentText } from './lib/commitmentText';
@@ -54,6 +57,7 @@ const habitValidator = v.object({
   brokenAt: v.optional(v.number()),
   proofMethod: v.optional(proofMethodValidator),
   timerMinutes: v.optional(v.number()),
+  callOffUntil: v.optional(v.number()),
   icon: v.optional(v.string()),
   iconChosen: v.optional(v.boolean()),
 });
@@ -366,10 +370,38 @@ async function requireNewHabit(
   };
 }
 
+/**
+ * Changing a habit's terms while it can still be called off: the old one is
+ * called off and deleted, and its window carries over to the new one. Runs
+ * before the room and money checks, so what it held is free again in the
+ * same transaction; a failure later rolls it all back.
+ */
+async function takeOverHabit(
+  ctx: MutationCtx,
+  user: Doc<'users'>,
+  habitId: Id<'habits'>,
+): Promise<number> {
+  const habit = await ctx.db.get('habits', habitId);
+  if (habit === null || habit.userId !== user._id) throw new Error('Habit not found');
+  const callOffUntil = requireCallOffOpen(
+    habit,
+    Date.now(),
+    'It’s past the time to change this one',
+  );
+  await voidDeal(ctx, { habit });
+  await deleteHabit(ctx, habit._id);
+  return callOffUntil;
+}
+
+/**
+ * `carried` is the window of the habit this one replaces, which it never
+ * outlasts, so swapping terms can't stretch it.
+ */
 async function insertHabit(
   ctx: MutationCtx,
   user: Doc<'users'>,
   args: ValidHabitFields,
+  carried?: number,
 ): Promise<Doc<'habits'>> {
   const existing = await ctx.db
     .query('habits')
@@ -389,6 +421,7 @@ async function insertHabit(
     iconChosen: args.iconChosen,
     order,
     startDay: user.timeZone === undefined ? undefined : localDay(Date.now(), user.timeZone),
+    callOffUntil: Math.min(habitCallOffUntil(Date.now(), user.timeZone), carried ?? Infinity),
   });
   const habit = await ctx.db.get('habits', habitId);
   if (habit === null) throw new Error('Habit not found');
@@ -421,17 +454,20 @@ async function armPlain(
  * Money goes through `createStaked`.
  */
 export const create = authedMutation({
-  args: { ...newHabitFields, stake: v.optional(plainStakeValidator) },
+  args: {
+    ...newHabitFields,
+    stake: v.optional(plainStakeValidator),
+    /** A habit of theirs, still in its window, that this one takes the place of. */
+    replaces: v.optional(v.id('habits')),
+  },
   returns: v.id('habits'),
   handler: async (ctx, args): Promise<Id<'habits'>> => {
-    const fields = await requireNewHabit(ctx, ctx.user, args);
-    const habit = await insertHabit(ctx, ctx.user, fields);
-    await armPlain(
-      ctx,
-      ctx.user,
-      habit,
-      args.stake ?? { kind: 'lockout', days: DEFAULT_LOCKOUT_DAYS },
-    );
+    const { replaces, stake, ...habitArgs } = args;
+    const carried =
+      replaces === undefined ? undefined : await takeOverHabit(ctx, ctx.user, replaces);
+    const fields = await requireNewHabit(ctx, ctx.user, habitArgs);
+    const habit = await insertHabit(ctx, ctx.user, fields, carried);
+    await armPlain(ctx, ctx.user, habit, stake ?? { kind: 'lockout', days: DEFAULT_LOCKOUT_DAYS });
     await touchReminders(ctx, ctx.user._id);
 
     return habit._id;
@@ -440,15 +476,28 @@ export const create = authedMutation({
 
 /** A habit with money on it, once the PaymentSheet saved the card (`stakes.beginMoney`). */
 export const createStaked = authedAction({
-  args: { ...newHabitFields, amountCents: v.number(), setupIntentId: v.string() },
+  args: {
+    ...newHabitFields,
+    amountCents: v.number(),
+    /** A card just saved through the PaymentSheet… */
+    setupIntentId: v.optional(v.string()),
+    /** …or the one the habit it replaces was on. */
+    reuseFromStakeId: v.optional(v.id('stakes')),
+    /** A habit of theirs, still in its window, that this one takes the place of. */
+    replaces: v.optional(v.id('habits')),
+  },
   returns: v.id('habits'),
   handler: async (ctx, args): Promise<Id<'habits'>> => {
     requireCommitmentText(args.title, args.description);
-    const { kind: _kind, ...card } = await verifySavedCard(
-      ctx,
-      args.setupIntentId,
-      args.amountCents,
-    );
+    let saved: SavedCard;
+    if (args.setupIntentId !== undefined) {
+      saved = await verifySavedCard(ctx, args.setupIntentId, args.amountCents);
+    } else if (args.reuseFromStakeId !== undefined) {
+      saved = await reuseCard(ctx, args.reuseFromStakeId, args.amountCents);
+    } else {
+      throw new ConvexError('Add a card for the stake');
+    }
+    const { kind: _kind, ...card } = saved;
     const habitId: Id<'habits'> = await ctx.runMutation(internal.habits.insertStaked, {
       userId: ctx.user._id,
       title: args.title,
@@ -458,6 +507,7 @@ export const createStaked = authedAction({
       timerMinutes: args.timerMinutes,
       icon: args.icon,
       iconChosen: args.iconChosen,
+      replaces: args.replaces,
       ...card,
     });
     return habitId;
@@ -475,7 +525,12 @@ const moneyArgs = {
 };
 
 export const insertStaked = internalMutation({
-  args: { userId: v.id('users'), ...newHabitFields, ...moneyArgs },
+  args: {
+    userId: v.id('users'),
+    ...newHabitFields,
+    ...moneyArgs,
+    replaces: v.optional(v.id('habits')),
+  },
   returns: v.id('habits'),
   handler: async (ctx, args): Promise<Id<'habits'>> => {
     const user = await ctx.db.get('users', args.userId);
@@ -489,8 +544,11 @@ export const insertStaked = internalMutation({
       timerMinutes,
       icon,
       iconChosen,
+      replaces,
       ...card
     } = args;
+    // Frees the old habit's slot and dollars before they're checked.
+    const carried = replaces === undefined ? undefined : await takeOverHabit(ctx, user, replaces);
     const fields = await requireNewHabit(ctx, user, {
       title,
       description,
@@ -500,7 +558,7 @@ export const insertStaked = internalMutation({
       icon,
       iconChosen,
     });
-    const habit = await insertHabit(ctx, user, fields);
+    const habit = await insertHabit(ctx, user, fields, carried);
     // Checks the cap and replays; throwing here rolls the habit back with it.
     await armStake(ctx, { habit }, { kind: 'money', ...card });
     await touchReminders(ctx, user._id);
@@ -691,8 +749,9 @@ export const endingTerms = authedQuery({
  * Ends a habit. With something live on the line it only gives notice
  * (`lib/ending.ts`): it keeps counting through `endsAfter`, and the nightly
  * check removes it once that day has been judged. Otherwise quitting on the
- * night it is due would dodge the miss. `force` skips the wait, on dev and
- * preview only.
+ * night it is due would dodge the miss. In its first moments
+ * (`lib/callOff.ts`) it can still be called off and goes at once. `force`
+ * skips the wait, on dev and preview only.
  */
 export const remove = authedMutation({
   args: { habitId: v.id('habits'), force: v.optional(v.boolean()) },
@@ -701,7 +760,9 @@ export const remove = authedMutation({
     const habit = await requireOwnedHabit(ctx, args.habitId);
     await requireUnlocked(ctx, ctx.user._id);
 
-    if (args.force === true) {
+    if (isCallOffOpen(habit.callOffUntil, Date.now())) {
+      await voidDeal(ctx, { habit });
+    } else if (args.force === true) {
       requireDevOverrides();
     } else if (habit.endsAfter !== undefined) {
       return 'scheduled';
@@ -749,9 +810,15 @@ export const keepGoing = authedMutation({
 /**
  * The habit and everything logged against it, photos included. Its stake is
  * let go (the habit ended before it came due) and kept as a record. Proof
- * behind money that came due is held a while longer (`evidence.ts`).
+ * behind money that came due is held a while longer (`evidence.ts`). A short
+ * summary stays behind for the Past list (`endedHabits.ts`); pass the Kept
+ * screen's row when it finished clean.
  */
-export async function deleteHabit(ctx: MutationCtx, habitId: Id<'habits'>): Promise<void> {
+export async function deleteHabit(
+  ctx: MutationCtx,
+  habitId: Id<'habits'>,
+  accomplishmentId?: Id<'accomplishments'>,
+): Promise<void> {
   const habit = await ctx.db.get('habits', habitId);
   if (habit?.stakeId !== undefined) {
     const stake = await ctx.db.get('stakes', habit.stakeId);
@@ -764,6 +831,7 @@ export async function deleteHabit(ctx: MutationCtx, habitId: Id<'habits'>): Prom
     .withIndex('by_habit_and_day', (q) => q.eq('habitId', habitId))
     .collect();
 
+  if (habit !== null) await recordEndedHabit(ctx, habit, completions.length, accomplishmentId);
   for (const completion of completions) {
     await ctx.db.delete('habitCompletions', completion._id);
   }

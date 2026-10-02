@@ -92,6 +92,28 @@ export function describeCountdown(deadlineAt: number, now: number): string | nul
 
 const DAY = 24 * HOUR;
 
+const weekdayClockFormat = new Intl.DateTimeFormat(undefined, {
+  weekday: 'short',
+  hour: 'numeric',
+  minute: '2-digit',
+});
+
+/** "9:40 PM". */
+export function formatClock(at: number): string {
+  return timeFormat.format(new Date(at));
+}
+
+/**
+ * A moment soon, as people say it: just the time while it can't be mistaken
+ * ("9:40 PM", "3:00 AM" late tonight), then "tomorrow 9:40 PM", then "Fri 9:40 PM".
+ */
+export function describeClock(at: number, now: number): string {
+  const day = toDayKey(new Date(at));
+  if (at - now < 12 * HOUR || day === toDayKey(new Date(now))) return formatClock(at);
+  if (day === toDayKey(new Date(now + DAY))) return `tomorrow ${formatClock(at)}`;
+  return weekdayClockFormat.format(new Date(at));
+}
+
 const dueAtFormat = new Intl.DateTimeFormat(undefined, {
   weekday: 'short',
   month: 'short',

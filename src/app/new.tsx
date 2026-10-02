@@ -18,6 +18,7 @@ import {
   reuseForStake,
   type CommitmentDraft,
 } from '@/components/commitment/draft';
+import { draftFromRevisable } from '@/components/commitment/draft-from-commitment';
 import { LockedIn } from '@/components/commitment/locked-in';
 import { SignStep } from '@/components/commitment/sign-step';
 import {
@@ -39,10 +40,12 @@ import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import { limitMessage } from '@/convex/lib/commitmentLimits';
 import { DAILY } from '@/convex/lib/frequency';
+import { draftCallOffUntil } from '@/data/call-off';
 import { useSignContract } from '@/hooks/use-sign-contract';
 import { captureError, track } from '@/lib/analytics';
 import { commitmentCreatedProperties } from '@/lib/analytics-events';
 import { cardLabel } from '@/lib/money';
+import { describeClock } from '@/lib/dates';
 import { userErrorMessage } from '@/lib/user-errors';
 import { useNow } from '@/hooks/use-now';
 import { useSubscription } from '@/hooks/use-subscription';
@@ -72,9 +75,13 @@ function stepTitle(step: Step, whatPhase: WhatPhase, draft: CommitmentDraft): st
  *
  * `?again=<stakeId>` starts from a goal that was just lost: same words, same
  * stakes, a fresh deadline.
+ *
+ * `?revise=<goalId|habitId>` (with `kind`) changes the terms of one still in
+ * its first moments (`convex/lib/callOff.ts`): everything starts as signed,
+ * and locking in swaps the old one out, keeping the time it had left.
  */
 export default function NewCommitmentScreen() {
-  const params = useLocalSearchParams<{ kind?: string; again?: string }>();
+  const params = useLocalSearchParams<{ kind?: string; again?: string; revise?: string }>();
   const createHabit = useMutation(api.habits.create);
   const createHabitStaked = useAction(api.habits.createStaked);
   const createGoal = useMutation(api.goals.create);
@@ -84,9 +91,21 @@ export default function NewCommitmentScreen() {
     api.stakes.loss,
     params.again === undefined ? 'skip' : { stakeId: params.again as Id<'stakes'> },
   );
+  const revising = params.revise !== undefined;
+  const revisable = useQuery(
+    api.callOff.revisable,
+    params.revise === undefined
+      ? 'skip'
+      : params.kind === 'goal'
+        ? { goalId: params.revise as Id<'goals'> }
+        : { habitId: params.revise as Id<'habits'> },
+  );
+  // The swap keeps the old one's window: it never runs longer than this.
+  const carried = revisable?.callOffUntil;
   const syncSubscription = useAction(api.subscriptions.sync);
   const subscription = useSubscription();
-  const room = useQuery(api.limits.room, { now: useNow() });
+  const now = useNow();
+  const room = useQuery(api.limits.room, { now });
 
   const insets = useSafeAreaInsets();
   const theme = useTheme();
@@ -96,6 +115,8 @@ export default function NewCommitmentScreen() {
   const [busy, setBusy] = useState(false);
   // What lockIn made, so "It’s on." can share it.
   const [created, setCreated] = useState<ShareTarget | null>(null);
+  // Until when what lockIn made can be called off, for "It’s on." to say.
+  const [lockedCallOffUntil, setLockedCallOffUntil] = useState<number | undefined>(undefined);
   const [draft, setDraft] = useState<CommitmentDraft>(() => {
     const kind = params.kind === 'goal' ? 'goal' : 'habit';
     return {
@@ -137,11 +158,30 @@ export default function NewCommitmentScreen() {
     });
   }, [again, update]);
 
+  // Changing the terms: everything starts as it was signed, once, as soon as it loads.
+  const [revisePrefilled, setRevisePrefilled] = useState(false);
+  if (revising && !revisePrefilled && revisable != null && revisable.callOffUntil > now) {
+    setRevisePrefilled(true);
+    setDraft((current) => ({ ...current, ...draftFromRevisable(revisable) }));
+  }
+  // …or, if the window closed before it opened, says so and leaves.
+  const warnedTooLate = useRef(false);
+  useEffect(() => {
+    if (!revising || revisable === undefined || revisePrefilled || warnedTooLate.current) return;
+    if (revisable !== null && revisable.callOffUntil > Date.now()) return;
+    warnedTooLate.current = true;
+    Alert.alert('Too late to change this one', 'It runs as it was signed.', [
+      { text: 'OK', onPress: () => router.back() },
+    ]);
+  }, [revisable, revising, revisePrefilled]);
+
   const goTo = (next: Step) => setStep(next);
 
   // Already as many of this kind as Ante allows: said up front, before anything is typed.
   const slots = room === undefined ? null : draft.kind === 'habit' ? room.habits : room.goals;
-  const full = slots !== null && slots.used >= slots.max ? limitMessage(draft.kind) : null;
+  // A swap gives its slot back first, so it never counts against the limit.
+  const full =
+    !revising && slots !== null && slots.used >= slots.max ? limitMessage(draft.kind) : null;
 
   const back = () => {
     // Steps 1 and 2 are two pages each: Back walks through both.
@@ -187,6 +227,24 @@ export default function NewCommitmentScreen() {
       source: 'new',
       isRedo: params.again !== undefined,
     });
+    const replaces = revising ? params.revise : undefined;
+    const goalReplaces = replaces === undefined ? {} : { replaces: replaces as Id<'goals'> };
+    const habitReplaces = replaces === undefined ? {} : { replaces: replaces as Id<'habits'> };
+    const finish = (reusedCard: boolean) => {
+      if (revising) {
+        track('commitment terms changed', {
+          kind: draft.kind,
+          stake_kind: draft.stakeKind,
+          from_stake_kind: revisable?.stake?.kind ?? 'none',
+          amount_cents: createdProperties.amount_cents,
+          days_until_due: createdProperties.days_until_due,
+        });
+      } else {
+        track('commitment created', { ...createdProperties, reused_card: reusedCard });
+      }
+      setLockedCallOffUntil(draftCallOffUntil(draft, Date.now(), carried));
+      goTo('done');
+    };
 
     setBusy(true);
     try {
@@ -205,6 +263,7 @@ export default function NewCommitmentScreen() {
             ...proofInput(draft),
             ...iconInput(draft),
             stake: plainStake(draft),
+            ...habitReplaces,
           });
           signContract({ habitId }, signed);
           setCreated({ habitId });
@@ -218,32 +277,35 @@ export default function NewCommitmentScreen() {
               draft.stakeKind === 'friend'
                 ? { kind: 'friend', friend: friendInput(draft.friend) }
                 : undefined,
+            ...goalReplaces,
           });
           signContract({ goalId }, signed);
           setCreated({ goalId });
         }
-        track('commitment created', createdProperties);
-        goTo('done');
+        finish(createdProperties.reused_card);
         return;
       }
 
       const reuse = reuseForStake(draft);
       const card = cardForStake(draft);
-      if (card === null && (reuse === null || draft.kind === 'habit')) {
+      if (card === null && reuse === null) {
         // The amount changed after the card was saved; step 2 collects a new one.
         setStakesPhase('tune');
         goTo('stakes');
         return;
       }
-      if (draft.kind === 'habit' && card !== null) {
+      if (draft.kind === 'habit') {
         const habitId = await createHabitStaked({
           title,
           description,
           timesPerWeek: draft.timesPerWeek,
           ...proofInput(draft),
           ...iconInput(draft),
-          amountCents: card.amountCents,
-          setupIntentId: card.setupIntentId,
+          amountCents: draft.amountCents,
+          ...(card !== null
+            ? { setupIntentId: card.setupIntentId }
+            : { reuseFromStakeId: reuse?.fromStakeId }),
+          ...habitReplaces,
         });
         signContract({ habitId }, signed);
         setCreated({ habitId });
@@ -257,15 +319,22 @@ export default function NewCommitmentScreen() {
           ...(card !== null
             ? { setupIntentId: card.setupIntentId }
             : { reuseFromStakeId: reuse?.fromStakeId }),
+          ...goalReplaces,
         });
         signContract({ goalId }, signed);
         setCreated({ goalId });
       }
-      track('commitment created', { ...createdProperties, reused_card: card === null });
-      goTo('done');
+      finish(card === null);
     } catch (error: unknown) {
       console.error('Failed to lock in the commitment', error);
       captureError(error, 'create commitment');
+      if (carried !== undefined && Date.now() >= carried) {
+        // The window closed while they were changing it: the old terms stand.
+        Alert.alert('Too late to change this one', 'It runs as it was signed.', [
+          { text: 'OK', onPress: () => router.back() },
+        ]);
+        return;
+      }
       Alert.alert(
         "Couldn't lock it in",
         userErrorMessage(error, 'Check your connection and try again.'),
@@ -311,6 +380,11 @@ export default function NewCommitmentScreen() {
             </ThemedText>
           </Pressable>
           <StepProgress step={STEPS.indexOf(step) + 1} />
+          {carried === undefined ? null : (
+            <ThemedText type="small" themeColor="textSecondary">
+              Changing the terms · until {describeClock(carried, now)}
+            </ThemedText>
+          )}
           <ThemedText style={styles.title} themeColor="text">
             {stepTitle(step, whatPhase, draft)}
           </ThemedText>
@@ -335,6 +409,10 @@ export default function NewCommitmentScreen() {
             onNext={() => goTo('sign')}
             phase={stakesPhase}
             onPhaseChange={setStakesPhase}
+            callOffUntil={draftCallOffUntil(draft, now, carried)}
+            replacingCents={
+              revisable?.stake?.kind === 'money' ? revisable.stake.amountCents : undefined
+            }
           />
         ) : null}
         {step === 'sign' ? (
@@ -343,6 +421,8 @@ export default function NewCommitmentScreen() {
         {step === 'done' ? (
           <LockedIn
             draft={draft}
+            callOffUntil={lockedCallOffUntil}
+            {...(revising ? { title: 'Updated.', note: 'same window, new terms.' } : {})}
             onDone={() => router.back()}
             onShare={created === null ? undefined : () => openShare(created, 'locked_in', 'stake')}
           />

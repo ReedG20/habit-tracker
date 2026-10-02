@@ -17,6 +17,7 @@ export function TitleField({
   defaultValue,
   placeholder,
   autoFocus,
+  maxLength,
   readValueRef,
   onChangeText,
   onSubmit,
@@ -45,6 +46,7 @@ export function TitleField({
         placeholderTextColor={theme.textSecondary}
         defaultValue={defaultValue}
         autoFocus={autoFocus}
+        maxLength={maxLength}
         autoCapitalize="sentences"
         multiline
         submitBehavior="blurAndSubmit"

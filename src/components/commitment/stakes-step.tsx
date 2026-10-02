@@ -37,7 +37,7 @@ import {
 } from '@/convex/lib/stakeRules';
 import { useStakePayment } from '@/hooks/use-stake-payment';
 import { captureError, track } from '@/lib/analytics';
-import { describeWeekSpan, formatDueAt, todayKey } from '@/lib/dates';
+import { describeClock, describeWeekSpan, formatDueAt, todayKey } from '@/lib/dates';
 import { cardLabel, formatCents } from '@/lib/money';
 import { userErrorMessage } from '@/lib/user-errors';
 
@@ -81,6 +81,13 @@ export type StakesStepProps = {
    */
   allowMoney?: boolean;
   raise?: StakesRaise;
+  /**
+   * A new commitment's window to call it off (`convex/lib/callOff.ts`), said
+   * up front: when the friend hears, and when it stops being undoable.
+   */
+  callOffUntil?: number;
+  /** Changing the terms: the money the old stake holds, freed when it's swapped. */
+  replacingCents?: number;
 };
 
 /**
@@ -99,10 +106,15 @@ export function StakesStep({
   onPhaseChange,
   allowMoney = true,
   raise,
+  callOffUntil,
+  replacingCents,
 }: StakesStepProps) {
   const stakePayment = useStakePayment();
   const signedIn = allowMoney;
-  const headroom = useQuery(api.stakes.headroom, signedIn ? {} : 'skip') ?? null;
+  const headroom = withReplaced(
+    useQuery(api.stakes.headroom, signedIn ? {} : 'skip') ?? null,
+    replacingCents,
+  );
   const [busy, setBusy] = useState(false);
 
   const inPlace = moneyRaisedInPlace(raise);
@@ -291,7 +303,7 @@ export function StakesStep({
           />
         ) : null}
 
-        <WhatHappens steps={whatHappens(draft, raise)} />
+        <WhatHappens steps={whatHappens(draft, raise, callOffUntil)} />
 
         {noteFor(draft) === null ? null : <Note>{noteFor(draft)}</Note>}
       </Animated.View>
@@ -392,14 +404,36 @@ function raiseDetail(kind: StakeKind, raise: StakesRaise | undefined): string | 
   return undefined;
 }
 
+/** The cap as it will be once the stake being swapped out lets its money go. */
+function withReplaced<Headroom extends { usedCents: number; remainingCents: number }>(
+  headroom: Headroom | null,
+  replacingCents: number | undefined,
+): Headroom | null {
+  if (headroom === null || replacingCents === undefined) return headroom;
+  return {
+    ...headroom,
+    usedCents: headroom.usedCents - replacingCents,
+    remainingCents: headroom.remainingCents + replacingCents,
+  };
+}
+
 /** The numbered consequences under the options. */
-export function whatHappens(draft: CommitmentDraft, raise?: StakesRaise): string[] {
-  const steps = consequences(draft, raise);
+export function whatHappens(
+  draft: CommitmentDraft,
+  raise?: StakesRaise,
+  callOffUntil?: number,
+): string[] {
+  const steps = consequences(draft, raise, callOffUntil);
   const replaced = raise === undefined ? null : replacedLine(raise.current, draft.stakeKind);
   return replaced === null ? steps : [replaced, ...steps];
 }
 
-function consequences(draft: CommitmentDraft, raise: StakesRaise | undefined): string[] {
+function consequences(
+  draft: CommitmentDraft,
+  raise: StakesRaise | undefined,
+  callOffUntil: number | undefined,
+): string[] {
+  const until = callOffUntil === undefined ? null : describeClock(callOffUntil, Date.now());
   const daily = draft.timesPerWeek >= DAILY;
   const days = draft.timesPerWeek === 1 ? 'one day' : `${draft.timesPerWeek} days`;
   // A raise lands on a habit that's already running, so no free first day.
@@ -421,12 +455,21 @@ function consequences(draft: CommitmentDraft, raise: StakesRaise | undefined): s
         : 'End a week short';
   const restart = 'Then the habit waits for you to restart it.';
   // Stakes can't be walked away from on a bad night: ending gives a week's notice.
-  const exit = daily
-    ? 'Want out later? Ending takes a week’s notice, and it keeps counting till then.'
-    : 'Want out later? Ending takes about a week’s notice, to the end of one of its weeks, and it keeps counting till then.';
+  const notice = daily
+    ? 'ending takes a week’s notice, and it keeps counting till then.'
+    : 'ending takes about a week’s notice, to the end of one of its weeks, and it keeps counting till then.';
+  const exit =
+    until === null
+      ? `Want out later? ${notice.charAt(0).toUpperCase()}${notice.slice(1)}`
+      : `Second thoughts? Call it off any time before ${until}. After that, ${notice}`;
   const name = friendName(draft);
   const them = name === 'my friend' ? 'them' : name;
   const they = name === 'my friend' ? 'they' : name;
+  // Held until it can't be called off, so nobody hears about one taken back.
+  const headsUp =
+    until === null
+      ? `We email ${them} a heads-up now. If they reply, it comes to you.`
+      : `We email ${them} a heads-up at ${until}, once it can’t be called off. If they reply, it comes to you.`;
 
   switch (draft.stakeKind) {
     case 'money':
@@ -438,20 +481,22 @@ function consequences(draft: CommitmentDraft, raise: StakesRaise | undefined): s
             exit,
           ]
         : [
-            `${saved.slice(0, -1)}, and with money on it the goal can’t be deleted.`,
+            until === null
+              ? `${saved.slice(0, -1)}, and with money on it the goal can’t be deleted.`
+              : `${saved} You can call it off until ${until}; after that the goal can’t be deleted.`,
             cadence,
             `${miss} and you’re charged ${formatCents(draft.amountCents)} automatically. Make it and nothing happens.`,
           ];
     case 'friend':
       return draft.kind === 'habit'
         ? [
-            `We email ${them} a heads-up now. If they reply, it comes to you.`,
+            headsUp,
             cadence,
             `${miss} and ${they} ${they === 'they' ? 'get' : 'gets'} one email nudging them to check in. The habit then waits for a restart.`,
             exit,
           ]
         : [
-            `We email ${them} a heads-up now. If they reply, it comes to you.`,
+            headsUp,
             cadence,
             `${miss} and ${they} ${they === 'they' ? 'get' : 'gets'} one email nudging them to check in on you.`,
           ];
