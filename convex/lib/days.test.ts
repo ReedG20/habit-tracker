@@ -6,9 +6,11 @@ import {
   daysBefore,
   daysLeftInWeek,
   previousDay,
+  dailyRun,
   streakLength,
   weekEnd,
   weekStart,
+  weeklyRun,
   weeklyStreak,
 } from './days';
 
@@ -162,5 +164,26 @@ describe('frozen days', () => {
     const frozen = new Set(['2026-09-23']);
     expect(weeklyStreak(done, '2026-09-29', 2, 0)).toBe(1);
     expect(weeklyStreak(done, '2026-09-29', 2, 0, frozen)).toBe(3);
+  });
+});
+
+describe('where a run starts', () => {
+  test('a daily run ends at the oldest day it walked through, bridged ones included', () => {
+    const done = new Set(['2026-09-19', '2026-09-20', '2026-09-21']);
+    expect(dailyRun(done, '2026-09-21')).toEqual({ length: 3, earliest: '2026-09-19' });
+    expect(dailyRun(done, '2026-09-21', new Set(['2026-09-18']))).toEqual({
+      length: 3,
+      earliest: '2026-09-18',
+    });
+  });
+
+  test('a run that never started has no earliest day', () => {
+    expect(dailyRun(new Set(), '2026-09-21')).toEqual({ length: 0, earliest: undefined });
+    expect(weeklyRun(new Set(), '2026-09-21', 2, 0)).toEqual({ length: 0, earliest: undefined });
+  });
+
+  test('a weekly run ends at the first day of its oldest week', () => {
+    const done = new Set(['2026-09-08', '2026-09-09', '2026-09-15', '2026-09-16']);
+    expect(weeklyRun(done, '2026-09-21', 2, 0)).toEqual({ length: 2, earliest: '2026-09-07' });
   });
 });

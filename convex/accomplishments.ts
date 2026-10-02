@@ -2,12 +2,12 @@ import { v, type Infer } from 'convex/values';
 
 import type { Doc, Id } from './_generated/dataModel';
 import { query, type MutationCtx, type QueryCtx } from './_generated/server';
+import { finishedStreak } from './habitStreaks';
 import { getCurrentUserOrNull } from './lib/auth';
 import { keptRunValidator } from './lib/accomplishmentSchema';
 import { authedMutation } from './lib/customFunctions';
-import { daysBefore, streakLength, weeklyStreak } from './lib/days';
+import { daysBefore } from './lib/days';
 import { DAILY, targetPerWeek } from './lib/frequency';
-import { weekStartsOn } from './lib/habitWeek';
 import { localDay, requireDevOverrides } from './lib/lockout';
 import { stakeView, stakeViewValidator } from './lib/stakeRules';
 
@@ -31,7 +31,6 @@ export async function recordKeptHabit(
   ctx: MutationCtx,
   habit: Doc<'habits'>,
   timeZone: string,
-  frozenDays: Set<string>,
   now: number,
 ): Promise<void> {
   const lastDay = habit.endsAfter;
@@ -52,9 +51,7 @@ export async function recordKeptHabit(
   const daily = target >= DAILY;
   const run: KeptRun = {
     unit: daily ? 'day' : 'week',
-    streak: daily
-      ? streakLength(done, lastDay, frozenDays)
-      : weeklyStreak(done, lastDay, target, weekStartsOn(habit), frozenDays),
+    streak: await finishedStreak(ctx, habit, sinceDay, lastDay, done),
     completions: rows.length,
     sinceDay,
     lastDay,

@@ -238,15 +238,17 @@ export const detail = authedQuery({
       .order('desc')
       .take(MAX_ROWS);
     const windowStart = daysBefore(args.today, (DETAIL_WEEKS + 1) * 7);
+    // Back to the first log, so the best streak bridges old freezes and excused days too.
+    const oldest = completions.at(-1)?.day ?? windowStart;
     const verifications = await ctx.db
       .query('habitVerifications')
-      .withIndex('by_habit_and_day', (q) => q.eq('habitId', habit._id).gte('day', windowStart))
+      .withIndex('by_habit_and_day', (q) =>
+        q.eq('habitId', habit._id).gte('day', oldest < windowStart ? oldest : windowStart),
+      )
       .order('desc')
       .take(MAX_ROWS);
 
     const done = new Set(completions.map((completion) => completion.day));
-    // Back to the first log, so the best streak bridges old freezes too.
-    const oldest = completions.at(-1)?.day ?? windowStart;
     const frozen = await frozenDaysBetween(
       ctx,
       ctx.user._id,
@@ -265,7 +267,7 @@ export const detail = authedQuery({
       days: daily ? dayHistory(input, calendarDays) : [],
       weeks: daily ? [] : weekHistory({ ...input, target }, DETAIL_WEEKS),
       total: completions.length,
-      best: bestStreak(done, target, input.startsOn, frozen),
+      best: bestStreak(done, target, input.startsOn, frozen, input.excused),
       activity: activity.slice(0, ACTIVITY_LIMIT),
       moreActivity: activity.length > ACTIVITY_LIMIT,
     };

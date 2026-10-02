@@ -2,8 +2,7 @@ import { v, type Infer } from 'convex/values';
 
 import type { Doc, Id } from './_generated/dataModel';
 import type { QueryCtx } from './_generated/server';
-import { frozenDaysBetween } from './freezes';
-import { habitStreak } from './habits';
+import { currentStreak } from './habitStreaks';
 import { authedQuery } from './lib/customFunctions';
 import { DAILY, targetPerWeek } from './lib/frequency';
 import { isStakeLive } from './lib/stakeRules';
@@ -14,9 +13,6 @@ import { lockoutDaysValidator } from './lib/stakeSchema';
  * private. A friend stake never names the friend, and no card carries the
  * signature or the card on file.
  */
-
-/** Back this far for a streak: further than `habits.list`, so a 100-day run says 100. */
-const MAX_COMPLETIONS = 5000;
 
 const shareStakeValidator = v.union(
   v.object({ kind: v.literal('money'), amountCents: v.number() }),
@@ -71,15 +67,7 @@ async function currentRun(
   habit: Doc<'habits'>,
   today: string,
 ): Promise<ShareSubject['streak']> {
-  const completions = await ctx.db
-    .query('habitCompletions')
-    .withIndex('by_habit_and_day', (q) => q.eq('habitId', habit._id))
-    .order('desc')
-    .take(MAX_COMPLETIONS);
-  const days = new Set(completions.map((completion) => completion.day));
-  const oldest = completions.at(-1)?.day ?? today;
-  const frozen = await frozenDaysBetween(ctx, habit.userId, oldest, today);
-  const count = habitStreak(habit, days, today, frozen);
+  const count = await currentStreak(ctx, habit, today);
   if (count === 0) return undefined;
   return { count, unit: targetPerWeek(habit) >= DAILY ? 'day' : 'week' };
 }

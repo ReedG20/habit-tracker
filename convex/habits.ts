@@ -8,17 +8,12 @@ import { newIconFields, repickIconOnRename, requireNewIcon } from './commitmentI
 import { holdEvidence } from './evidence';
 import { frozenDaysBetween } from './freezes';
 import { friendInputValidator, resolveFriend } from './friends';
+import { currentStreak } from './habitStreaks';
 import { getCurrentUserOrNull } from './lib/auth';
 import { authedAction, authedMutation, authedQuery } from './lib/customFunctions';
 import { requireCommitmentIcon } from './lib/commitmentIcons';
 import { requireCommitmentText } from './lib/commitmentText';
-import {
-  countThisWeek,
-  daysBefore,
-  streakLength,
-  STREAK_WINDOW_DAYS,
-  weeklyStreak,
-} from './lib/days';
+import { countThisWeek, daysBefore, STREAK_WINDOW_DAYS } from './lib/days';
 import { DAILY, isValidTimesPerWeek, targetPerWeek } from './lib/frequency';
 import { weekStartsOn } from './lib/habitWeek';
 import { requirePro } from './lib/entitlements';
@@ -42,6 +37,7 @@ import {
 } from './lib/stakeRules';
 import { releaseStake } from './lib/stakes';
 import { lockoutDaysValidator, moneyFields } from './lib/stakeSchema';
+import { excusedDays } from './lib/streaks';
 import { armStake, reuseCard, verifySavedCard, type ArmSpec, type SavedCard } from './stakes';
 
 const habitValidator = v.object({
@@ -115,27 +111,6 @@ export type HabitWithProgress = Doc<'habits'> & {
 
 export type AuthedCtx<T> = T & { user: Doc<'users'> };
 
-/**
- * A daily habit's streak counts days; a weekly one's counts weeks that hit the
- * target. Frozen days bridge it. A broken habit's streak is over.
- */
-export function habitStreak(
-  habit: Doc<'habits'>,
-  days: Set<string>,
-  today: string,
-  frozen: Set<string>,
-): number {
-  if (habit.brokenAt !== undefined) return 0;
-  // Restarting is a fresh run: nothing from before it counts.
-  const { startDay } = habit;
-  const counted =
-    startDay === undefined ? days : new Set([...days].filter((day) => day >= startDay));
-  const target = targetPerWeek(habit);
-  return target >= DAILY
-    ? streakLength(counted, today, frozen)
-    : weeklyStreak(counted, today, target, weekStartsOn(habit), frozen);
-}
-
 async function getOwnedHabitOrNull(
   ctx: AuthedCtx<QueryCtx | MutationCtx>,
   habitId: Id<'habits'>,
@@ -164,6 +139,9 @@ export async function requireOwnedHabit(
   return habit;
 }
 
+/** Bounds `list`'s window reads: two months of logs and checks across every habit. */
+const MAX_LIST_ROWS = 5000;
+
 /**
  * `today` comes from the client so the day boundary follows the device clock
  * and the query stays cacheable — reading `Date.now()` here would break both.
@@ -186,12 +164,13 @@ export const list = query({
       .withIndex('by_user', (q) => q.eq('userId', user._id))
       .collect();
 
-    // One bounded read covers every habit's streak and today's checkmarks.
+    // One bounded read covers today's checkmarks and most streaks; a longer
+    // streak reads further back for its own habit (`currentStreak`).
     const windowStart = daysBefore(args.today, STREAK_WINDOW_DAYS);
     const recent = await ctx.db
       .query('habitCompletions')
       .withIndex('by_user_and_day', (q) => q.eq('userId', user._id).gte('day', windowStart))
-      .collect();
+      .take(MAX_LIST_ROWS);
 
     const daysByHabit = new Map<Id<'habits'>, Set<string>>();
     for (const completion of recent) {
@@ -200,11 +179,13 @@ export const list = query({
       daysByHabit.set(completion.habitId, days);
     }
 
-    // Only today's rows matter for the card, and only the newest one per habit.
-    const todaysVerifications = await ctx.db
+    // The window's checks excuse days for streaks; the card shows today's newest.
+    const verifications = await ctx.db
       .query('habitVerifications')
-      .withIndex('by_user_and_day', (q) => q.eq('userId', user._id).eq('day', args.today))
-      .collect();
+      .withIndex('by_user_and_day', (q) => q.eq('userId', user._id).gte('day', windowStart))
+      .take(MAX_LIST_ROWS);
+    const todaysVerifications = verifications.filter((row) => row.day === args.today);
+    const excused = excusedDays(verifications);
 
     const frozen = await frozenDaysBetween(ctx, user._id, windowStart, args.today);
     const stakes = new Map<Id<'stakes'>, Doc<'stakes'>>();
@@ -222,25 +203,32 @@ export const list = query({
       }
     }
 
-    return habits
-      .sort((a, b) => a.order - b.order)
-      .map((habit) => {
-        const days = daysByHabit.get(habit._id) ?? new Set<string>();
-        const completedToday = days.has(args.today);
-        const latest = latestVerificationByHabit.get(habit._id);
+    return await Promise.all(
+      habits
+        .sort((a, b) => a.order - b.order)
+        .map(async (habit) => {
+          const days = daysByHabit.get(habit._id) ?? new Set<string>();
+          const completedToday = days.has(args.today);
+          const latest = latestVerificationByHabit.get(habit._id);
 
-        return {
-          ...habit,
-          completedToday,
-          weekCount: countThisWeek(days, args.today, weekStartsOn(habit)),
-          streak: habitStreak(habit, days, args.today, frozen),
-          verification:
-            completedToday || latest === undefined
-              ? null
-              : { status: latest.status, reason: latest.reason, method: latest.method },
-          stakeView: stakeViewOf(habit, stakes),
-        };
-      });
+          return {
+            ...habit,
+            completedToday,
+            weekCount: countThisWeek(days, args.today, weekStartsOn(habit)),
+            streak: await currentStreak(ctx, habit, args.today, {
+              from: windowStart,
+              done: days,
+              excused: excused.get(habit._id) ?? new Set<string>(),
+              frozen,
+            }),
+            verification:
+              completedToday || latest === undefined
+                ? null
+                : { status: latest.status, reason: latest.reason, method: latest.method },
+            stakeView: stakeViewOf(habit, stakes),
+          };
+        }),
+    );
   },
 });
 
@@ -279,18 +267,11 @@ export const stats = authedQuery({
       .withIndex('by_habit_and_day', (q) => q.eq('habitId', args.habitId))
       .collect();
 
-    const days = new Set(completions.map((completion) => completion.day));
-    const frozen = await frozenDaysBetween(
-      ctx,
-      ctx.user._id,
-      daysBefore(args.today, STREAK_WINDOW_DAYS * 6),
-      args.today,
-    );
     const stake = habit.stakeId === undefined ? null : await ctx.db.get('stakes', habit.stakeId);
 
     return {
       total: completions.length,
-      streak: habitStreak(habit, days, args.today, frozen),
+      streak: await currentStreak(ctx, habit, args.today),
       stakeView: stake === null ? null : stakeView(stake),
     };
   },

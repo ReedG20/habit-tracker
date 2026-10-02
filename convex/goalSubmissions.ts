@@ -1,6 +1,7 @@
+import { HOUR, RateLimiter } from '@convex-dev/rate-limiter';
 import { ConvexError, v } from 'convex/values';
 
-import { internal } from './_generated/api';
+import { components, internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalAction, internalMutation } from './_generated/server';
 import { completeGoal, requireOwnedGoal } from './goals';
@@ -18,11 +19,16 @@ import schema from './schema';
 /**
  * Proof submissions: the only way a goal gets completed. Same shape as habit
  * verification (`verifications.ts`), with several photos and a note per attempt,
- * and unlimited attempts until the deadline.
+ * and attempts until the deadline, rate limited per user.
  */
 
 export const MAX_SUBMISSION_PHOTOS = 6;
 const MAX_TEXT_LENGTH = 500;
+
+/** Each attempt can carry several photos, so retries are bounded tighter than a habit's. */
+const rateLimiter = new RateLimiter(components.rateLimiter, {
+  goalProof: { kind: 'token bucket', rate: 6, period: HOUR, capacity: 4 },
+});
 
 /**
  * Kept byte-stable and free of goal text so providers can cache it; the goal
@@ -114,6 +120,11 @@ export const create = authedMutation({
       .first();
     if (latest?.status === 'pending') {
       throw new ConvexError('A submission for this goal is already being verified');
+    }
+
+    const limit = await rateLimiter.limit(ctx, 'goalProof', { key: ctx.user._id });
+    if (!limit.ok) {
+      throw new ConvexError('That’s a lot of submissions. Give it a few minutes and try again.');
     }
 
     const submissionId = await ctx.db.insert('goalSubmissions', {

@@ -117,6 +117,17 @@ describe('bestStreak', () => {
     expect(bestStreak(done, 7, 0, new Set())).toBe(3);
   });
 
+  test('excused days bridge a daily run and count toward a weekly target', () => {
+    const daily = new Set(['2026-09-01', '2026-09-02', '2026-09-04']);
+    expect(bestStreak(daily, 7, 0, new Set())).toBe(2);
+    expect(bestStreak(daily, 7, 0, new Set(), new Set(['2026-09-03']))).toBe(3);
+
+    // Weeks of Sep 7 and Sep 14 each have one log and one excused day.
+    const weekly = new Set(['2026-09-07', '2026-09-14']);
+    expect(bestStreak(weekly, 2, 0, new Set())).toBe(0);
+    expect(bestStreak(weekly, 2, 0, new Set(), new Set(['2026-09-08', '2026-09-15']))).toBe(2);
+  });
+
   test('frozen days bridge a daily run without adding to it', () => {
     const done = new Set(['2026-09-01', '2026-09-02', '2026-09-05']);
     expect(bestStreak(done, 7, 0, new Set(['2026-09-03', '2026-09-04']))).toBe(3);

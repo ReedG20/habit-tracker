@@ -94,6 +94,10 @@ function DayGrid({ days, today }: { days: Day[]; today: string }) {
           { label: 'Done', style: markStyle('done', theme) },
           { label: 'Missed', style: markStyle('missed', theme) },
           { label: 'Frozen', style: markStyle('frozen', theme) },
+          // Drawn like today's open ring, so it needs saying, but only when there is one.
+          ...(days.some(({ state }) => state === 'excused')
+            ? [{ label: 'Excused', style: markStyle(dayMark('excused'), theme) }]
+            : []),
           { label: 'Not counted', style: markStyle('off', theme) },
         ]}
       />
