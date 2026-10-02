@@ -34,6 +34,7 @@ import {
   usedMoneyCents,
   type Run,
 } from './lib/stakes';
+import { graceAvailable, grantExtension } from './lib/grace';
 import { runValidator } from './lib/stakeSchema';
 import { stripeClient } from './lib/stripe';
 
@@ -62,6 +63,7 @@ export type ArmSpec =
       stripeSetupIntentId?: string;
       cardBrand?: string;
       cardLast4?: string;
+      cardFingerprint?: string;
     }
   | { kind: 'friend'; friend: Doc<'friends'> }
   | { kind: 'lockout'; days: 1 | 3 | 7 };
@@ -312,6 +314,7 @@ export async function verifySavedCard(
     stripeSetupIntentId: setupIntent.id,
     cardBrand: method.card?.brand,
     cardLast4: method.card?.last4,
+    cardFingerprint: method.card?.fingerprint ?? undefined,
   };
 }
 
@@ -331,6 +334,7 @@ export async function reuseCard(
     stripePaymentMethodId: string;
     cardBrand?: string;
     cardLast4?: string;
+    cardFingerprint?: string;
   } | null = await ctx.runQuery(internal.stakes.cardOf, {
     userId: ctx.user._id,
     stakeId: fromStakeId,
@@ -354,6 +358,7 @@ export const cardOf = internalQuery({
       stripePaymentMethodId: v.string(),
       cardBrand: v.optional(v.string()),
       cardLast4: v.optional(v.string()),
+      cardFingerprint: v.optional(v.string()),
     }),
     v.null(),
   ),
@@ -365,6 +370,7 @@ export const cardOf = internalQuery({
       stripePaymentMethodId: stake.stripePaymentMethodId,
       cardBrand: stake.cardBrand,
       cardLast4: stake.cardLast4,
+      cardFingerprint: stake.cardFingerprint,
     };
   },
 });
@@ -472,6 +478,14 @@ async function resolveGoalStake(
     return;
   }
 
+  // A first miss gets its deadline moved instead, once (`lib/grace.ts`).
+  const user = await ctx.db.get('users', stake.userId);
+  const ticket = user === null ? null : await graceAvailable(ctx, user, [stake]);
+  if (user !== null && ticket !== null) {
+    await grantExtension(ctx, user, stake, goal, ticket, Date.now());
+    return;
+  }
+
   await loseStake(ctx, stake, Date.now());
 }
 
@@ -513,6 +527,8 @@ export const lossValidator = v.object({
   /** Goals: what the proof had to show and when it was due, for "set it again". */
   goalDescription: v.optional(v.string()),
   dueAt: v.optional(v.number()),
+  /** Goals: the deadline as signed, when the one-time reprieve moved `dueAt`. */
+  originalDueAt: v.optional(v.number()),
   /** Habits: how often it was due, for the copy. */
   timesPerWeek: v.optional(v.number()),
   run: v.optional(runValidator),
@@ -544,6 +560,7 @@ async function lossOf(ctx: QueryCtx, stake: Doc<'stakes'>): Promise<Loss | null>
     habitExists: habit !== null && habit.endsAfter === undefined,
     goalDescription: goal?.description,
     dueAt: goal?.dueAt,
+    originalDueAt: goal?.originalDueAt,
     timesPerWeek: habit?.timesPerWeek,
     run: stake.run,
     frozenThrough: freeze?.endDay,

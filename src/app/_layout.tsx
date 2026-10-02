@@ -145,6 +145,11 @@ function RootNavigator() {
           name="lost/[stakeId]"
           options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
         />
+        {/* A first miss let go, once: answered like a loss, not swiped off. */}
+        <Stack.Screen
+          name="grace/[graceId]"
+          options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
+        />
         <Stack.Screen name="restart/[habitId]" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen
           name="contest/[stakeId]"

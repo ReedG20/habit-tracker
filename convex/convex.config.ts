@@ -99,6 +99,14 @@ const app = defineApp({
      */
     SUPPORT_EMAIL: v.optional(v.string()),
     /**
+     * The secret behind `graceMarks` (`lib/grace.ts`): the one-time reprieve
+     * remembers an email or card by its HMAC, so it can't be earned twice by
+     * deleting the account. Unset, the reprieve is still once per account,
+     * just not once per person. Set on preview and production with:
+     *   bunx convex env set GRACE_HASH_SALT "$(openssl rand -hex 32)"
+     */
+    GRACE_HASH_SALT: v.optional(v.string()),
+    /**
      * `on` switches habits from the old re-entry fee to per-habit stakes
      * (`habitChecks.ts`). Flipped on production at cutover, alongside the
      * app release; removed once every build is past it.

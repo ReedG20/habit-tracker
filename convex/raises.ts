@@ -49,7 +49,10 @@ function habitBlock(habit: Doc<'habits'>): string | null {
 }
 
 function goalBlock(goal: Doc<'goals'>): string | null {
-  return goal.completedAt !== undefined ? 'This goal is already done' : null;
+  if (goal.completedAt !== undefined) return 'This goal is already done';
+  // Its deadline was moved once already; the stakes hold where they are.
+  if (goal.originalDueAt !== undefined) return 'The stakes are set while your deadline is extended';
+  return null;
 }
 
 /** A stake that's still riding, or one that holds nothing: anything else already came due. */
@@ -187,6 +190,7 @@ export const armMoney = internalMutation({
     stripeSetupIntentId: moneyFields.stripeSetupIntentId,
     cardBrand: moneyFields.cardBrand,
     cardLast4: moneyFields.cardLast4,
+    cardFingerprint: moneyFields.cardFingerprint,
   },
   returns: v.null(),
   handler: async (ctx, args): Promise<null> => {

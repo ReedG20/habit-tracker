@@ -85,6 +85,8 @@ export const moneyFields = {
   stripeSetupIntentId: v.optional(v.string()),
   cardBrand: v.optional(v.string()),
   cardLast4: v.optional(v.string()),
+  /** Stripe's fingerprint for the card number, so one card earns one reprieve (`lib/grace.ts`). */
+  cardFingerprint: v.optional(v.string()),
   stripePaymentIntentId: v.optional(v.string()),
   chargedAt: v.optional(v.number()),
   failureReason: v.optional(v.string()),

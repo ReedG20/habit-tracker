@@ -84,6 +84,16 @@ async function seed(t: Harness, userId: Id<'users'>, name: string): Promise<Seed
     });
     await ctx.db.patch('stakes', armedStakeId, { resolveJobId });
     await ctx.db.patch('goals', goalId, { stakeId: armedStakeId });
+    await ctx.db.insert('graces', {
+      userId,
+      stakeId: armedStakeId,
+      kind: 'extended',
+      goalId,
+      title: 'Ship',
+      originalDueAt: 0,
+      extendedTo: FUTURE,
+      grantedAt: 0,
+    });
 
     const friendId = await ctx.db.insert('friends', {
       userId,
