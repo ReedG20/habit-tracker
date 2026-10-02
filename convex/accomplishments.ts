@@ -170,6 +170,8 @@ export const markSeen = authedMutation({
 /**
  * A made-up accomplishment for the dev "Preview kept" row: nothing real
  * changes. Uses the user's first staked habit's stake or goal for the stakes line.
+ * Made seen: the row opens it directly, and one left without Done would
+ * otherwise pop up on the account's next launch, on any device.
  */
 export const devPreview = authedMutation({
   args: {
@@ -194,6 +196,7 @@ export const devPreview = authedMutation({
         stakeId: stake?._id,
         dueAt: now + 3 * 24 * 60 * 60 * 1000,
         achievedAt: now,
+        seenAt: now,
       });
     }
 
@@ -212,6 +215,7 @@ export const devPreview = authedMutation({
         timesPerWeek: weekly ? 3 : DAILY,
       },
       achievedAt: now,
+      seenAt: now,
     });
   },
 });
