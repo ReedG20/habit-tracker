@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
   bar: {
     paddingTop: Spacing.two,
     paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.three,
+    paddingBottom: Spacing.five,
   },
   close: {
     flexDirection: 'row',

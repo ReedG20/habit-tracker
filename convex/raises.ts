@@ -133,11 +133,12 @@ export const raise = authedMutation({
 
     // More of the same: the row stays, so its history and charge key do too.
     if (current !== null && current.status === 'armed' && current.kind === next.kind) {
+      const raisedAt = Date.now();
       if (current.kind === 'money' && next.kind === 'money') {
         await requireMoneyHeadroom(ctx, ctx.user._id, next.amountCents - current.amountCents);
-        await ctx.db.patch('stakes', current._id, { amountCents: next.amountCents });
+        await ctx.db.patch('stakes', current._id, { amountCents: next.amountCents, raisedAt });
       } else if (current.kind === 'lockout' && next.kind === 'lockout') {
-        await ctx.db.patch('stakes', current._id, { days: next.days });
+        await ctx.db.patch('stakes', current._id, { days: next.days, raisedAt });
       }
       await touchReminders(ctx, ctx.user._id);
       return null;
@@ -155,7 +156,8 @@ export const raise = authedMutation({
         break;
     }
     await retire(ctx, current);
-    await armStake(ctx, raisable.subject, spec);
+    const stakeId = await armStake(ctx, raisable.subject, spec);
+    await ctx.db.patch('stakes', stakeId, { raisedAt: Date.now() });
     await touchReminders(ctx, ctx.user._id);
     return null;
   },
@@ -206,7 +208,8 @@ export const armMoney = internalMutation({
 
     await retire(ctx, raisable.current);
     // Checks the cap; throwing rolls the release back with it.
-    await armStake(ctx, raisable.subject, { kind: 'money', ...card });
+    const stakeId = await armStake(ctx, raisable.subject, { kind: 'money', ...card });
+    await ctx.db.patch('stakes', stakeId, { raisedAt: Date.now() });
     await touchReminders(ctx, user._id);
     return null;
   },
@@ -299,6 +302,19 @@ const firstCommitmentValidator = v.object({
 type FirstCommitment = typeof firstCommitmentValidator.type;
 
 /**
+ * A stake made with its commitment is armed in the same mutation; one that
+ * came later took an old one's place in a raise. That catches raises from
+ * before `raisedAt` was recorded.
+ */
+const ARMED_WITH_IT_MS = 60 * 1000;
+
+/** Whether the user already upped the ante on this commitment, so the nudge has done its job. */
+export function wasRaised(stake: Doc<'stakes'> | null, madeAt: number): boolean {
+  if (stake === null) return false;
+  return stake.raisedAt !== undefined || stake.createdAt - madeAt > ARMED_WITH_IT_MS;
+}
+
+/**
  * The commitment made during onboarding, while money could still go on it.
  * Onboarding can't take a card, so this is what the Today nudge offers to
  * raise. It's the oldest goal or habit the user still has; the app applies the
@@ -320,20 +336,26 @@ export const firstCommitment = query({
       .query('goals')
       .withIndex('by_user', (q) => q.eq('userId', user._id))
       .first();
-    const oldest =
+    const oldest: { target: Target; subject: Doc<'habits'> | Doc<'goals'> } | null =
       habit !== null && (goal === null || habit._creationTime <= goal._creationTime)
-        ? { habitId: habit._id }
+        ? { target: { habitId: habit._id }, subject: habit }
         : goal !== null
-          ? { goalId: goal._id }
+          ? { target: { goalId: goal._id }, subject: goal }
           : null;
     if (oldest === null) return null;
+    const { subject } = oldest;
 
-    const found = await readTarget(ctx, user, oldest);
+    // Raised already, to anything: the nudge has been answered.
+    const stake =
+      subject.stakeId === undefined ? null : await ctx.db.get('stakes', subject.stakeId);
+    if (wasRaised(stake, subject._creationTime)) return null;
+
+    const found = await readTarget(ctx, user, oldest.target);
     // Anything short of money can still take it: money starts at $10 at most.
     if (found === null || found.blocked !== null || found.stake?.kind === 'money') return null;
 
     return {
-      target: oldest,
+      target: oldest.target,
       title: found.title,
       stake: found.stake,
       onboardedAt,

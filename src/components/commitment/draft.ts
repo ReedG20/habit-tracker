@@ -55,6 +55,57 @@ export type CommitmentDraft = {
   lockoutDays: LockoutDays;
 };
 
+/**
+ * A preset under the name field: a name, and its proof in the words of the
+ * method it's proven by. Habits only take a method; it's photo when left out.
+ */
+export type CommitmentSuggestion = {
+  title: string;
+  proof: string;
+  proofMethod?: ProofMethod;
+  timerMinutes?: number;
+};
+
+/** What picking a preset changes: for a habit, the method (and timer length) come with it. */
+export function suggestionPatch(
+  kind: CommitmentKind,
+  suggestion: CommitmentSuggestion,
+): Partial<CommitmentDraft> {
+  const { title, proof, proofMethod = 'photo', timerMinutes } = suggestion;
+  if (kind === 'goal') return { title, proof };
+  return { title, proof, proofMethod, ...(timerMinutes !== undefined && { timerMinutes }) };
+}
+
+/** Whether `proof` is one of the presets' own lines, not something the user wrote. */
+export function isPresetProof(
+  proof: string,
+  suggestions: CommitmentSuggestion[] | undefined,
+): boolean {
+  const trimmed = proof.trim();
+  return (suggestions ?? []).some((suggestion) => suggestion.proof === trimmed);
+}
+
+/**
+ * Once the name is checked, a habit takes the best-fit method until the user
+ * picks one, unless they've written proof for the current one. A preset's
+ * proof isn't theirs: when the best fit differs, that method's first idea
+ * replaces it, so the method and its words never disagree.
+ */
+export function bestFitPatch(
+  draft: Pick<CommitmentDraft, 'kind' | 'proof' | 'proofMethod'>,
+  result: { bestMethod: ProofMethod | null; ideas: Record<ProofMethod, string[]> },
+  suggestions: CommitmentSuggestion[] | undefined,
+  methodPicked: boolean,
+): Partial<CommitmentDraft> | null {
+  const best = result.bestMethod;
+  if (draft.kind !== 'habit' || methodPicked || best === null || best === draft.proofMethod) {
+    return null;
+  }
+  const preset = isPresetProof(draft.proof, suggestions);
+  if (draft.proof.trim().length > 0 && !preset) return null;
+  return { proofMethod: best, ...(preset && { proof: result.ideas[best][0] ?? '' }) };
+}
+
 /** The server refuses anything closer than a minute; the flow mirrors it. */
 export const MIN_LEAD_MS = 60 * 1000;
 

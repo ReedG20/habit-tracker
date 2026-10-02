@@ -395,6 +395,66 @@ describe('raises.firstCommitment', () => {
     expect(await alice.as.query(api.raises.firstCommitment, {})).toBeNull();
   });
 
+  test('gone once it’s been raised to anything, not just money', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    await alice.as.mutation(api.users.saveOnboarding, { areas: ['focus'] });
+    const habitId = await alice.as.mutation(api.habits.create, {
+      title: 'Focus',
+      stake: { kind: 'none' },
+    });
+    expect(await alice.as.query(api.raises.firstCommitment, {})).not.toBeNull();
+
+    vi.setSystemTime(NOW + DAY_MS);
+    await alice.as.mutation(api.raises.raise, {
+      target: { habitId },
+      stake: { kind: 'lockout', days: 1 },
+    });
+    expect(await stakeOfHabit(t, habitId)).toMatchObject({ raisedAt: NOW + DAY_MS });
+    expect(await alice.as.query(api.raises.firstCommitment, {})).toBeNull();
+  });
+
+  test('a lock made longer in place counts as raised', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    await alice.as.mutation(api.users.saveOnboarding, { areas: ['focus'] });
+    const habitId = await alice.as.mutation(api.habits.create, {
+      title: 'Focus',
+      stake: { kind: 'lockout', days: 1 },
+    });
+    expect(await alice.as.query(api.raises.firstCommitment, {})).not.toBeNull();
+
+    await alice.as.mutation(api.raises.raise, {
+      target: { habitId },
+      stake: { kind: 'lockout', days: 3 },
+    });
+    expect(await alice.as.query(api.raises.firstCommitment, {})).toBeNull();
+  });
+
+  test('a raise from before `raisedAt` was kept still counts', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    await alice.as.mutation(api.users.saveOnboarding, { areas: ['focus'] });
+    const habitId = await alice.as.mutation(api.habits.create, {
+      title: 'Focus',
+      stake: { kind: 'none' },
+    });
+    vi.setSystemTime(NOW + DAY_MS);
+    await alice.as.mutation(api.raises.raise, {
+      target: { habitId },
+      stake: { kind: 'lockout', days: 1 },
+    });
+    // As the stake looked when raises didn't record it: newer than its habit, nothing more.
+    await t.run(async (ctx) => {
+      const stake = await ctx.db
+        .query('stakes')
+        .withIndex('by_habit', (q) => q.eq('habitId', habitId))
+        .first();
+      if (stake !== null) await ctx.db.patch('stakes', stake._id, { raisedAt: undefined });
+    });
+    expect(await alice.as.query(api.raises.firstCommitment, {})).toBeNull();
+  });
+
   test('nothing for someone who never went through onboarding', async () => {
     const t = setup();
     const alice = await signIn(t, 'alice');
