@@ -15,7 +15,10 @@
  */
 export const DAY_ENDS_AT_HOUR = 3;
 
-/** How far back `habits.list` reads completions to compute a streak. */
+/**
+ * How far back `habits.list` first reads completions for a streak; a run that
+ * reaches past it reads further back (`habitStreaks.ts`).
+ */
 export const STREAK_WINDOW_DAYS = 60;
 
 export function previousDay(day: string): string {
@@ -48,6 +51,13 @@ function toDayKey(date: Date): string {
 }
 
 /**
+ * A run of days or weeks: how long it is, and the oldest day (or first day of
+ * the oldest week) it walked through, counting bridged ones. `earliest` is
+ * undefined when nothing was walked through at all.
+ */
+export type StreakRun = { length: number; earliest?: string };
+
+/**
  * Length of the unbroken run of days ending at `today`, or at yesterday when
  * today has not been logged yet — so a streak is not reported as broken until
  * the day it actually lapses.
@@ -59,17 +69,28 @@ export function streakLength(
   today: string,
   bridged: Set<string> = new Set(),
 ): number {
+  return dailyRun(days, today, bridged).length;
+}
+
+/** `streakLength`, plus where the run starts, so a caller can tell it reached its data's edge. */
+export function dailyRun(
+  days: Set<string>,
+  today: string,
+  bridged: Set<string> = new Set(),
+): StreakRun {
   let cursor = days.has(today) || bridged.has(today) ? today : previousDay(today);
 
-  let streak = 0;
+  let length = 0;
+  let earliest: string | undefined;
   // Bounded, in case every day in reach is bridged.
   for (let steps = 0; steps < 3660; steps += 1) {
-    if (days.has(cursor)) streak += 1;
+    if (days.has(cursor)) length += 1;
     else if (!bridged.has(cursor)) break;
+    earliest = cursor;
     cursor = previousDay(cursor);
   }
 
-  return streak;
+  return { length, earliest };
 }
 
 /** 0 for Monday through 6 for Sunday, on the calendar. */
@@ -129,6 +150,17 @@ export function weeklyStreak(
   startsOn: number,
   bridged: Set<string> = new Set(),
 ): number {
+  return weeklyRun(days, today, target, startsOn, bridged).length;
+}
+
+/** `weeklyStreak`, plus the first day of the oldest week the run walked through. */
+export function weeklyRun(
+  days: Set<string>,
+  today: string,
+  target: number,
+  startsOn: number,
+  bridged: Set<string> = new Set(),
+): StreakRun {
   const logsByWeek = new Map<string, number>();
   for (const day of days) {
     if (day > today) continue;
@@ -143,14 +175,16 @@ export function weeklyStreak(
   const thisWeek = weekStart(today, startsOn);
   let cursor = met(thisWeek) || bridgedWeeks.has(thisWeek) ? thisWeek : daysBefore(thisWeek, 7);
 
-  let streak = 0;
+  let length = 0;
+  let earliest: string | undefined;
   for (let steps = 0; steps < 520; steps += 1) {
-    if (met(cursor)) streak += 1;
+    if (met(cursor)) length += 1;
     else if (!bridgedWeeks.has(cursor)) break;
+    earliest = cursor;
     cursor = daysBefore(cursor, 7);
   }
 
-  return streak;
+  return { length, earliest };
 }
 
 /** Every day from `from` through `to`, inclusive. */
