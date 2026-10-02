@@ -5,6 +5,7 @@ import { CardDetailRow, lowerFirst } from './card-detail-row';
 import { Countdown } from './countdown';
 import { GoalActionButton } from './goal-action-button';
 import { Icon } from './icon';
+import { StakePill } from './stake-pill';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
@@ -41,6 +42,8 @@ export function GoalDetailCard({ goal, now }: GoalDetailCardProps) {
   const countdown = !over && goal.dueAt - now <= COUNTDOWN_WINDOW_MS;
   const stake = goal.stakeView;
   const armed = stake?.status === 'armed';
+  // Up by the title, as on Today; the row below then only says what the pill can't.
+  const pill = describeGoalStake(stake, 'pill');
   const description = goal.description?.trim() ?? '';
   const submission = over ? null : submissionLine(goal.submission);
   const open = () => router.push(`/goals/${goal._id}`);
@@ -65,13 +68,16 @@ export function GoalDetailCard({ goal, now }: GoalDetailCardProps) {
             <ThemedText numberOfLines={2} themeColor={over ? 'textSecondary' : 'text'}>
               {goal.title}
             </ThemedText>
-            <ThemedText type="small" themeColor={missed ? 'accent' : 'textSecondary'}>
-              {done
-                ? `Done ${formatShortDate(goal.completedAt ?? now)}`
-                : missed
-                  ? describeDueAt(goal.dueAt, now)
-                  : describeTimeLeft(goal.dueAt, now)}
-            </ThemedText>
+            <View style={styles.metaRow}>
+              <ThemedText type="small" themeColor={missed ? 'accent' : 'textSecondary'}>
+                {done
+                  ? `Done ${formatShortDate(goal.completedAt ?? now)}`
+                  : missed
+                    ? describeDueAt(goal.dueAt, now)
+                    : describeTimeLeft(goal.dueAt, now)}
+              </ThemedText>
+              {pill === null ? null : <StakePill text={pill} live={armed && !over} />}
+            </View>
           </View>
         </Pressable>
         <GoalActionButton goal={goal} now={now} style={styles.action} />
@@ -86,17 +92,19 @@ export function GoalDetailCard({ goal, now }: GoalDetailCardProps) {
           <CardDetailRow icon={Camera01Icon} text={`Photos of ${lowerFirst(description)}`} />
         ) : null}
         <CardDetailRow icon={Calendar03Icon} text={`Due ${formatDueAt(goal.dueAt)}`} />
-        <CardDetailRow
-          icon={
-            stake?.kind === 'money'
-              ? CoinsDollarIcon
-              : stake?.kind === 'friend'
-                ? UserIcon
-                : Tick02Icon
-          }
-          text={describeGoalStake(stake, 'detail') ?? 'Just your word'}
-          accent={armed && !over}
-        />
+        {pill === null ? (
+          <CardDetailRow
+            icon={
+              stake?.kind === 'money'
+                ? CoinsDollarIcon
+                : stake?.kind === 'friend'
+                  ? UserIcon
+                  : Tick02Icon
+            }
+            text={describeGoalStake(stake, 'detail') ?? 'Just your word'}
+            accent={armed && !over}
+          />
+        ) : null}
         {submission === null ? null : <CardDetailRow icon={Clock01Icon} {...submission} />}
       </Pressable>
     </ThemedView>
@@ -148,6 +156,13 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: Spacing.half,
     minWidth: 0,
+  },
+  // Wraps like Today's card: the pill drops to its own line beside a wide button.
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: Spacing.two,
   },
   action: {
     alignSelf: 'flex-start',

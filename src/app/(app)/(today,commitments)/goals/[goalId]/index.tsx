@@ -8,6 +8,7 @@ import { ContestChargeLink } from '@/components/commitment-detail/contest-charge
 import { DetailSection } from '@/components/commitment-detail/detail-section';
 import { DevResetProof } from '@/components/commitment-detail/dev-reset-proof';
 import { GoalNowPanel } from '@/components/commitment-detail/goal-now-panel';
+import { StakeStrip } from '@/components/commitment-detail/stake-strip';
 import { TermsCard } from '@/components/commitment-detail/terms-card';
 import { RaiseButton } from '@/components/raise/raise-button';
 import { openShare } from '@/components/share/open-share';
@@ -138,8 +139,9 @@ export default function GoalDetailScreen() {
                 });
             },
           });
-        }}
-      />
+        }}>
+        <StakeStrip stake={goal.stakeView} />
+      </DetailHeader>
 
       {callOffUntil === null ? null : (
         <CallOffBanner

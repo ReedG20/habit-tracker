@@ -9,6 +9,7 @@ import { DetailSection } from '@/components/commitment-detail/detail-section';
 import { DevResetProof } from '@/components/commitment-detail/dev-reset-proof';
 import { HabitCalendar } from '@/components/commitment-detail/habit-calendar';
 import { HabitNowPanel } from '@/components/commitment-detail/habit-now-panel';
+import { StakeStrip } from '@/components/commitment-detail/stake-strip';
 import { StatTiles, type Stat } from '@/components/commitment-detail/stat-tiles';
 import { TermsCard } from '@/components/commitment-detail/terms-card';
 import { RaiseButton } from '@/components/raise/raise-button';
@@ -164,8 +165,9 @@ export default function HabitDetailScreen() {
         deleteIcon={givesNotice ? Flag02Icon : undefined}
         onEdit={() => router.push(`/habit/${habitId}/edit`)}
         onDelete={ending ? undefined : onDelete}
-        onShare={habit.brokenAt === undefined ? () => openShare({ habitId }, 'detail') : undefined}
-      />
+        onShare={habit.brokenAt === undefined ? () => openShare({ habitId }, 'detail') : undefined}>
+        {progress === undefined ? null : <StakeStrip stake={stake} paused={paused} />}
+      </DetailHeader>
 
       {/* Shows the notice once ended, or an end date's last week; nothing otherwise. */}
       {progress !== undefined ? (

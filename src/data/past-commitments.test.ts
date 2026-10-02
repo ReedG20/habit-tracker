@@ -1,9 +1,10 @@
 import { describe, expect, test } from 'vitest';
 
 import type { GoalWithStatus } from './goals';
-import { pastCommitments, type EndedHabitView } from './past-commitments';
+import { pastCommitments, pastStakeTag, type EndedHabitView } from './past-commitments';
 
 import type { Id } from '@/convex/_generated/dataModel';
+import type { StakeView } from '@/convex/lib/stakeRules';
 
 const HOUR = 60 * 60 * 1000;
 const NOW = Date.UTC(2026, 9, 1, 12);
@@ -33,6 +34,7 @@ function ended(fields: Partial<EndedHabitView>): EndedHabitView {
     completions: 1,
     startedAt: 0,
     endedAt: NOW - HOUR,
+    stakeView: null,
     ...fields,
   };
 }
@@ -60,5 +62,49 @@ describe('pastCommitments', () => {
     const due = goal({ dueAt: NOW });
     expect(pastCommitments([due], [], NOW - 1)).toEqual([]);
     expect(pastCommitments([due], [], NOW)).toHaveLength(1);
+  });
+});
+
+describe('pastStakeTag', () => {
+  const stakeId = 'stake' as Id<'stakes'>;
+  const money = (status: Extract<StakeView, { kind: 'money' }>['status']): StakeView => ({
+    kind: 'money',
+    _id: stakeId,
+    status,
+    amountCents: 2500,
+  });
+
+  test('money lost is struck through; money kept is kept', () => {
+    expect(pastStakeTag(money('charged'))).toEqual({
+      kind: 'money',
+      amount: '$25',
+      label: 'lost',
+      tone: 'lost',
+      struck: true,
+    });
+    expect(pastStakeTag(money('released'))).toMatchObject({ label: 'kept', tone: 'kept' });
+    expect(pastStakeTag(money('refunded'))).toMatchObject({ tone: 'quiet', struck: true });
+  });
+
+  test('a friend rides on the status line', () => {
+    const friend = (status: 'told' | 'released' | 'void'): StakeView => ({
+      kind: 'friend',
+      _id: stakeId,
+      status,
+      friendId: 'friend' as Id<'friends'>,
+      friendName: 'Sam',
+    });
+    expect(pastStakeTag(friend('told'))).toEqual({ kind: 'phrase', phrase: 'Sam was told' });
+    expect(pastStakeTag(friend('released'))).toEqual({ kind: 'phrase', phrase: 'Sam never heard' });
+    expect(pastStakeTag(friend('void'))).toBeNull();
+  });
+
+  test('a lock let go, or their word, says nothing', () => {
+    expect(pastStakeTag(null)).toBeNull();
+    expect(pastStakeTag({ kind: 'lockout', _id: stakeId, status: 'released', days: 3 })).toBeNull();
+    expect(pastStakeTag({ kind: 'lockout', _id: stakeId, status: 'triggered', days: 3 })).toEqual({
+      kind: 'phrase',
+      phrase: 'Habits froze for 3 days',
+    });
   });
 });

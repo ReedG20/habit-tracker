@@ -6,6 +6,7 @@ import { EndingKicker } from './ending-kicker';
 import { HabitActionButton } from './habit-action-button';
 import { HabitHistoryStrip } from './habit-history-strip';
 import { Icon } from './icon';
+import { StakePill } from './stake-pill';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
@@ -25,7 +26,7 @@ import type { HabitHistory } from '@/convex/habitHistory';
 import { frequencyLabel, targetPerWeek } from '@/convex/lib/frequency';
 import { endingStatus } from '@/data/ending';
 import { isDaily, isWeekDone, type HabitWithProgress } from '@/data/habits';
-import { describeHabitStake } from '@/data/stakes';
+import { describeHabitStake, stakeChip } from '@/data/stakes';
 import { useTheme } from '@/hooks/use-theme';
 import { describeWhen, todayKey } from '@/lib/dates';
 
@@ -53,6 +54,8 @@ export function HabitDetailCard({ habit, history, paused = false, now }: HabitDe
   const method = proofMethodOf(habit);
   const stake = habit.stakeView;
   const stakeLive = stake !== null && (stake.status === 'armed' || stake.status === 'void');
+  // Up by the title, as on Today; the row below then only says what the pill can't.
+  const chip = broken ? null : stakeChip(stake);
   const open = () => router.push(`/habit/${habit._id}`);
 
   return (
@@ -94,6 +97,7 @@ export function HabitDetailCard({ habit, history, paused = false, now }: HabitDe
                   {daily ? 'Every day' : `${habit.weekCount} of ${target} this week`}
                 </ThemedText>
               )}
+              {chip === null ? null : <StakePill text={chip} live={!paused} />}
             </View>
           </View>
         </Pressable>
@@ -110,11 +114,13 @@ export function HabitDetailCard({ habit, history, paused = false, now }: HabitDe
         <View style={styles.rows}>
           <CardDetailRow icon={PROOF_METHODS[method].icon} text={proofLine(habit)} />
           {daily ? null : <CardDetailRow icon={RepeatIcon} text={frequencyLabel(target)} />}
-          <CardDetailRow
-            icon={stakeIcon(stake)}
-            text={describeHabitStake(stake)}
-            accent={stakeLive}
-          />
+          {chip === null ? (
+            <CardDetailRow
+              icon={stakeIcon(stake)}
+              text={describeHabitStake(stake)}
+              accent={stakeLive}
+            />
+          ) : null}
           {history === undefined ? null : (
             <CardDetailRow {...lastAttemptLine(history.lastAttempt, now)} icon={Clock01Icon} />
           )}
@@ -208,7 +214,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
-    columnGap: Spacing.two,
+    gap: Spacing.two,
   },
   streak: {
     flexDirection: 'row',
