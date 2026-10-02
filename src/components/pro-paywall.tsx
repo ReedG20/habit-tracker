@@ -5,11 +5,12 @@ import { Linking, Pressable, StyleSheet, View } from 'react-native';
 import type { PurchasesPackage } from 'react-native-purchases';
 
 import { ActionButton } from '@/components/action-button';
+import { AnteProLockup } from '@/components/brand/ante-pro-lockup';
 import { Icon } from '@/components/icon';
 import { PlanCard } from '@/components/plan-card';
 import { ThemedText } from '@/components/themed-text';
-import { Camera01Icon, CoinsDollarIcon, FlameIcon, SparklesIcon } from '@/constants/icons';
-import { Fonts, Spacing } from '@/constants/theme';
+import { Camera01Icon, CoinsDollarIcon, FlameIcon } from '@/constants/icons';
+import { Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { useSessionUserId } from '@/hooks/use-signed-in-session';
 import { useSubscription } from '@/hooks/use-subscription';
@@ -208,12 +209,7 @@ export function ProPaywall({
     <View style={styles.body}>
       {(typeof header === 'function' ? header({ trialEligible }) : header) ?? (
         <View style={styles.header}>
-          <View style={styles.titleRow}>
-            <Icon icon={SparklesIcon} size={26} themeColor="primary" />
-            <ThemedText style={styles.title} themeColor="text">
-              Ante Pro
-            </ThemedText>
-          </View>
+          <AnteProLockup size={26} />
           <ThemedText themeColor="textSecondary">
             Everything Ante can do, with nothing held back.
           </ThemedText>
@@ -387,16 +383,6 @@ const styles = StyleSheet.create({
   },
   header: {
     gap: Spacing.one,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-  },
-  title: {
-    fontFamily: Fonts.sectionHeading,
-    fontSize: 22,
-    lineHeight: 28,
   },
   benefits: {
     gap: Spacing.two,

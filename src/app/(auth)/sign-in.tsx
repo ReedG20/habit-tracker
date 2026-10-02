@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppleSignInButton } from '@/components/apple-sign-in-button';
+import { AnteWordmark } from '@/components/brand/ante-wordmark';
 import { GoogleSignInButton } from '@/components/google-sign-in-button';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -21,6 +22,7 @@ export default function SignInScreen() {
       ]}>
       <View style={styles.content}>
         <View style={styles.header}>
+          <AnteWordmark accessibilityRole="header" style={styles.masthead} />
           <ThemedText style={styles.wisdom}>{WISDOM}</ThemedText>
           <ThemedText themeColor="textSecondary">
             Sign in to keep your habits and streaks in sync.
@@ -64,6 +66,9 @@ const styles = StyleSheet.create({
   header: {
     paddingTop: Spacing.six,
     gap: Spacing.three,
+  },
+  masthead: {
+    marginBottom: Spacing.two,
   },
   wisdom: {
     fontFamily: Fonts.wisdom,

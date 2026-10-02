@@ -3,6 +3,7 @@ import type { Ref } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
+import { AnteWordmark } from '@/components/brand/ante-wordmark';
 import { Icon } from '@/components/icon';
 import { commitmentIcon } from '@/constants/commitment-icons';
 import { titleFontFamily } from '@/constants/custom-fonts';
@@ -129,7 +130,7 @@ export function ShareCard({ card, subject, copy, ref }: ShareCardProps) {
           accessible={false}
         />
         <View style={styles.brand}>
-          <Text style={[styles.brandName, { color: palette.text }]}>Ante</Text>
+          <AnteWordmark height={16} color={palette.text} style={styles.brandName} />
           <Text style={[styles.brandLine, { color: palette.soft }]}>habits with stakes</Text>
         </View>
         <Text style={[styles.url, { color: palette.text }]}>{SHARE_DISPLAY_URL}</Text>
@@ -343,10 +344,9 @@ const styles = StyleSheet.create({
   brand: {
     flex: 1,
   },
+  // Takes the line box the name had in text, so the tagline doesn't move.
   brandName: {
-    fontFamily: Fonts.wisdom,
-    fontSize: 18,
-    lineHeight: 24,
+    marginVertical: Spacing.one,
   },
   brandLine: {
     fontSize: 12,

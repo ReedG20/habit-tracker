@@ -29,3 +29,17 @@ export function describeSubscription(summary: SubscriptionSummary | null, now: n
   if (status === 'paused') return `Paused · ${date}`;
   return willRenew ? `Active · renews ${date}` : `Active · ends ${date}`;
 }
+
+/**
+ * What Me's Pro card says to someone without Pro: a pitch the first time, and
+ * a way back for someone whose subscription ran out.
+ */
+export function proOfferCopy(summary: SubscriptionSummary | null): {
+  line: string;
+  action: string;
+} {
+  if (summary === null) {
+    return { line: 'Real stakes, proven check-ins, nothing held back.', action: 'Upgrade' };
+  }
+  return { line: 'Your habits are paused until you’re back.', action: 'Resubscribe' };
+}

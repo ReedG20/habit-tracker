@@ -2,10 +2,11 @@ import { useQuery } from 'convex/react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AnteProLockup } from '@/components/brand/ante-pro-lockup';
 import { Icon } from '@/components/icon';
 import { ProPaywall, type PaywallOutcome } from '@/components/pro-paywall';
 import { ThemedText } from '@/components/themed-text';
-import { Cancel01Icon, SparklesIcon } from '@/constants/icons';
+import { Cancel01Icon } from '@/constants/icons';
 import { ScreenHeadingTypography, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { paywallHeaderCopy } from '@/data/pro-lock';
@@ -55,12 +56,7 @@ export function ProPaywallScreen({ source, onClose, onFinished }: ProPaywallScre
             // Once subscribed, the default "Ante Pro" block says it better.
             isPro ? undefined : (
               <View style={styles.header}>
-                <View style={styles.kicker}>
-                  <Icon icon={SparklesIcon} size={20} strokeWidth={2} themeColor="primary" />
-                  <ThemedText type="smallSemibold" themeColor="primary">
-                    Ante Pro
-                  </ThemedText>
-                </View>
+                <AnteProLockup size={18} style={styles.lockup} />
                 <ThemedText style={styles.title} themeColor="text">
                   {copy.title}
                 </ThemedText>
@@ -97,10 +93,8 @@ const styles = StyleSheet.create({
   header: {
     gap: Spacing.two,
   },
-  kicker: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.one,
+  lockup: {
+    marginBottom: Spacing.one,
   },
   title: ScreenHeadingTypography,
   pressed: {

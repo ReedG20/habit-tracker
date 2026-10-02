@@ -18,6 +18,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { inkStrokes, signatureBox, type InkStroke } from './ink';
 import type { SignedContract } from './types';
 
+import { AnteWordmark } from '@/components/brand/ante-wordmark';
 import { ReplayMask } from '@/components/replay-mask';
 import { Fonts, Spacing } from '@/constants/theme';
 
@@ -166,7 +167,11 @@ export function SignedContractCard({
               />
             </ReplayMask>
             <View style={styles.rule} />
-            <Text style={styles.caption}>Your signature</Text>
+            {/* The other party, set small where a letterhead's footer would be. */}
+            <View style={styles.captionRow}>
+              <Text style={styles.caption}>Your signature</Text>
+              <AnteWordmark height={12} color={PAPER.soft} />
+            </View>
           </View>
 
           <Animated.View
@@ -297,10 +302,15 @@ const styles = StyleSheet.create({
     opacity: 0.25,
     marginTop: Spacing.one,
   },
+  captionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: Spacing.one,
+  },
   caption: {
     color: PAPER.soft,
     fontSize: 13,
-    marginTop: Spacing.one,
   },
   // Across the signature's far end, the way a stamp half covers what it approves.
   stamp: {

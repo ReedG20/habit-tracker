@@ -4,11 +4,14 @@ import { useMutation, useQuery } from 'convex/react';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import * as Updates from 'expo-updates';
-import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
+import { AnteWordmark } from '@/components/brand/ante-wordmark';
+import { ProBadge } from '@/components/brand/pro-badge';
 import { DeleteAccountRow } from '@/components/delete-account-row';
 import { Icon } from '@/components/icon';
 import { HelpCard } from '@/components/me/help-card';
+import { ProCard } from '@/components/me/pro-card';
 import { ProgressCalendar } from '@/components/progress-calendar';
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { StatsPager } from '@/components/stats-pager';
@@ -28,12 +31,17 @@ import {
   Target02Icon,
   UserCircleIcon,
 } from '@/constants/icons';
-import { CardRadius, PillRadius, ScreenHeadingTypography, Spacing } from '@/constants/theme';
+import {
+  CardRadius,
+  PillRadius,
+  ScreenHeadingTypography,
+  Spacing,
+  type ThemeColor,
+} from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
+import { DEFAULT_REMINDER_SETTINGS, PRESET_RULES } from '@/convex/lib/reminderPresets';
 import { currentStreak, formatStreak } from '@/data/habits';
-import { describeSubscription } from '@/data/subscription';
 import { resetDailyPaywall } from '@/hooks/use-daily-paywall';
-import { useNow } from '@/hooks/use-now';
 import { useSignOut } from '@/hooks/use-sign-out';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useTheme } from '@/hooks/use-theme';
@@ -43,9 +51,9 @@ import { openKept } from '@/lib/kept-screen';
 import { openGrace } from '@/lib/grace-screen';
 import { openLoss } from '@/lib/loss-screen';
 import { formatCents } from '@/lib/money';
+import { useNotificationPermission } from '@/lib/notifications';
 import { resetOnboarding } from '@/lib/onboarding';
-import { openPaywall } from '@/lib/paywall';
-import { manageSubscriptionsUrl, revenueCatSupported } from '@/lib/revenuecat';
+import { revenueCatSupported } from '@/lib/revenuecat';
 
 const settings: {
   id: string;
@@ -58,11 +66,11 @@ const settings: {
 ];
 
 /**
- * Which code is running, e.g. `Ante 1.0.0 · update 01a0b759`. Tells an OTA
- * update apart from the bundle that shipped inside the build.
+ * Which code is running, e.g. `1.0.0 · update 01a0b759`, under the wordmark.
+ * Tells an OTA update apart from the bundle that shipped inside the build.
  */
 function describeBuild(): string {
-  const version = `Ante ${Constants.expoConfig?.version ?? '?'}`;
+  const version = Constants.expoConfig?.version ?? '?';
 
   if (!Updates.isEnabled) {
     return `${version} · dev`;
@@ -82,8 +90,9 @@ export default function MeScreen() {
   const habits = useQuery(api.habits.list, { today: todayKey() });
   const loggedCount = useQuery(api.habits.loggedCount);
   const stakeTotals = useQuery(api.stakes.totals);
-  const { isPro, summary } = useSubscription();
-  const now = useNow();
+  const { isPro } = useSubscription();
+  const reminderSettings = useQuery(api.reminders.settings);
+  const notificationPermission = useNotificationPermission();
   // Only on deployments that honour them (`ANTE_DEV_OVERRIDES`), never production.
   const devOverrides = useQuery(api.lockouts.devOverrides, showDevTools ? {} : 'skip');
   const forceDelete = useForceDelete();
@@ -102,6 +111,18 @@ export default function MeScreen() {
 
   const streak = habits === undefined ? undefined : currentStreak(habits);
 
+  // The preset beside Reminders, or that iOS has them off, which makes it moot.
+  // Nothing while loading, so the row doesn't flash the default.
+  const remindersValue: { label: string; color: ThemeColor } | null =
+    notificationPermission === 'denied'
+      ? { label: 'Off', color: 'accent' }
+      : reminderSettings === undefined
+        ? null
+        : {
+            label: PRESET_RULES[(reminderSettings ?? DEFAULT_REMINDER_SETTINGS).preset].label,
+            color: 'textSecondary',
+          };
+
   return (
     <ScreenScrollView>
       <View style={styles.identity}>
@@ -109,9 +130,12 @@ export default function MeScreen() {
           <Icon icon={UserCircleIcon} size={32} themeColor="textSecondary" />
         </View>
         <View style={styles.identityText}>
-          <ThemedText style={styles.displayName} themeColor="text">
-            {displayName}
-          </ThemedText>
+          <View style={styles.nameRow}>
+            <ThemedText style={styles.displayName} themeColor="text" numberOfLines={1}>
+              {displayName}
+            </ThemedText>
+            {isPro ? <ProBadge /> : null}
+          </View>
           <ThemedText type="small" themeColor="textSecondary">
             {habits === undefined
               ? ' '
@@ -162,32 +186,10 @@ export default function MeScreen() {
         <ProgressCalendar />
       </StatsPager>
 
-      <ThemedView type="backgroundElement" style={styles.settingsGroup}>
-        {/* Hidden where there is no store: nothing to buy or manage on web. */}
-        {revenueCatSupported && (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Ante Pro"
-            // Apple owns cancellation and plan changes; the paywall only sells.
-            // In a debug build it stays reachable while subscribed so it can
-            // still be worked on — and Apple's screen does nothing in a
-            // simulator regardless.
-            onPress={() =>
-              isPro && !__DEV__ ? void Linking.openURL(manageSubscriptionsUrl) : openPaywall('me')
-            }
-            style={({ pressed }) => [styles.settingRow, pressed && styles.pressed]}>
-            <Icon icon={SparklesIcon} size={22} themeColor="primary" />
-            <ThemedText style={styles.settingLabel}>Ante Pro</ThemedText>
-            {/* Without Pro it's the way forward, so it reads as one. */}
-            <ThemedText
-              type={isPro ? 'small' : 'smallSemibold'}
-              themeColor={isPro ? 'textSecondary' : 'primary'}>
-              {describeSubscription(summary, now)}
-            </ThemedText>
-            <Icon icon={ArrowRight01Icon} size={20} strokeWidth={2} themeColor="textSecondary" />
-          </Pressable>
-        )}
+      {/* Hidden where there is no store: nothing to buy or manage on web. */}
+      {revenueCatSupported && <ProCard />}
 
+      <ThemedView type="backgroundElement" style={styles.settingsGroup}>
         {settings.map(({ href, ...setting }, index) => (
           <Pressable
             key={setting.id}
@@ -195,14 +197,16 @@ export default function MeScreen() {
             onPress={href && (() => router.push(href))}
             style={({ pressed }) => [
               styles.settingRow,
-              (index > 0 || revenueCatSupported) && {
-                borderTopWidth: 1,
-                borderTopColor: theme.border,
-              },
+              index > 0 && { borderTopWidth: 1, borderTopColor: theme.border },
               pressed && styles.pressed,
             ]}>
             <Icon icon={setting.icon} size={22} themeColor="textSecondary" />
             <ThemedText style={styles.settingLabel}>{setting.label}</ThemedText>
+            {setting.id === 'reminders' && remindersValue !== null ? (
+              <ThemedText type="small" themeColor={remindersValue.color}>
+                {remindersValue.label}
+              </ThemedText>
+            ) : null}
             <Icon icon={ArrowRight01Icon} size={20} strokeWidth={2} themeColor="textSecondary" />
           </Pressable>
         ))}
@@ -457,9 +461,12 @@ export default function MeScreen() {
         </View>
       ) : null}
 
-      <ThemedText type="small" themeColor="textSecondary" style={styles.buildInfo}>
-        {describeBuild()}
-      </ThemedText>
+      <View style={styles.footer}>
+        <AnteWordmark height={18} color={theme.textSecondary} />
+        <ThemedText type="small" themeColor="textSecondary" style={styles.buildInfo}>
+          {describeBuild()}
+        </ThemedText>
+      </View>
     </ScreenScrollView>
   );
 }
@@ -479,9 +486,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   identityText: {
+    flex: 1,
     gap: Spacing.half,
   },
-  displayName: ScreenHeadingTypography,
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+  },
+  displayName: {
+    ...ScreenHeadingTypography,
+    flexShrink: 1,
+  },
   statValue: ScreenHeadingTypography,
   stats: {
     gap: Spacing.three,
@@ -523,6 +539,11 @@ const styles = StyleSheet.create({
   },
   groupLabel: {
     paddingHorizontal: Spacing.three,
+  },
+  footer: {
+    alignItems: 'center',
+    gap: Spacing.one,
+    paddingTop: Spacing.two,
   },
   buildInfo: {
     textAlign: 'center',
