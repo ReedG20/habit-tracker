@@ -1,6 +1,6 @@
 import type { IconSvgElement } from '@hugeicons/react-native';
-import { useEffect, useRef } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { StyleSheet, Text, View, type TextLayoutEvent } from 'react-native';
 
 import { AlsoTicker } from './also-ticker';
 import { Note } from './commitment/note';
@@ -39,6 +39,8 @@ export const INK_DARK = '#9F8CFF';
 
 /** The corner the note gets; two short handwritten lines. */
 const NOTE_WIDTH = 164;
+/** Beside the note the kicker gets this many lines; longer, the note moves up over it. */
+const KICKER_LINES_BESIDE_NOTE = 2;
 
 /** One glyph per kind of argument: the clock, the run, the lock, the money. */
 function kickerIcon(moment: TodayMoment): IconSvgElement {
@@ -163,6 +165,19 @@ export function TodayHero({ moment }: TodayHeroProps) {
   const toneColor = { urgent: theme.accent, normal: theme.textSecondary, done: ink }[moment.tone];
   const figureColor = moment.tone === 'urgent' ? theme.accent : theme.text;
 
+  // A kicker with a long name in it wraps to a tall, thin column beside the
+  // note. Measured there first; if it runs long, the note rides above on one
+  // line instead and the kicker takes the full width. Keyed to the kicker so
+  // a new moment measures afresh.
+  const [fit, setFit] = useState<{ kicker: string; wide: boolean } | null>(null);
+  const measured = fit?.kicker === moment.kicker;
+  const wide = note !== null && measured && fit.wide;
+  const onKickerLayout = (event: TextLayoutEvent) => {
+    if (note === null || measured) return;
+    const lines = event.nativeEvent.lines.length;
+    setFit({ kicker: moment.kicker, wide: lines > KICKER_LINES_BESIDE_NOTE });
+  };
+
   return (
     <View style={styles.hero}>
       <View
@@ -173,13 +188,28 @@ export function TodayHero({ moment }: TodayHeroProps) {
         style={styles.story}>
         {/* The coach's scribble, pinned in the top corner and tilted the
             other way: it floats over the hero instead of joining its text. */}
-        {note === null ? null : <Note style={[styles.note, { color: ink }]}>{note}</Note>}
+        {note === null ? null : wide ? (
+          <Note style={[styles.noteAbove, { color: ink }]} numberOfLines={1}>
+            {note}
+          </Note>
+        ) : (
+          <Note style={[styles.note, { color: ink }]}>{note}</Note>
+        )}
 
-        {/* A long kicker wraps short of the note rather than running under it. */}
-        <View style={[styles.kicker, note !== null && styles.kickerBesideNote]}>
+        {/* A kicker wraps short of the note rather than running under it, and
+            stays hidden until it's measured so a long one doesn't jump. */}
+        <View
+          style={[
+            styles.kicker,
+            note !== null && !wide && styles.kickerBesideNote,
+            note !== null && !measured && styles.unmeasured,
+          ]}>
           {/* HugeIcons go thin when small: a touch bigger and bolder than the label. */}
           <Icon icon={kickerIcon(moment)} size={20} strokeWidth={2} color={toneColor} />
-          <ThemedText type="smallSemibold" style={[styles.kickerText, { color: toneColor }]}>
+          <ThemedText
+            type="smallSemibold"
+            onTextLayout={onKickerLayout}
+            style={[styles.kickerText, { color: toneColor }]}>
             {moment.kicker}
           </ThemedText>
         </View>
@@ -228,6 +258,9 @@ const styles = StyleSheet.create({
   kickerText: {
     flexShrink: 1,
   },
+  unmeasured: {
+    opacity: 0,
+  },
   // Comico sits high in its line box: a tight box clips the tops of the
   // digits, so the box stays tall and the margins even out the gaps instead.
   figureParts: {
@@ -270,6 +303,18 @@ const styles = StyleSheet.create({
     lineHeight: 30,
     right: Spacing.two,
     width: NOTE_WIDTH,
+    textAlign: 'right',
+    transform: [{ rotate: '5deg' }],
+    zIndex: 1,
+  },
+  // Over a long kicker: one line across the top, as on `ProLockHero`.
+  noteAbove: {
+    position: 'absolute',
+    top: -(Spacing.five + Spacing.two),
+    left: Spacing.five,
+    right: Spacing.two,
+    fontSize: 21,
+    lineHeight: 30,
     textAlign: 'right',
     transform: [{ rotate: '5deg' }],
     zIndex: 1,

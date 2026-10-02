@@ -1,7 +1,6 @@
 import { useQuery } from 'convex/react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { EmptyState } from '@/components/empty-state';
 import { GoalCard } from '@/components/goal-card';
 import { HabitCard } from '@/components/habit-card';
 import { ProLockCard } from '@/components/pro-lock-card';
@@ -11,7 +10,7 @@ import { NotificationsOffBanner } from '@/components/reminders/notifications-off
 import { ScreenScrollView } from '@/components/screen-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { TodayHero } from '@/components/today-hero';
-import { HabitIcon } from '@/constants/icons';
+import { TodayStartHero } from '@/components/today-start-hero';
 import { Fonts, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import { groupIntoHomeSections, type HomeSection } from '@/data/home-sections';
@@ -89,11 +88,10 @@ export default function TodayScreen() {
             </>
           )
         ) : (
-          moment !== null && (
-            <View style={styles.hero}>
-              <TodayHero moment={moment} />
-            </View>
-          )
+          <View style={styles.hero}>
+            {/* Nothing to argue from yet: the hero says how to start. */}
+            {moment === null ? <TodayStartHero /> : <TodayHero moment={moment} />}
+          </View>
         )}
       </View>
 
@@ -110,14 +108,6 @@ export default function TodayScreen() {
             now={now}
           />
         )}
-
-        {/* Without Pro the card above already says how to start. */}
-        {sections?.length === 0 && !paused ? (
-          <EmptyState
-            icon={HabitIcon}
-            message="Nothing for today. Add a habit or goal from Commitments."
-          />
-        ) : null}
 
         {sections?.map((section) => (
           <View key={section.id} style={styles.section}>
