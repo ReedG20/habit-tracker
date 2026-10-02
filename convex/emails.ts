@@ -14,6 +14,7 @@ import {
   type EmailContent,
 } from './lib/emailCopy';
 import { endDayLabel } from './lib/endDate';
+import { inviteCode, inviteUrl } from './lib/invite';
 import { DAILY, frequencyLabel, targetPerWeek } from './lib/frequency';
 import { graceEmail, graceStakeLine, type GraceStake } from './lib/graceCopy';
 import { notifyFriendTold } from './lib/notify';
@@ -142,6 +143,7 @@ export const sendHeadsUp = internalMutation({
       cadence,
       subject: stake.habitId !== undefined ? 'habit' : 'goal',
       optOutUrl: optOutUrl(friend),
+      inviteUrl: inviteUrl('heads_up', inviteCode(user._id)),
     });
     await send(ctx, friend, content, {
       replyTo: replyAddress(user),
@@ -181,6 +183,7 @@ export const sendLoss = internalMutation({
             ),
       replyable: replyTo !== undefined,
       optOutUrl: optOutUrl(friend),
+      inviteUrl: inviteUrl('loss', inviteCode(user._id)),
     });
     await send(ctx, friend, content, { replyTo, idempotencyKey: `loss:${stake._id}` });
     await notifyFriendTold(ctx, stake);

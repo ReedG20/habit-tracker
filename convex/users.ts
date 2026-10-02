@@ -136,6 +136,7 @@ export const saveOnboarding = authedMutation({
         areas: [...new Set(args.areas)],
         history: args.history,
         motivator: args.motivator,
+        heardFrom: args.heardFrom,
         completedAt: Date.now(),
       },
     });

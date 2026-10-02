@@ -2,7 +2,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
-import { GoalListIcon, HabitIcon } from '@/constants/icons';
+import { commitmentIcon } from '@/constants/commitment-icons';
 import { ActionCardRadius, CardRadius, ControlHeight, Spacing } from '@/constants/theme';
 import type { CommitmentDraft } from '@/components/commitment/draft';
 import { frequencyLabel } from '@/convex/lib/frequency';
@@ -16,11 +16,7 @@ export function CommitmentSummary({ draft }: { draft: CommitmentDraft }) {
   return (
     <View style={[styles.card, { backgroundColor: theme.backgroundElement }]}>
       <View style={[styles.iconTile, { backgroundColor: theme.background }]}>
-        <Icon
-          icon={draft.kind === 'habit' ? HabitIcon : GoalListIcon}
-          size={24}
-          themeColor="text"
-        />
+        <Icon icon={commitmentIcon(draft.icon, draft.kind)} size={24} themeColor="text" />
       </View>
       <View style={styles.text}>
         <ThemedText type="smallBold" numberOfLines={2}>

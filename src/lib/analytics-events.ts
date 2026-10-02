@@ -1,7 +1,7 @@
 import type { ContestReason } from '@/convex/lib/chargeReviewSchema';
 import type { ProofMethod } from '@/convex/lib/proofMethods';
 import type { StakeKind } from '@/convex/lib/stakeRules';
-import type { FocusArea, History, Motivator } from '@/data/onboarding';
+import type { FocusArea, HeardFrom, History, Motivator } from '@/data/onboarding';
 import type { ShareCardKind, ShareSource } from '@/data/share-copy';
 
 import {
@@ -24,6 +24,7 @@ export type AnalyticsEvents = {
     | { step: 'focus'; areas: FocusArea[] }
     | { step: 'history'; history: History }
     | { step: 'motivator'; motivator: Motivator }
+    | { step: 'heard_from'; heard_from: HeardFrom }
     | { step: 'commitment'; kind: CommitmentKind; stake_kind: StakeKind }
     | { step: 'reminders'; notifications_granted: boolean }
     | { step: 'save' };
@@ -98,6 +99,11 @@ export type AnalyticsEvents = {
     theme: 'light' | 'dark';
     activity: string;
   };
+  /**
+   * The user texted the friend they just put on the hook, from the first
+   * commitment's "It's on." `activity` as for shares.
+   */
+  'friend texted': { source: 'onboarding'; activity: string };
 
   /** Sent for review; the verdict comes later from the server. */
   'habit checked in':
