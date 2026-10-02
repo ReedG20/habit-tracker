@@ -18,10 +18,14 @@ export type History = 'fades' | 'never_start' | 'consistent' | 'first_try';
 
 export type Motivator = 'money' | 'proof' | 'streak' | 'unsure';
 
+/** Self-reported attribution. `friend_stake`: someone named them on their own commitment. */
+export type HeardFrom = 'friend_stake' | 'friend' | 'social' | 'app_store' | 'other';
+
 export type OnboardingAnswers = {
   areas: FocusArea[];
   history?: History;
   motivator?: Motivator;
+  heardFrom?: HeardFrom;
 };
 
 /**
@@ -68,6 +72,18 @@ export const motivatorOptions: { value: Motivator; label: string; detail: string
   { value: 'proof', label: 'Proof someone checks', detail: 'Saying I did it isn’t enough.' },
   { value: 'streak', label: 'Not breaking a streak', detail: 'Day 40 is too good to throw away.' },
   { value: 'unsure', label: 'Not sure yet', detail: 'Let’s find out.' },
+];
+
+export const heardFromOptions: { value: HeardFrom; label: string; detail: string }[] = [
+  {
+    value: 'friend_stake',
+    label: 'Someone put me on the hook',
+    detail: 'I got an email from Ante about a friend.',
+  },
+  { value: 'friend', label: 'A friend told me', detail: 'A text, a post, or in person.' },
+  { value: 'social', label: 'TikTok, Instagram or YouTube', detail: 'It showed up in my feed.' },
+  { value: 'app_store', label: 'The App Store', detail: 'I went looking and found it.' },
+  { value: 'other', label: 'Somewhere else', detail: 'An ad, an article, who knows.' },
 ];
 
 /** The one-line reply under the first contract step's title, so the survey feels heard. */
@@ -248,6 +264,7 @@ export const progressSteps = [
   'focus',
   'history',
   'motivator',
+  'heard',
   'what',
   'stakes',
   'sign',
