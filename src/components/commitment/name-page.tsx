@@ -20,6 +20,7 @@ import type { TextFieldHandle } from '@/components/text-field';
 import { ThemedText } from '@/components/themed-text';
 import { LockIcon } from '@/constants/icons';
 import { BorderRadius, Spacing } from '@/constants/theme';
+import { MAX_TITLE_LENGTH } from '@/convex/lib/commitmentText';
 import { useTheme } from '@/hooks/use-theme';
 
 const kindOptions: { value: CommitmentKind; label: string }[] = [
@@ -29,7 +30,7 @@ const kindOptions: { value: CommitmentKind; label: string }[] = [
 
 const titlePlaceholders: Record<CommitmentKind, string> = {
   habit: 'Go to the gym',
-  goal: 'Ship the landing page',
+  goal: 'Run a half marathon',
 };
 
 export type NamePageProps = {
@@ -190,6 +191,7 @@ export function NamePage({
             accessibilityLabel={draft.kind === 'habit' ? 'Habit name' : 'Goal name'}
             defaultValue={draft.title}
             placeholder={titlePlaceholders[draft.kind]}
+            maxLength={MAX_TITLE_LENGTH}
             autoFocus={draft.title.length === 0 && fieldKey === 0}
             readValueRef={readTitle}
             onChangeText={(text) => {
