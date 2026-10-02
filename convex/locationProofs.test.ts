@@ -212,6 +212,8 @@ describe('analyzing a check-in', () => {
       description: 'Any climbing gym',
     });
 
+    // A match in the close circle never pays for the wider search.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('https://places.googleapis.com/v1/places:searchNearby');
     expect(init.headers).toMatchObject({ 'X-Goog-Api-Key': 'test-key' });
@@ -222,7 +224,7 @@ describe('analyzing a check-in', () => {
     expect(await completion(t, habitId)).not.toBeNull();
   });
 
-  test('a park only the wider search finds reaches the judge, marked as a large area', async () => {
+  test('a miss in the close circle tries the wider search, where a park is marked as a large area', async () => {
     const t = setup();
     const { id } = await submitted(t);
     const PARK = {
@@ -236,7 +238,13 @@ describe('analyzing a check-in', () => {
       const body = JSON.parse(init.body as string) as { includedTypes?: string[] };
       return placesResponse(body.includedTypes === undefined ? [GYM] : [PARK, GYM]);
     });
-    judgeText.mockResolvedValue({ verdict: 'reject', reason: 'Not a park.', placeId: null });
+    judgeText
+      .mockResolvedValueOnce({ verdict: 'reject', reason: 'Not a park.', placeId: null })
+      .mockResolvedValueOnce({
+        verdict: 'approve',
+        reason: 'You’re in Prospect Park.',
+        placeId: 'place_park',
+      });
 
     await t.action(internal.locationProofs.analyze, {
       verificationId: id,
@@ -245,14 +253,36 @@ describe('analyzing a check-in', () => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    const prompt = (judgeText.mock.calls[0][0] as { text: string }).text;
+    expect(judgeText).toHaveBeenCalledTimes(2);
+    const prompt = (judgeText.mock.calls[1][0] as { text: string }).text;
     expect(prompt).toContain('Prospect Park | park');
     expect(prompt).toContain('large area, listed at its centre');
     // The gym came back from both searches but is listed once.
     expect(prompt.match(/Movement Gowanus/g)).toHaveLength(1);
+    expect(await verification(t, id)).toMatchObject({ status: 'approved', placeId: 'place_park' });
   });
 
-  test('a failed wider search still leaves the close one', async () => {
+  test('a wider search with nothing new keeps the close verdict without asking again', async () => {
+    const t = setup();
+    const { id } = await submitted(t);
+    fetchMock.mockImplementation(async () => placesResponse([GYM]));
+    judgeText.mockResolvedValue({ verdict: 'reject', reason: 'Not a library.', placeId: null });
+
+    await t.action(internal.locationProofs.analyze, {
+      verificationId: id,
+      coords: HERE,
+      title: 'Read at the library',
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(judgeText).toHaveBeenCalledTimes(1);
+    expect(await verification(t, id)).toMatchObject({
+      status: 'rejected',
+      reason: 'Not a library.',
+    });
+  });
+
+  test('a failed wider search leaves the close verdict standing', async () => {
     const t = setup();
     const { id } = await submitted(t);
     vi.spyOn(console, 'warn').mockImplementation(() => {});
@@ -262,19 +292,15 @@ describe('analyzing a check-in', () => {
         ? placesResponse([GYM])
         : new Response('bad type', { status: 400 });
     });
-    judgeText.mockResolvedValue({
-      verdict: 'approve',
-      reason: 'You’re at Movement Gowanus.',
-      placeId: 'place_gym',
-    });
+    judgeText.mockResolvedValue({ verdict: 'reject', reason: 'Not a park.', placeId: null });
 
     await t.action(internal.locationProofs.analyze, {
       verificationId: id,
       coords: HERE,
-      title: 'Climb',
+      title: 'Run in the park',
     });
 
-    expect(await verification(t, id)).toMatchObject({ status: 'approved' });
+    expect(await verification(t, id)).toMatchObject({ status: 'rejected', reason: 'Not a park.' });
   });
 
   test('refuses coordinates that aren’t numbers', async () => {
