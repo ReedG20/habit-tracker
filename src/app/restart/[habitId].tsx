@@ -50,6 +50,8 @@ function draftFor(habit: Doc<'habits'>, lost: Loss | null): CommitmentDraft {
     timesPerWeek: habit.timesPerWeek ?? DAILY,
     proofMethod: habit.proofMethod ?? FRESH_PROOF.proofMethod,
     timerMinutes: habit.timerMinutes ?? FRESH_PROOF.timerMinutes,
+    // Its weeks re-anchor on today, the way the server restarts it (`habits.restart`).
+    endsOn: habit.endsOn,
     dueAt: defaultDueAt(),
     ...freshStake(true),
   };

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import {
+  draftEndDay,
   draftProofMethod,
   isPresetProof,
   MIN_LEAD_MS,
@@ -29,6 +30,7 @@ import { PROOF_METHOD_ORDER, PROOF_METHODS } from '@/constants/proof-methods';
 import { BorderRadius, Spacing } from '@/constants/theme';
 import { MAX_PROOF_LENGTH } from '@/convex/lib/commitmentText';
 import { shortFrequency } from '@/convex/lib/frequency';
+import { formatLastDay } from '@/data/ending';
 import { track } from '@/lib/analytics';
 import { formatDueAt } from '@/lib/dates';
 
@@ -238,8 +240,13 @@ export function ProofPage({
 
 /** What the proof is written against, one tap from changing it. */
 function Recap({ draft, onPress }: { draft: CommitmentDraft; onPress: () => void }) {
+  const endDay = draftEndDay(draft);
   const when =
-    draft.kind === 'habit' ? shortFrequency(draft.timesPerWeek) : `by ${formatDueAt(draft.dueAt)}`;
+    draft.kind === 'goal'
+      ? `by ${formatDueAt(draft.dueAt)}`
+      : endDay === undefined
+        ? shortFrequency(draft.timesPerWeek)
+        : `${shortFrequency(draft.timesPerWeek)} · through ${formatLastDay(endDay)}`;
 
   return (
     <Pressable

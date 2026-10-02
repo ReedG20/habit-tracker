@@ -7,6 +7,7 @@ import { friendName, proofAction } from './contract-text';
 import {
   cardForStake,
   defaultStakeKind,
+  draftEndDay,
   isFriendComplete,
   lockoutLabel,
   reuseForStake,
@@ -26,6 +27,7 @@ import { ThemedText } from '@/components/themed-text';
 import { LockIcon, Mail01Icon, Money03Icon, Tick02Icon } from '@/constants/icons';
 import { Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
+import { formatLastDay } from '@/data/ending';
 import { replacedLine } from '@/data/raise';
 import { DAILY } from '@/convex/lib/frequency';
 import type { RaiseOptions } from '@/convex/lib/stakeLadder';
@@ -435,14 +437,17 @@ function consequences(
 ): string[] {
   const until = callOffUntil === undefined ? null : describeClock(callOffUntil, Date.now());
   const daily = draft.timesPerWeek >= DAILY;
+  const endDay = draftEndDay(draft);
+  const through =
+    endDay === undefined ? '' : ` It counts through ${formatLastDay(endDay)}, then it’s done.`;
   const days = draft.timesPerWeek === 1 ? 'one day' : `${draft.timesPerWeek} days`;
   // A raise lands on a habit that's already running, so no free first day.
   const cadence =
     draft.kind === 'goal'
       ? `Before ${formatDueAt(draft.dueAt)}, submit a photo. AI checks it against what you wrote.`
       : daily
-        ? `Every day, ${proofAction(draft)} by 3\u00a0AM.${raise === undefined ? ' The day you start is free.' : ''}`
-        : `Any ${days} a week, ${proofAction(draft)}. ${raise === undefined ? `Week one starts today, so weeks run ${describeWeekSpan(todayKey())}.` : 'Its weeks stay as they are.'}`;
+        ? `Every day, ${proofAction(draft)} by 3\u00a0AM.${raise === undefined ? ' The day you start is free.' : ''}${through}`
+        : `Any ${days} a week, ${proofAction(draft)}. ${raise === undefined ? `Week one starts today, so weeks run ${describeWeekSpan(todayKey())}.` : 'Its weeks stay as they are.'}${through}`;
   const saved =
     moneyRaisedInPlace(raise) !== null
       ? 'Same card as before. Nothing is charged today.'
@@ -460,7 +465,7 @@ function consequences(
     : 'ending takes about a week’s notice, to the end of one of its weeks, and it keeps counting till then.';
   const exit =
     until === null
-      ? `Want out later? ${notice.charAt(0).toUpperCase()}${notice.slice(1)}`
+      ? `Want out ${endDay === undefined ? 'later' : 'sooner'}? ${notice.charAt(0).toUpperCase()}${notice.slice(1)}`
       : `Second thoughts? Call it off any time before ${until}. After that, ${notice}`;
   const name = friendName(draft);
   const them = name === 'my friend' ? 'them' : name;

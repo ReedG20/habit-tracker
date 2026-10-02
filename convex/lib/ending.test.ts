@@ -84,3 +84,19 @@ describe('endingPlan', () => {
     });
   });
 });
+
+describe('endingPlan with an end date', () => {
+  test('an end date sooner than the notice is the last day', () => {
+    expect(plan({ endsOn: '2026-09-25' }, '2026-09-22')).toEqual({
+      kind: 'notice',
+      lastDay: '2026-09-25',
+    });
+  });
+
+  test('an end date further out leaves the week’s notice as it is', () => {
+    expect(plan({ endsOn: '2026-10-30' }, '2026-09-22')).toEqual({
+      kind: 'notice',
+      lastDay: '2026-09-28',
+    });
+  });
+});

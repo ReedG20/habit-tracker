@@ -660,6 +660,115 @@ describe('ending a habit', () => {
   });
 });
 
+describe('an end date', () => {
+  test('is checked when it is made: at least a week out, and a weekly one ends with a week', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+
+    await expect(
+      alice.as.mutation(api.habits.create, {
+        title: 'Read',
+        stake: { kind: 'none' },
+        endsOn: '2026-09-25',
+      }),
+    ).rejects.toThrow(/at least a week/);
+
+    const habitId = await alice.as.mutation(api.habits.create, {
+      title: 'Read',
+      timesPerWeek: 3,
+      stake: { kind: 'none' },
+      endsOn: '2026-10-01',
+    });
+    // Made on Monday the 21st, so its weeks end on Sundays.
+    expect((await habitAndStake(t, habitId)).habit?.endsOn).toBe('2026-10-04');
+  });
+
+  test('a habit kept through its end date finishes on its own, kept', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    const habitId: Id<'habits'> = await t.mutation(internal.habits.insertStaked, {
+      userId: alice.userId,
+      title: 'Run',
+      endsOn: '2026-09-28',
+      amountCents: 2500,
+      stripeCustomerId: 'cus_test',
+      stripePaymentMethodId: 'pm_test',
+      stripeSetupIntentId: 'seti_dated',
+      cardBrand: 'visa',
+      cardLast4: '4242',
+    });
+    for (let day = '2026-09-22'; day <= '2026-09-28'; day = nextDay(day)) {
+      await logDay(t, alice.userId, habitId, day);
+    }
+
+    await runCheck(t, '2026-09-28');
+    expect((await habitAndStake(t, habitId)).habit).not.toBeNull();
+
+    await runCheck(t, '2026-09-29');
+    const after = await t.run(async (ctx) => ({
+      habit: await ctx.db.get('habits', habitId),
+      stakes: await ctx.db.query('stakes').collect(),
+      kept: await ctx.db.query('accomplishments').collect(),
+      ended: await ctx.db.query('endedHabits').collect(),
+    }));
+    expect(after.habit).toBeNull();
+    expect(after.stakes).toMatchObject([{ status: 'released' }]);
+    expect(after.kept).toMatchObject([
+      { kind: 'habit', habitId, run: { unit: 'day', streak: 7, lastDay: '2026-09-28' } },
+    ]);
+    expect(after.ended).toMatchObject([{ outcome: 'kept' }]);
+  });
+
+  test('one that breaks before its date waits to be restarted, then goes once the date passes', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    const habitId = await alice.as.mutation(api.habits.create, {
+      title: 'Read',
+      stake: { kind: 'lockout', days: 1 },
+      endsOn: '2026-10-05',
+    });
+
+    await runCheck(t, '2026-09-23');
+    expect((await habitAndStake(t, habitId)).habit?.brokenAt).toBeDefined();
+
+    // Under a week left to restart into: starting another is the way back.
+    vi.setSystemTime(at('2026-09-29'));
+    await expect(
+      alice.as.mutation(api.habits.restart, { habitId, stake: { kind: 'none' } }),
+    ).rejects.toThrow(/too soon/);
+    expect((await habitAndStake(t, habitId)).habit).not.toBeNull();
+
+    await runCheck(t, '2026-10-06');
+    const after = await t.run(async (ctx) => ({
+      habit: await ctx.db.get('habits', habitId),
+      ended: await ctx.db.query('endedHabits').collect(),
+    }));
+    expect(after.habit).toBeNull();
+    expect(after.ended).toMatchObject([{ outcome: 'lost' }]);
+  });
+
+  test('ending it sooner still takes the week’s notice, and never runs past the date', async () => {
+    const t = setup();
+    const alice = await signIn(t, 'alice');
+    const habitId = await alice.as.mutation(api.habits.create, {
+      title: 'Read',
+      stake: { kind: 'lockout', days: 1 },
+      endsOn: '2026-10-25',
+    });
+
+    vi.setSystemTime(at('2026-09-22'));
+    expect(await alice.as.query(api.habits.endingTerms, { habitId, today: '2026-09-22' })).toEqual({
+      kind: 'notice',
+      lastDay: '2026-09-28',
+    });
+    vi.setSystemTime(at('2026-10-21'));
+    expect(await alice.as.query(api.habits.endingTerms, { habitId, today: '2026-10-21' })).toEqual({
+      kind: 'notice',
+      lastDay: '2026-10-25',
+    });
+  });
+});
+
 describe('goals', () => {
   test('a friend hears about a missed deadline, and proof in time releases them', async () => {
     const t = setup();

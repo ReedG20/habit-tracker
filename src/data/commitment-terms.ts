@@ -146,9 +146,11 @@ function habitScheduleTerm(habit: Habit): Term {
     label: 'How often',
     value: frequencyLabel(target),
     note:
-      habit.endsAfter === undefined
-        ? rule
-        : `${rule} Ending: it counts through ${formatLastDay(habit.endsAfter)}.`,
+      habit.endsAfter !== undefined
+        ? `${rule} Ending: it counts through ${formatLastDay(habit.endsAfter)}.`
+        : habit.endsOn !== undefined
+          ? `${rule} It runs through ${formatLastDay(habit.endsOn)}, then it’s done.`
+          : rule,
   };
 }
 

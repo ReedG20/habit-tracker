@@ -534,6 +534,8 @@ export const lossValidator = v.object({
   originalDueAt: v.optional(v.number()),
   /** Habits: how often it was due, for the copy. */
   timesPerWeek: v.optional(v.number()),
+  /** Habits: its end date, which leaves too little to restart into near the end. */
+  habitEndsOn: v.optional(v.string()),
   run: v.optional(runValidator),
   /** Lockouts: the last frozen day, and when the freeze lifts. */
   frozenThrough: v.optional(v.string()),
@@ -565,6 +567,7 @@ async function lossOf(ctx: QueryCtx, stake: Doc<'stakes'>): Promise<Loss | null>
     dueAt: goal?.dueAt,
     originalDueAt: goal?.originalDueAt,
     timesPerWeek: habit?.timesPerWeek,
+    habitEndsOn: habit?.endsOn,
     run: stake.run,
     frozenThrough: freeze?.endDay,
     frozenUntil: freeze?.endsAt,

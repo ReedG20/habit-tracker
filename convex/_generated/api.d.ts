@@ -45,6 +45,7 @@ import type * as lib_contractSchema from "../lib/contractSchema.js";
 import type * as lib_customFunctions from "../lib/customFunctions.js";
 import type * as lib_days from "../lib/days.js";
 import type * as lib_emailCopy from "../lib/emailCopy.js";
+import type * as lib_endDate from "../lib/endDate.js";
 import type * as lib_endedHabitSchema from "../lib/endedHabitSchema.js";
 import type * as lib_ending from "../lib/ending.js";
 import type * as lib_entitlements from "../lib/entitlements.js";
@@ -134,6 +135,7 @@ declare const fullApi: ApiFromModules<{
   "lib/customFunctions": typeof lib_customFunctions;
   "lib/days": typeof lib_days;
   "lib/emailCopy": typeof lib_emailCopy;
+  "lib/endDate": typeof lib_endDate;
   "lib/endedHabitSchema": typeof lib_endedHabitSchema;
   "lib/ending": typeof lib_ending;
   "lib/entitlements": typeof lib_entitlements;

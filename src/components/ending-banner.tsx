@@ -30,7 +30,8 @@ const initialFormat = new Intl.DateTimeFormat(undefined, { weekday: 'narrow' });
 
 /**
  * The habit detail's notice: how long it still counts, what a miss costs
- * until then, and the way back out. Calm once nothing is left to log.
+ * until then, and the way back out. Calm once nothing is left to log. A
+ * habit running out its end date has no way back out: it was the deal.
  */
 export function EndingBanner({ habit, today, onKeep }: EndingBannerProps) {
   const theme = useTheme();
@@ -74,13 +75,15 @@ export function EndingBanner({ habit, today, onKeep }: EndingBannerProps) {
         <NoticePips habit={habit} today={today} lastDay={status.lastDay} />
       ) : null}
 
-      <ActionButton
-        label="Keep it"
-        accessibilityLabel={`Keep ${habit.title}, and stop ending it`}
-        size="small"
-        onPress={onKeep}
-        style={styles.button}
-      />
+      {status.byEndDate ? null : (
+        <ActionButton
+          label="Keep it"
+          accessibilityLabel={`Keep ${habit.title}, and stop ending it`}
+          size="small"
+          onPress={onKeep}
+          style={styles.button}
+        />
+      )}
     </View>
   );
 }

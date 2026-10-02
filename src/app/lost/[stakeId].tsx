@@ -27,11 +27,13 @@ import { Fonts, PillRadius, Spacing } from '@/constants/theme';
 import type { Id } from '@/convex/_generated/dataModel';
 import { api } from '@/convex/_generated/api';
 import type { SignedContract } from '@/convex/contracts';
+import { restartableBefore } from '@/convex/lib/endDate';
 import { useFitsScreen } from '@/hooks/use-fits-screen';
 import type { Loss } from '@/convex/stakes';
 import { lossStory, textFriendBody, type LossStory } from '@/data/loss-story';
 import { useSettleUp } from '@/hooks/use-settle-up';
 import { captureError, track, type AnalyticsEvents } from '@/lib/analytics';
+import { todayKey } from '@/lib/dates';
 import { lossHaptic, pressHaptic, successHaptic } from '@/lib/haptics';
 import { watchLoss } from '@/lib/loss-screen';
 import { cardLabel, formatCents } from '@/lib/money';
@@ -349,7 +351,11 @@ function Actions({
   const settleUp = useSettleUp();
   const [busy, setBusy] = useState(false);
   const { stake } = loss;
-  const restartable = loss.habitId !== undefined && loss.habitExists;
+  // One near its end date has too little left to restart into: starting another is the way back.
+  const restartable =
+    loss.habitId !== undefined &&
+    loss.habitExists &&
+    restartableBefore({ timesPerWeek: loss.timesPerWeek, endsOn: loss.habitEndsOn }, todayKey());
   const restartHref = (again: boolean): Href =>
     `/restart/${loss.habitId}${again ? `?again=${stake._id}` : ''}` as Href;
   const leave = (action: AnalyticsEvents['stake lost action']['action'], next?: Href) => {

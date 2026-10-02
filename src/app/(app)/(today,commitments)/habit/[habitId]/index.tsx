@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from 'convex/react';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import { CallOffBanner } from '@/components/call-off-banner';
 import { ActivityList, type ActivityItem } from '@/components/commitment-detail/activity-list';
@@ -28,6 +28,7 @@ import type { HabitActivity, HabitDetailHistory } from '@/convex/habitHistory';
 import { daysBetween } from '@/convex/lib/days';
 import { targetPerWeek } from '@/convex/lib/frequency';
 import { openCallOff } from '@/data/call-off';
+import { formatLastDay } from '@/data/ending';
 import { habitTerms } from '@/data/commitment-terms';
 import { isDaily, type HabitWithProgress } from '@/data/habits';
 import { useCallOff } from '@/hooks/use-call-off';
@@ -122,6 +123,12 @@ export default function HabitDetailScreen() {
       callOff({ target: { habitId }, stake, until: callOffUntil });
     } else if (forceDelete) {
       deleteNow('Force delete is on: it goes right away, with its entire completion history.');
+    } else if (terms?.kind === 'notice' && terms.lastDay === habit.endsOn) {
+      // Its end date comes before a week's notice would: ending it changes nothing.
+      Alert.alert(
+        'It’s already finishing',
+        `${habit.title} runs through ${formatLastDay(habit.endsOn)}, sooner than a week’s notice would. Keep it up till then.`,
+      );
     } else if (terms?.kind === 'notice') {
       router.push(`/habit/${habitId}/end`);
     } else if (terms?.kind === 'now') {
@@ -160,7 +167,8 @@ export default function HabitDetailScreen() {
         onShare={habit.brokenAt === undefined ? () => openShare({ habitId }, 'detail') : undefined}
       />
 
-      {ending && progress !== undefined ? (
+      {/* Shows the notice once ended, or an end date's last week; nothing otherwise. */}
+      {progress !== undefined ? (
         <EndingBanner habit={progress} today={today} onKeep={keep} />
       ) : null}
 

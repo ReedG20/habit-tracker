@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { contractRuns, receiptRuns } from './contract-text';
-import type { CommitmentDraft } from './draft';
+import { draftEndDay, type CommitmentDraft } from './draft';
 import { HoldToConfirmButton } from './hold-to-confirm-button';
 import { Note } from './note';
 import { SignaturePad } from './signature-pad';
@@ -71,8 +71,11 @@ export function SignStep({ draft, busy, onConfirm }: SignStepProps) {
       }>
       <View style={[styles.contract, { backgroundColor: theme.backgroundElement }]}>
         <ThemedText type="smallSemibold" themeColor="textSecondary">
-          {draft.kind === 'habit' ? 'Standing agreement' : 'Agreement'} ·{' '}
-          {signedDate.format(new Date())}
+          {/* One with an end date isn't standing: it says when it's done. */}
+          {draft.kind === 'habit' && draftEndDay(draft) === undefined
+            ? 'Standing agreement'
+            : 'Agreement'}{' '}
+          · {signedDate.format(new Date())}
         </ThemedText>
 
         <ThemedText style={styles.body} themeColor="text">

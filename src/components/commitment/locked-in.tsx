@@ -1,7 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
 import { friendName, proofSummary } from './contract-text';
-import { lockoutLabel, type CommitmentDraft } from './draft';
+import { draftEndDay, lockoutLabel, type CommitmentDraft } from './draft';
 import { Note } from './note';
 import { StepLayout } from './step-layout';
 
@@ -20,6 +20,7 @@ import {
 } from '@/constants/theme';
 import { DAILY, frequencyLabel } from '@/convex/lib/frequency';
 import { lockedInCallOff } from '@/data/call-off';
+import { formatLastDay } from '@/data/ending';
 import { useNow } from '@/hooks/use-now';
 import { useTheme } from '@/hooks/use-theme';
 import { describeClock, describeWeekSpan, formatDueAt, todayKey } from '@/lib/dates';
@@ -52,6 +53,7 @@ export function LockedIn({
 }: LockedInProps) {
   const theme = useTheme();
   const daily = draft.timesPerWeek >= DAILY;
+  const endDay = draftEndDay(draft);
   const now = useNow();
   // Their word alone can go any time, so there's nothing to call off.
   const callOff = draft.stakeKind === 'none' || callOffUntil === undefined ? null : callOffUntil;
@@ -92,11 +94,11 @@ export function LockedIn({
         ) : (
           <Row
             label="When"
-            value={
+            value={`${
               daily
                 ? 'Every day, by 3\u00a0AM'
                 : `${frequencyLabel(draft.timesPerWeek)}, any days, ${describeWeekSpan(todayKey())}`
-            }
+            }${endDay === undefined ? '' : `, through ${formatLastDay(endDay)}`}`}
           />
         )}
         <Row label="Stakes" value={stakes} />

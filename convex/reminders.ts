@@ -215,6 +215,7 @@ async function loadPlanInput(
       timesPerWeek: habit.timesPerWeek,
       startDay: habit.startDay,
       endsAfter: habit.endsAfter,
+      endsOn: habit.endsOn,
       done: done.get(habit._id) ?? new Set<string>(),
       pending: pending.has(habit._id),
       stake: await stakeLine(habit),

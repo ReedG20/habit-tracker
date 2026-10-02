@@ -2,7 +2,7 @@ import { v } from 'convex/values';
 
 /**
  * A commitment seen through: a goal proven, or a staked habit kept up right
- * to the end of its notice. The Kept screen opens once for each, the way the
+ * to the end of its notice or its end date. The Kept screen opens once for each, the way the
  * loss screen does for a miss. Kept out of `schema.ts` so that file only grows
  * by the table registration.
  */
@@ -16,7 +16,7 @@ export const keptRunValidator = v.object({
   completions: v.number(),
   /** The first day this run could count. */
   sinceDay: v.string(),
-  /** The notice's last day. */
+  /** The last day that counted: its notice's, or its end date. */
   lastDay: v.string(),
   /** How often it was due, for the copy: 7 is every day. */
   timesPerWeek: v.number(),
@@ -30,6 +30,11 @@ export const accomplishmentValidator = v.object({
   /** What was on the line; absent for just their word. Stake rows outlive the habit. */
   stakeId: v.optional(v.id('stakes')),
   goalId: v.optional(v.id('goals')),
+  /**
+   * Habits only, and only on ones kept since end dates: a habit on just
+   * their word has no stake to say which habit it was.
+   */
+  habitId: v.optional(v.id('habits')),
   /** Habits only. */
   run: v.optional(keptRunValidator),
   /** Goals only: the deadline, to say how early it landed. */

@@ -140,6 +140,12 @@ export default defineSchema({
      * last day of one of its weeks (weekly) that still counts. The lockout check removes it after that.
      */
     endsAfter: v.optional(v.string()),
+    /**
+     * The end date chosen when it was made: the last day (daily) or the last
+     * day of one of its weeks (weekly) that counts. It finishes on its own
+     * after that. Absent means it runs until ended (`lib/endDate.ts`).
+     */
+    endsOn: v.optional(v.string()),
     /** The stake it runs on now; none means just the user's word. */
     stakeId: v.optional(v.id('stakes')),
     /**

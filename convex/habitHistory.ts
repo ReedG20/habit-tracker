@@ -16,6 +16,7 @@ import {
   type HistoryWeekState,
 } from './lib/habitHistory';
 import { firstJudgedWeek, weekStartsOn } from './lib/habitWeek';
+import { lastCountedDay } from './lib/endDate';
 import { localDay } from './lib/lockout';
 import { proofMethodValidator } from './lib/proofMethods';
 
@@ -202,7 +203,8 @@ function countedWindow(
   const startsOn = weekStartsOn(anchored);
   const firstWeek = firstJudgedWeek(anchored, user.accountableFrom ?? started);
   const ends: string[] = [];
-  if (habit.endsAfter !== undefined) ends.push(habit.endsAfter);
+  const counted = lastCountedDay(habit);
+  if (counted !== undefined) ends.push(counted);
   if (habit.brokenAt !== undefined) ends.push(localDay(habit.brokenAt, timeZone));
   return { firstDay, firstWeek, startsOn, lastDay: ends.sort()[0] };
 }

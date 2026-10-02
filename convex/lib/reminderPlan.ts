@@ -2,6 +2,7 @@ import type { Id } from '../_generated/dataModel';
 import { countThisWeek, daysLeftInWeek } from './days';
 import { DAILY, targetPerWeek } from './frequency';
 import { weekStartsOn } from './habitWeek';
+import { lastCountedDay } from './endDate';
 import { isOwed, type CheckedHabit } from './lockout';
 import type { HabitStakeLine } from './reminderCopy';
 import { LINEUP_TIME, type ReminderSettings } from './reminderPresets';
@@ -99,7 +100,8 @@ export function owedHabits(
 ): DueHabit[] {
   const due: DueHabit[] = [];
   for (const habit of habits) {
-    if (habit.endsAfter !== undefined && today > habit.endsAfter) continue;
+    const lastDay = lastCountedDay(habit);
+    if (lastDay !== undefined && today > lastDay) continue;
     if (habit.done.has(today)) continue;
     if (!isOwed(habit, habit.done, today, accountableFrom)) continue;
 

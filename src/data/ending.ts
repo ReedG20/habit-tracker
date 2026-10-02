@@ -1,6 +1,7 @@
 import { daysBetween } from '@/convex/lib/days';
 import { targetPerWeek } from '@/convex/lib/frequency';
 import { habitWeekEnd } from '@/convex/lib/habitWeek';
+import { lastCountedDay } from '@/convex/lib/endDate';
 import type { StakeView } from '@/convex/lib/stakeRules';
 import { isDaily, type HabitWithProgress } from '@/data/habits';
 import { skipConsequence, stakeCost } from '@/data/stakes';
@@ -10,21 +11,27 @@ import { formatCents } from '@/lib/money';
 /**
  * A habit ended with something on the line keeps counting through its last
  * day (`convex/lib/ending.ts`). This is how that notice reads on the card,
- * the detail banner and the end sheet, so they never disagree.
+ * the detail banner and the end sheet, so they never disagree. A habit with
+ * an end date (`convex/lib/endDate.ts`) reads the same way in its last week.
  */
 
 type EndingHabit = Pick<
   HabitWithProgress,
-  'endsAfter' | 'timesPerWeek' | 'startDay' | 'completedToday' | 'weekCount'
+  'endsAfter' | 'endsOn' | 'timesPerWeek' | 'startDay' | 'completedToday' | 'weekCount'
 >;
+
+/** How close an end date has to be before the card and the detail say so. */
+const END_DATE_SHOWN_DAYS = 7;
 
 export type EndingStatus = {
   lastDay: string;
+  /** It's running out its end date, not a notice the user gave: there's nothing to take back. */
+  byEndDate: boolean;
   /** Days that still count, today included: 1 on the last day, 0 once it has passed. */
   daysLeft: number;
   /** Nothing is left to log: it only waits for the nightly check to wrap it up. */
   finished: boolean;
-  /** For the card: "Ending · 5 days left", "Ending · last day", "Wraps up tonight". */
+  /** For the card: "Ending · 5 days left", "Finishes · last day", "Wraps up tonight". */
   label: string;
 };
 
@@ -42,10 +49,13 @@ export function formatLastDay(day: string): string {
 
 /** `null` for a habit that isn't ending. */
 export function endingStatus(habit: EndingHabit, today: string): EndingStatus | null {
-  const lastDay = habit.endsAfter;
+  const lastDay = lastCountedDay(habit);
   if (lastDay === undefined) return null;
+  const byEndDate = lastDay !== habit.endsAfter;
 
   const daysLeft = daysBetween(today, lastDay).length;
+  if (byEndDate && daysLeft > END_DATE_SHOWN_DAYS) return null;
+  const verb = byEndDate ? 'Finishes' : 'Ending';
   const finalPeriodDone = isDaily(habit)
     ? daysLeft === 1 && habit.completedToday
     : habitWeekEnd(habit, today) >= lastDay && habit.weekCount >= targetPerWeek(habit);
@@ -56,10 +66,10 @@ export function endingStatus(habit: EndingHabit, today: string): EndingStatus | 
   else if (finished) {
     label =
       daysLeft === 1 ? 'Wraps up tonight' : `Wraps up ${weekdayFormat.format(fromDayKey(lastDay))}`;
-  } else if (daysLeft === 1) label = 'Ending · last day';
-  else label = `Ending · ${daysLeft} days left`;
+  } else if (daysLeft === 1) label = `${verb} · last day`;
+  else label = `${verb} · ${daysLeft} days left`;
 
-  return { lastDay, daysLeft, finished, label };
+  return { lastDay, byEndDate, daysLeft, finished, label };
 }
 
 /**

@@ -83,6 +83,7 @@ const revisableValidator = v.object({
   dueAt: v.optional(v.number()),
   /** Habits only. */
   timesPerWeek: v.optional(v.number()),
+  endsOn: v.optional(v.string()),
   proofMethod: v.optional(proofMethodValidator),
   timerMinutes: v.optional(v.number()),
   icon: v.optional(v.string()),
@@ -132,6 +133,7 @@ export const revisable = authedQuery({
     return {
       kind: 'habit',
       timesPerWeek: commitment.timesPerWeek,
+      endsOn: commitment.endsOn,
       proofMethod: commitment.proofMethod,
       timerMinutes: commitment.timerMinutes,
       ...common,

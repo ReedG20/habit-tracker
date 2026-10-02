@@ -1,6 +1,7 @@
-import { draftProofMethod, lockoutLabel, type CommitmentDraft } from './draft';
+import { draftEndDay, draftProofMethod, lockoutLabel, type CommitmentDraft } from './draft';
 
 import { DAILY, frequencyLabel } from '@/convex/lib/frequency';
+import { formatLastDay } from '@/data/ending';
 import { formatDueAt } from '@/lib/dates';
 import { formatCents } from '@/lib/money';
 
@@ -76,6 +77,13 @@ function proofRuns(draft: CommitmentDraft): ContractRun[] {
   }
 }
 
+/** ", through Thu, Oct 30" for a habit with an end date; nothing for one that runs until ended. */
+function throughRuns(draft: CommitmentDraft): ContractRun[] {
+  const endDay = draftEndDay(draft);
+  if (endDay === undefined) return [];
+  return [{ text: ', through ' }, { text: formatLastDay(endDay), strong: true }];
+}
+
 /** The contract as one "I will…" paragraph, with the user's own terms marked. */
 export function contractRuns(draft: CommitmentDraft): ContractRun[] {
   const lock = { text: missConsequence(draft), strong: true };
@@ -86,6 +94,7 @@ export function contractRuns(draft: CommitmentDraft): ContractRun[] {
       { text: lowerFirst(draft.title), strong: true },
       { text: ', ' },
       { text: frequencyLabel(draft.timesPerWeek).toLowerCase(), strong: true },
+      ...throughRuns(draft),
       { text: '. Each time I’ll ' },
       ...proofRuns(draft),
       { text: '. If I end a week short, ' },
@@ -98,7 +107,9 @@ export function contractRuns(draft: CommitmentDraft): ContractRun[] {
     return [
       { text: 'I will ' },
       { text: lowerFirst(draft.title), strong: true },
-      { text: ', every day. Each day I’ll ' },
+      { text: ', every day' },
+      ...throughRuns(draft),
+      { text: '. Each day I’ll ' },
       ...proofRuns(draft),
       { text: '. If I miss a day, ' },
       lock,
@@ -134,6 +145,7 @@ export function receiptRuns(draft: CommitmentDraft): ContractRun[] {
       promise,
       { text: ', ' },
       { text: frequencyLabel(draft.timesPerWeek).toLowerCase(), strong: true },
+      ...throughRuns(draft),
       { text: '. If I end a week short, ' },
       lock,
       { text: '.' },
@@ -144,7 +156,9 @@ export function receiptRuns(draft: CommitmentDraft): ContractRun[] {
     return [
       { text: 'I will ' },
       promise,
-      { text: ', every day. If I miss a day, ' },
+      { text: ', every day' },
+      ...throughRuns(draft),
+      { text: '. If I miss a day, ' },
       lock,
       { text: '.' },
     ];

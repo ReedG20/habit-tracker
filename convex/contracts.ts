@@ -135,12 +135,12 @@ export const forKept = query({
     if (user === null) return null;
     const row = await ctx.db.get('accomplishments', args.accomplishmentId);
     if (row === null || row.userId !== user._id) return null;
-    // A habit is gone by now, but its stake still says which habit it was.
+    // A habit is gone by now, but the row (or, on older rows, its stake) still says which habit it was.
     const stake = row.stakeId === undefined ? null : await ctx.db.get('stakes', row.stakeId);
     const commitment =
       row.goalId !== undefined
         ? { goalId: row.goalId }
-        : { habitId: stake?.habitId, goalId: stake?.goalId };
+        : { habitId: row.habitId ?? stake?.habitId, goalId: stake?.goalId };
     return await contractAsOf(ctx, user._id, commitment, row.achievedAt);
   },
 });

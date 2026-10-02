@@ -14,6 +14,7 @@ import { SparklesIcon } from '@/constants/icons';
 import { Fonts, Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import {
+  endDateInput,
   friendInput,
   iconInput,
   plainStake,
@@ -94,6 +95,7 @@ export default function OnboardingPaywallScreen() {
               description: pending.proof.trim() || undefined,
               timesPerWeek: pending.timesPerWeek,
               ...proofInput(pending),
+              ...endDateInput(pending),
               ...iconInput(pending),
               stake: plainStake(pending),
             }).then((habitId) => ({ habitId }))

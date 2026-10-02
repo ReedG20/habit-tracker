@@ -13,6 +13,7 @@ import {
   replyToFor,
   type EmailContent,
 } from './lib/emailCopy';
+import { endDayLabel } from './lib/endDate';
 import { DAILY, frequencyLabel, targetPerWeek } from './lib/frequency';
 import { graceEmail, graceStakeLine, type GraceStake } from './lib/graceCopy';
 import { notifyFriendTold } from './lib/notify';
@@ -125,6 +126,7 @@ export const sendHeadsUp = internalMutation({
     if (stake.habitId !== undefined) {
       const habit = await ctx.db.get('habits', stake.habitId);
       cadence = frequencyLabel(habit?.timesPerWeek ?? 7).toLowerCase();
+      if (habit?.endsOn !== undefined) cadence += `, through ${endDayLabel(habit.endsOn)}`;
     } else {
       const goal = stake.goalId === undefined ? null : await ctx.db.get('goals', stake.goalId);
       cadence =
