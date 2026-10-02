@@ -14,11 +14,20 @@ export const contestReasonValidator = v.union(
   v.literal('proof_should_count'),
   v.literal('did_it_not_recorded'),
   v.literal('app_problem'),
+  v.literal('something_came_up'),
   v.literal('dont_recognize'),
   v.literal('other'),
 );
 
 export type ContestReason = typeof contestReasonValidator.type;
+
+/**
+ * A real emergency is a judgment call a person makes from what happened, so
+ * claiming one takes a note. The other reasons can stand on the record.
+ */
+export function contestNeedsNote(reason: ContestReason): boolean {
+  return reason === 'something_came_up';
+}
 
 export const chargeReviewStatusValidator = v.union(
   v.literal('open'),

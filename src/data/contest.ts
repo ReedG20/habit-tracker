@@ -6,5 +6,12 @@ import { CONTEST_REASON_LABELS } from '@/convex/lib/supportCopy';
  * order they're offered. Support's email shows the same words.
  */
 export const CONTEST_REASONS: { reason: ContestReason; label: string }[] = (
-  ['proof_should_count', 'did_it_not_recorded', 'app_problem', 'dont_recognize', 'other'] as const
+  [
+    'proof_should_count',
+    'did_it_not_recorded',
+    'app_problem',
+    'something_came_up',
+    'dont_recognize',
+    'other',
+  ] as const
 ).map((reason) => ({ reason, label: CONTEST_REASON_LABELS[reason] }));
