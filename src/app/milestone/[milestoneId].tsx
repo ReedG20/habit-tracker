@@ -110,7 +110,7 @@ function safeLine(stake: MilestoneView['stake']): { text: string; bold: string |
   switch (stake.kind) {
     case 'money': {
       const amount = formatCents(stake.amountCents);
-      return { text: `${amount} still on your card.`, bold: amount };
+      return { text: `${amount} still yours.`, bold: amount };
     }
     case 'friend':
       return { text: `${stake.friendName} hasn’t heard a thing.`, bold: stake.friendName };
