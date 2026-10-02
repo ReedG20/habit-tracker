@@ -164,6 +164,14 @@ async function seed(t: Harness, userId: Id<'users'>, name: string): Promise<Seed
       title: 'Old goal',
       achievedAt: 0,
     });
+    await ctx.db.insert('endedHabits', {
+      userId,
+      title: 'Old habit',
+      outcome: 'ended',
+      completions: 3,
+      startedAt: 0,
+      endedAt: 0,
+    });
     await ctx.db.insert('freezes', {
       userId,
       startDay: TODAY,

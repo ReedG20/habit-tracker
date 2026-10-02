@@ -2,6 +2,7 @@ import { useMutation, useQuery } from 'convex/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { CallOffBanner } from '@/components/call-off-banner';
 import { ActivityList, type ActivityItem } from '@/components/commitment-detail/activity-list';
 import { ContestChargeLink } from '@/components/commitment-detail/contest-charge-link';
 import { DetailSection } from '@/components/commitment-detail/detail-section';
@@ -26,8 +27,10 @@ import type { Id } from '@/convex/_generated/dataModel';
 import type { HabitActivity, HabitDetailHistory } from '@/convex/habitHistory';
 import { daysBetween } from '@/convex/lib/days';
 import { targetPerWeek } from '@/convex/lib/frequency';
+import { openCallOff } from '@/data/call-off';
 import { habitTerms } from '@/data/commitment-terms';
 import { isDaily, type HabitWithProgress } from '@/data/habits';
+import { useCallOff } from '@/hooks/use-call-off';
 import { useNow } from '@/hooks/use-now';
 import { useSubscription } from '@/hooks/use-subscription';
 import { track } from '@/lib/analytics';
@@ -55,6 +58,7 @@ export default function HabitDetailScreen() {
   const keepGoing = useMutation(api.habits.keepGoing);
   const resetDay = useMutation(api.devProofs.resetHabitDay);
   const forceDelete = useForceDelete();
+  const callOff = useCallOff();
   // What ending it would do today, so the button can say so before it's tapped.
   const terms = useQuery(api.habits.endingTerms, habit === null ? 'skip' : { habitId, today });
 
@@ -81,7 +85,10 @@ export default function HabitDetailScreen() {
   }
 
   const ending = habit.endsAfter !== undefined;
-  const givesNotice = !forceDelete && terms?.kind === 'notice';
+  const stake = progress?.stakeView ?? null;
+  // Its first moments, when the deal can still be called off (`convex/lib/callOff.ts`).
+  const callOffUntil = openCallOff(habit, stake, now);
+  const givesNotice = !forceDelete && callOffUntil === null && terms?.kind === 'notice';
 
   const deleteNow = (message: string) =>
     confirmDestructive({
@@ -109,7 +116,9 @@ export default function HabitDetailScreen() {
     });
 
   const onDelete = () => {
-    if (forceDelete) {
+    if (callOffUntil !== null) {
+      callOff({ target: { habitId }, stake, until: callOffUntil });
+    } else if (forceDelete) {
       deleteNow('Force delete is on: it goes right away, with its entire completion history.');
     } else if (terms?.kind === 'notice') {
       router.push(`/habit/${habitId}/end`);
@@ -152,6 +161,17 @@ export default function HabitDetailScreen() {
       {ending && progress !== undefined ? (
         <EndingBanner habit={progress} today={today} onKeep={keep} />
       ) : null}
+
+      {callOffUntil === null ? null : (
+        <CallOffBanner
+          kind="habit"
+          title={habit.title}
+          until={callOffUntil}
+          stake={stake}
+          onChangeTerms={() => router.push(`/new?kind=habit&revise=${habitId}`)}
+          onCallOff={() => callOff({ target: { habitId }, stake, until: callOffUntil })}
+        />
+      )}
 
       {progress === undefined ? null : (
         <HabitNowPanel

@@ -4,6 +4,7 @@ import { v } from 'convex/values';
 import { accomplishmentValidator } from './lib/accomplishmentSchema';
 import { chargeReviewValidator, moneyBlockValidator } from './lib/chargeReviewSchema';
 import { contractValidator } from './lib/contractSchema';
+import { endedHabitValidator } from './lib/endedHabitSchema';
 import { graceMarkValidator, graceValidator } from './lib/graceSchema';
 import { proofMethodValidator } from './lib/proofMethods';
 import { lockoutDaysValidator, moneyStatusValidator, stakeDocValidator } from './lib/stakeSchema';
@@ -149,6 +150,8 @@ export default defineSchema({
     proofMethod: v.optional(proofMethodValidator),
     /** A timer habit's length in minutes. */
     timerMinutes: v.optional(v.number()),
+    /** Until when it can still be called off or swapped for new terms (`lib/callOff.ts`). */
+    callOffUntil: v.optional(v.number()),
     /** A key from `lib/commitmentIcons.ts`; absent on ones made before icons. */
     icon: v.optional(v.string()),
     /** Set once the user picks the icon themselves, so a rename leaves it alone. */
@@ -230,6 +233,8 @@ export default defineSchema({
     dueAt: v.number(),
     /** Set when the one-time reprieve moved `dueAt` (`lib/grace.ts`): the deadline as signed. */
     originalDueAt: v.optional(v.number()),
+    /** Until when it can still be called off or swapped for new terms (`lib/callOff.ts`). */
+    callOffUntil: v.optional(v.number()),
     completedAt: v.optional(v.number()),
     order: v.number(),
     /** Deprecated: goal money moved to the `stakes` table (`lib/stakes.ts` migrates it). */
@@ -471,6 +476,9 @@ export default defineSchema({
     'seenAt',
     'achievedAt',
   ]),
+
+  /** Deleted habits (`lib/endedHabitSchema.ts`), for the Past list on Commitments. */
+  endedHabits: defineTable(endedHabitValidator).index('by_user', ['userId']),
 
   /** Signed contracts (`lib/contractSchema.ts`), held back up on the Kept and loss screens. */
   contracts: defineTable(contractValidator)

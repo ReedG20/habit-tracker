@@ -2,6 +2,7 @@ import { useMutation, useQuery } from 'convex/react';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { CallOffBanner } from '@/components/call-off-banner';
 import { ActivityList, type ActivityItem } from '@/components/commitment-detail/activity-list';
 import { ContestChargeLink } from '@/components/commitment-detail/contest-charge-link';
 import { DetailSection } from '@/components/commitment-detail/detail-section';
@@ -20,8 +21,10 @@ import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
 import type { SubmissionWithPhotos } from '@/convex/goalSubmissions';
 import { isStakeLive } from '@/convex/lib/stakeRules';
+import { openCallOff } from '@/data/call-off';
 import { goalTerms } from '@/data/commitment-terms';
 import { isMissed } from '@/data/goals';
+import { useCallOff } from '@/hooks/use-call-off';
 import { useNow } from '@/hooks/use-now';
 import { track } from '@/lib/analytics';
 import { confirmDestructive, notify } from '@/lib/confirm';
@@ -62,6 +65,7 @@ export default function GoalDetailScreen() {
   const remove = useMutation(api.goals.remove);
   const resetProof = useMutation(api.devProofs.resetGoalProof);
   const forceDelete = useForceDelete();
+  const callOff = useCallOff();
 
   if (goal === undefined) {
     return <ScreenScrollView />;
@@ -89,6 +93,10 @@ export default function GoalDetailScreen() {
   const verifying = goal.submission?.status === 'pending';
   const canSubmit = !done && !missed && !verifying;
   const stakeLive = goal.stakeView !== null && isStakeLive(goal.stakeView);
+  // Its first moments, when the deal can still be called off (`convex/lib/callOff.ts`).
+  const callOffUntil = openCallOff(goal, goal.stakeView, now);
+  const callOffNow = (until: number) =>
+    callOff({ target: { goalId }, stake: goal.stakeView, until });
 
   return (
     <ScreenScrollView>
@@ -98,6 +106,10 @@ export default function GoalDetailScreen() {
         onEdit={() => router.push(`/goals/${goalId}/edit`)}
         onShare={done || missed ? undefined : () => openShare({ goalId }, 'detail')}
         onDelete={() => {
+          if (callOffUntil !== null) {
+            callOffNow(callOffUntil);
+            return;
+          }
           if (stakeLive && !forceDelete) {
             notify(
               goal.stakeView?.kind === 'friend'
@@ -126,6 +138,17 @@ export default function GoalDetailScreen() {
           });
         }}
       />
+
+      {callOffUntil === null ? null : (
+        <CallOffBanner
+          kind="goal"
+          title={goal.title}
+          until={callOffUntil}
+          stake={goal.stakeView}
+          onChangeTerms={() => router.push(`/new?kind=goal&revise=${goalId}`)}
+          onCallOff={() => callOffNow(callOffUntil)}
+        />
+      )}
 
       <GoalNowPanel goal={goal} now={now} />
 
