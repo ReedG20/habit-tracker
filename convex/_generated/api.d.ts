@@ -21,6 +21,7 @@ import type * as commitmentIdeas from "../commitmentIdeas.js";
 import type * as contracts from "../contracts.js";
 import type * as crons from "../crons.js";
 import type * as devProofs from "../devProofs.js";
+import type * as devSeed from "../devSeed.js";
 import type * as emails from "../emails.js";
 import type * as endedHabits from "../endedHabits.js";
 import type * as evidence from "../evidence.js";
@@ -111,6 +112,7 @@ declare const fullApi: ApiFromModules<{
   contracts: typeof contracts;
   crons: typeof crons;
   devProofs: typeof devProofs;
+  devSeed: typeof devSeed;
   emails: typeof emails;
   endedHabits: typeof endedHabits;
   evidence: typeof evidence;
