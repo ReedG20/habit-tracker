@@ -363,7 +363,7 @@ export const devPreview = authedMutation({
       terms: {
         description: weekly
           ? 'In the gym, a machine or the weights in view'
-          : 'Ten minutes with the phone face down',
+          : 'Sit still with my phone face down',
         timesPerWeek: weekly ? 3 : DAILY,
         proofMethod: weekly ? 'photo' : 'timer',
         timerMinutes: weekly ? undefined : 10,
