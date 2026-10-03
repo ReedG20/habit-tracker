@@ -90,10 +90,14 @@ const config: ExpoConfig = {
       {
         locationWhenInUsePermission:
           'Ante checks where you are only when you tap Check in, to prove a location habit.',
-        // Foreground only: keep the unused "Always" and motion strings out of the plist.
-        locationAlwaysAndWhenInUsePermission: false,
-        locationAlwaysPermission: false,
-        motionUsagePermission: false,
+        // Never requested: Ante is foreground-only and reads no motion data. Apple
+        // still requires these strings because expo-location's code references
+        // the APIs (ITMS-90683 rejected build 14 without the motion one).
+        locationAlwaysAndWhenInUsePermission:
+          'Ante never uses your location in the background. It checks where you are only when you tap Check in.',
+        locationAlwaysPermission:
+          'Ante never uses your location in the background. It checks where you are only when you tap Check in.',
+        motionUsagePermission: 'Ante doesn’t use motion or fitness data.',
         isIosBackgroundLocationEnabled: false,
         isAndroidBackgroundLocationEnabled: false,
       },
