@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import { useSyncExternalStore } from 'react';
-import { Alert, Platform } from 'react-native';
+import { Alert, InteractionManager, Keyboard, Platform } from 'react-native';
 
 import { track } from '@/lib/analytics';
 
@@ -14,6 +14,8 @@ import { track } from '@/lib/analytics';
 export type AiConsent = 'granted' | 'declined';
 
 const STORAGE_KEY = 'aiConsent';
+/** Past a modal's slide-in, so the alert isn't laid out mid-transition. */
+const ALERT_DELAY_MS = 350;
 
 const listeners = new Set<() => void>();
 let current: AiConsent | null = read();
@@ -64,7 +66,7 @@ export function useAiConsent(): AiConsent | null {
 }
 
 const WHAT_IS_SENT =
-  'Ante sends the names of your habits and goals, the photos you submit as proof, and the places near you when you check in to Google’s Gemini AI, through OpenRouter. It’s used only to suggest proof ideas and to check your proof, never for ads.';
+  'Ante sends your habit and goal names, proof photos and check-in places to Google’s Gemini AI, through OpenRouter, to suggest ideas and check proof. Never for ads.';
 
 /**
  * Resolves whether AI may be used, asking first if it hasn't been answered.
@@ -82,16 +84,24 @@ export function ensureAiConsent(purpose: 'ideas' | 'proof'): Promise<boolean> {
       track('ai consent answered', { consent, purpose });
       resolve(consent === 'granted');
     };
-    Alert.alert(
-      purpose === 'proof' ? 'Let AI check your proof?' : 'Use AI to help?',
-      purpose === 'proof'
-        ? `${WHAT_IS_SENT}\n\nPhoto and location proof can’t be checked without it. You can change this any time in Me → Preferences.`
-        : `${WHAT_IS_SENT}\n\nYou can change this any time in Me → Preferences.`,
-      [
-        { text: 'Not now', style: 'cancel', onPress: () => answer('declined') },
-        { text: 'Allow', onPress: () => answer('granted') },
-      ],
-      { cancelable: false },
-    );
+    // After the screen's own transition settles and with the keyboard down:
+    // an alert shown mid-animation, or while a field grabs focus, is sized for
+    // the keyboard and stays tall and mostly empty.
+    InteractionManager.runAfterInteractions(() => {
+      setTimeout(() => {
+        Keyboard.dismiss();
+        Alert.alert(
+          purpose === 'proof' ? 'Let AI check your proof?' : 'Use AI to help?',
+          purpose === 'proof'
+            ? `${WHAT_IS_SENT} Photo and location proof can’t be checked without it. Change it in Me → Preferences.`
+            : `${WHAT_IS_SENT} Change it in Me → Preferences.`,
+          [
+            { text: 'Not now', style: 'cancel', onPress: () => answer('declined') },
+            { text: 'Allow', onPress: () => answer('granted') },
+          ],
+          { cancelable: false },
+        );
+      }, ALERT_DELAY_MS);
+    });
   });
 }
