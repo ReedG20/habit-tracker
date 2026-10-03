@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { IconField } from '@/components/commitment/icon-field';
+import { LockedTerms } from '@/components/commitment/locked-terms';
 import { alertRevision, useWordingCheck } from '@/components/commitment/use-wording-check';
 import { FormSheet } from '@/components/form-sheet';
 import { HabitSheetFields, type HabitDraft } from '@/components/habit-sheet-fields';
@@ -11,6 +12,7 @@ import { PROOF_METHODS, proofMethodOf } from '@/constants/proof-methods';
 import { Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
+import { isCallOffOpen } from '@/convex/lib/callOff';
 import { targetPerWeek } from '@/convex/lib/frequency';
 import type { Habit } from '@/data/habits';
 
@@ -31,6 +33,8 @@ export default function EditHabitScreen() {
 function EditHabitForm({ habit }: { habit: Habit }) {
   const update = useMutation(api.habits.update);
   const wording = useWordingCheck();
+  // Its wording is the deal: open to change only until the call-off window closes.
+  const [termsOpen] = useState(() => isCallOffOpen(habit.callOffUntil, Date.now()));
   const [initial, setInitial] = useState<HabitDraft>({
     title: habit.title,
     description: habit.description ?? '',
@@ -45,6 +49,15 @@ function EditHabitForm({ habit }: { habit: Habit }) {
 
   const save = async () => {
     if (wording.checking) return;
+
+    if (!termsOpen) {
+      router.back();
+      if (pickedIcon === undefined) return;
+      void update({ habitId: habit._id, icon: pickedIcon }).catch((error: unknown) => {
+        console.error('Failed to update the habit', error);
+      });
+      return;
+    }
 
     const title = draftRef.current.title.trim();
     if (title.length === 0) return;
@@ -88,7 +101,7 @@ function EditHabitForm({ habit }: { habit: Habit }) {
   return (
     <FormSheet
       title="Edit habit"
-      submitLabel={wording.checking ? 'Checking…' : 'Save changes'}
+      submitLabel={wording.checking ? 'Checking…' : termsOpen ? 'Save changes' : 'Save'}
       submitDisabled={wording.checking}
       onSubmit={() => void save()}>
       <IconField
@@ -97,12 +110,29 @@ function EditHabitForm({ habit }: { habit: Habit }) {
         chosen={pickedIcon !== undefined || habit.iconChosen === true}
         onPick={setPickedIcon}
       />
-      <HabitSheetFields
-        key={fieldsKey}
-        initial={initial}
-        draftRef={draftRef}
-        proofMethod={proofMethodOf(habit)}
-      />
+      {termsOpen ? (
+        <HabitSheetFields
+          key={fieldsKey}
+          initial={initial}
+          draftRef={draftRef}
+          proofMethod={proofMethodOf(habit)}
+        />
+      ) : (
+        <LockedTerms
+          terms={[
+            { label: 'Name', value: habit.title },
+            ...(habit.description
+              ? [
+                  {
+                    label: PROOF_METHODS[proofMethodOf(habit)].proofLabel,
+                    value: habit.description,
+                  },
+                ]
+              : []),
+          ]}
+          note="Locked in. These are the terms you signed, and your proof is checked against them. To change them, end this habit and start a new one."
+        />
+      )}
     </FormSheet>
   );
 }

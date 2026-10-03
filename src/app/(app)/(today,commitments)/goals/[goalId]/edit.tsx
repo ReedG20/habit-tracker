@@ -4,13 +4,16 @@ import { useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { IconField } from '@/components/commitment/icon-field';
+import { LockedTerms } from '@/components/commitment/locked-terms';
 import { alertRevision, useWordingCheck } from '@/components/commitment/use-wording-check';
 import { FormSheet } from '@/components/form-sheet';
 import { GoalSheetFields, type GoalDraft } from '@/components/goal-sheet-fields';
 import { Spacing } from '@/constants/theme';
 import { api } from '@/convex/_generated/api';
 import type { Id } from '@/convex/_generated/dataModel';
+import { isCallOffOpen } from '@/convex/lib/callOff';
 import type { Goal } from '@/data/goals';
+import { formatDueAt } from '@/lib/dates';
 
 export default function EditGoalScreen() {
   const { goalId: rawGoalId } = useLocalSearchParams<{ goalId: string }>();
@@ -26,9 +29,14 @@ export default function EditGoalScreen() {
 function EditGoalForm({ goal }: { goal: Goal }) {
   const update = useMutation(api.goals.update);
   const wording = useWordingCheck();
-  // The deadline is part of the commitment: locked once something is staked on it or it is done.
+  // Its wording and deadline are the deal: open to change only until the call-off window closes.
+  const [termsOpen] = useState(() => isCallOffOpen(goal.callOffUntil, Date.now()));
+  // The deadline also locks once something is staked on it or it is done.
   const deadlineLocked =
-    goal.stakeId !== undefined || goal.stake !== undefined || goal.completedAt !== undefined;
+    !termsOpen ||
+    goal.stakeId !== undefined ||
+    goal.stake !== undefined ||
+    goal.completedAt !== undefined;
   const [initial, setInitial] = useState<GoalDraft>({
     title: goal.title,
     description: goal.description ?? '',
@@ -44,6 +52,15 @@ function EditGoalForm({ goal }: { goal: Goal }) {
 
   const save = async () => {
     if (wording.checking) return;
+
+    if (!termsOpen) {
+      router.back();
+      if (pickedIcon === undefined) return;
+      void update({ goalId: goal._id, icon: pickedIcon }).catch((error: unknown) => {
+        console.error('Failed to update the goal', error);
+      });
+      return;
+    }
 
     const draft = draftRef.current();
     const title = draft.title.trim();
@@ -82,7 +99,7 @@ function EditGoalForm({ goal }: { goal: Goal }) {
   return (
     <FormSheet
       title="Edit goal"
-      submitLabel={wording.checking ? 'Checking…' : 'Save changes'}
+      submitLabel={wording.checking ? 'Checking…' : termsOpen ? 'Save changes' : 'Save'}
       submitDisabled={wording.checking}
       onSubmit={() => void save()}>
       <IconField
@@ -91,12 +108,23 @@ function EditGoalForm({ goal }: { goal: Goal }) {
         chosen={pickedIcon !== undefined || goal.iconChosen === true}
         onPick={setPickedIcon}
       />
-      <GoalSheetFields
-        key={fieldsKey}
-        initial={initial}
-        draftRef={draftRef}
-        showDeadline={!deadlineLocked}
-      />
+      {termsOpen ? (
+        <GoalSheetFields
+          key={fieldsKey}
+          initial={initial}
+          draftRef={draftRef}
+          showDeadline={!deadlineLocked}
+        />
+      ) : (
+        <LockedTerms
+          terms={[
+            { label: 'Name', value: goal.title },
+            ...(goal.description ? [{ label: 'Proof', value: goal.description }] : []),
+            { label: 'Deadline', value: formatDueAt(goal.dueAt) },
+          ]}
+          note="Locked in. These are the terms you signed, and your proof is checked against them. The goal runs as signed until its deadline."
+        />
+      )}
     </FormSheet>
   );
 }
