@@ -1,7 +1,7 @@
 import { generateText, Output } from 'ai';
 import { z } from 'zod';
 
-import { verificationModel } from './openrouter';
+import { photoModel, verificationModel } from './openrouter';
 
 /**
  * The one vision call both photo checks share: habits send a single photo,
@@ -24,15 +24,69 @@ export const verdictSchema = z.object({
 
 export type Verdict = z.infer<typeof verdictSchema>;
 
+/**
+ * What the photo model fills in, in this order: it describes the photo and
+ * answers the two questions that decide it before it gives a verdict, so the
+ * verdict follows from what it saw rather than the reason being written to
+ * fit a verdict already given.
+ */
+export const photoVerdictSchema = z.object({
+  /** One plain sentence on what is literally in the frame. */
+  seen: z.string(),
+  /** Whether what is in the frame has anything to do with the commitment. */
+  relatesToCommitment: z.boolean(),
+  /** A screen or print showing a picture of the thing, in place of the thing itself. */
+  pictureOfAPicture: z.boolean(),
+  verdict: z.enum(['approve', 'reject']),
+  reason: z.string(),
+});
+
+export type PhotoVerdict = z.infer<typeof photoVerdictSchema>;
+
+export const UNRELATED_REASON =
+  "That photo doesn't show this. Take one with the real thing in the frame.";
+export const PICTURE_OF_A_PICTURE_REASON =
+  "That's a picture on a screen or a print. Take a photo of the real thing.";
+
+/**
+ * The model's answers, held to its own findings: it can't approve a photo it
+ * said is unrelated or a picture of a picture, however its verdict came out.
+ */
+export function settlePhotoVerdict(output: PhotoVerdict): Verdict {
+  if (output.pictureOfAPicture) {
+    return {
+      verdict: 'reject',
+      reason: output.verdict === 'reject' ? output.reason : PICTURE_OF_A_PICTURE_REASON,
+    };
+  }
+  if (!output.relatesToCommitment) {
+    return {
+      verdict: 'reject',
+      reason: output.verdict === 'reject' ? output.reason : UNRELATED_REASON,
+    };
+  }
+  return { verdict: output.verdict, reason: output.reason };
+}
+
 export async function judgePhotos(args: {
   systemPrompt: string;
   imageUrls: string[];
   text: string;
 }): Promise<Verdict> {
+  return settlePhotoVerdict(await askPhotoModel(args));
+}
+
+/** The model's raw answers, before `settlePhotoVerdict`. Exported for `scripts/eval-photo-proof.ts`. */
+export async function askPhotoModel(args: {
+  systemPrompt: string;
+  imageUrls: string[];
+  text: string;
+}): Promise<PhotoVerdict> {
   const { output } = await generateText({
-    model: verificationModel(),
-    maxOutputTokens: 300,
-    output: Output.object({ schema: verdictSchema }),
+    model: photoModel(),
+    temperature: 0,
+    maxOutputTokens: 2000,
+    output: Output.object({ schema: photoVerdictSchema }),
     instructions: args.systemPrompt,
     messages: [
       {
