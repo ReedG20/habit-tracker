@@ -133,7 +133,7 @@ const rejectVerdict = () =>
     id: 'gen-1',
     object: 'chat.completion',
     created: 0,
-    model: 'google/gemini-2.5-flash-lite',
+    model: 'google/gemini-3.8-flash',
     choices: [
       {
         index: 0,
@@ -141,6 +141,9 @@ const rejectVerdict = () =>
         message: {
           role: 'assistant',
           content: JSON.stringify({
+            seen: 'A desk with a laptop on it.',
+            relatesToCommitment: false,
+            pictureOfAPicture: false,
             verdict: 'reject',
             reason: 'That looks like a desk, not a gym.',
           }),
