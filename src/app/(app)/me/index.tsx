@@ -45,6 +45,7 @@ import { resetDailyPaywall } from '@/hooks/use-daily-paywall';
 import { useSignOut } from '@/hooks/use-sign-out';
 import { useSubscription } from '@/hooks/use-subscription';
 import { useTheme } from '@/hooks/use-theme';
+import { useSessionUserId } from '@/hooks/use-signed-in-session';
 import { todayKey } from '@/lib/dates';
 import { setForceDelete, showDevTools, useForceDelete } from '@/lib/dev-tools';
 import { openKept } from '@/lib/kept-screen';
@@ -93,7 +94,9 @@ export default function MeScreen() {
   const loggedCount = useQuery(api.habits.loggedCount);
   const stakeTotals = useQuery(api.stakes.totals);
   const { isPro } = useSubscription();
-  const reminderSettings = useQuery(api.reminders.settings);
+  // Waits for the session's `users` row: on a first sign-in it can land a moment after this screen.
+  const sessionUserId = useSessionUserId();
+  const reminderSettings = useQuery(api.reminders.settings, sessionUserId === null ? 'skip' : {});
   const notificationPermission = useNotificationPermission();
   // Only on deployments that honour them (`ANTE_DEV_OVERRIDES`), never production.
   const devOverrides = useQuery(api.lockouts.devOverrides, showDevTools ? {} : 'skip');
