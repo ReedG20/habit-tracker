@@ -62,14 +62,18 @@ export function WhatStep({
   // A name that's already there (a saved draft, going again, Back from the
   // stakes) gets its check and ideas without waiting for a keystroke.
   // First, once, whether AI may help at all: the name check and ideas send the name to it.
+  // Whatever's in the field by the time it's answered gets checked straight away.
   const { ensure } = nameCheck;
-  const initialTitle = useRef(draft.title);
+  const latestTitle = useRef(draft.title);
+  useEffect(() => {
+    latestTitle.current = draft.title;
+  }, [draft.title]);
   const asked = useRef(false);
   useEffect(() => {
     if (asked.current) return;
     asked.current = true;
     void ensureAiConsent('ideas').then((allowed) => {
-      if (allowed && initialTitle.current.trim().length > 0) void ensure(initialTitle.current);
+      if (allowed && latestTitle.current.trim().length > 0) void ensure(latestTitle.current);
     });
   }, [ensure]);
 

@@ -47,6 +47,8 @@ export function setAiConsent(consent: AiConsent) {
 }
 
 export function hasAiConsent(): boolean {
+  // Unanswered in memory may still be answered on disk (read before it was saved).
+  if (current === null) current = read();
   return current === 'granted';
 }
 
