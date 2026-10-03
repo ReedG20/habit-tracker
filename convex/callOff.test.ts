@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { api, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
+import { TERMS_LOCKED } from './callOff';
 import { goalCallOffUntil } from './lib/callOff';
 import { setup as baseSetup, type Harness } from './test.helpers';
 import { grantPro } from './test.helpers';
@@ -329,5 +330,95 @@ describe('revisable', () => {
       kind: 'habit',
       endsOn: '2026-11-01',
     });
+  });
+});
+
+describe('locking the terms', () => {
+  const habitOf = (t: Harness, habitId: Id<'habits'>) =>
+    t.run(async (ctx) => await ctx.db.get('habits', habitId));
+
+  test('a goal’s wording and deadline change in its window, not after; its icon always can', async () => {
+    const t = setup();
+    const { as } = await signIn(t, 'alice');
+    const goalId = await as.mutation(api.goals.create, {
+      title: 'Ship it',
+      description: 'The shipped page',
+      dueAt: NOW + 3 * DAY,
+    });
+
+    await as.mutation(api.goals.update, { goalId, title: 'Ship v1', dueAt: NOW + 4 * DAY });
+    expect(await goalOf(t, goalId)).toMatchObject({ title: 'Ship v1', dueAt: NOW + 4 * DAY });
+
+    vi.setSystemTime((await goalOf(t, goalId))!.callOffUntil!);
+    await expect(as.mutation(api.goals.update, { goalId, title: 'Ship anything' })).rejects.toThrow(
+      TERMS_LOCKED,
+    );
+    await expect(
+      as.mutation(api.goals.update, { goalId, description: 'Any photo' }),
+    ).rejects.toThrow(TERMS_LOCKED);
+    await expect(as.mutation(api.goals.update, { goalId, dueAt: NOW + 6 * DAY })).rejects.toThrow(
+      TERMS_LOCKED,
+    );
+
+    // The sheet resends the words as they are alongside a new icon.
+    await as.mutation(api.goals.update, {
+      goalId,
+      title: 'Ship v1',
+      description: 'The shipped page',
+      icon: 'run',
+    });
+    expect(await goalOf(t, goalId)).toMatchObject({
+      title: 'Ship v1',
+      description: 'The shipped page',
+      dueAt: NOW + 4 * DAY,
+      icon: 'run',
+      iconChosen: true,
+    });
+  });
+
+  test('a habit locks the same way, with money on it or only its word', async () => {
+    const t = setup();
+    const { as, userId } = await signIn(t, 'alice');
+    const staked = await moneyHabit(t, userId, 1000, 'Run');
+    const word = await as.mutation(api.habits.create, {
+      title: 'Read',
+      description: 'The open page',
+      proofMethod: 'photo',
+      stake: { kind: 'none' },
+    });
+
+    await as.mutation(api.habits.update, { habitId: word, description: 'Twenty pages' });
+    expect(await habitOf(t, word)).toMatchObject({ description: 'Twenty pages' });
+
+    const closes = Math.max(
+      (await habitOf(t, staked))!.callOffUntil!,
+      (await habitOf(t, word))!.callOffUntil!,
+    );
+    vi.setSystemTime(closes);
+    for (const habitId of [staked, word]) {
+      await expect(as.mutation(api.habits.update, { habitId, title: 'Anything' })).rejects.toThrow(
+        TERMS_LOCKED,
+      );
+      await expect(
+        as.mutation(api.habits.update, { habitId, description: 'Any photo' }),
+      ).rejects.toThrow(TERMS_LOCKED);
+      await as.mutation(api.habits.update, { habitId, icon: 'run' });
+    }
+    expect(await habitOf(t, word)).toMatchObject({
+      title: 'Read',
+      description: 'Twenty pages',
+      icon: 'run',
+    });
+  });
+
+  test('a commitment from before there were windows is locked', async () => {
+    const t = setup();
+    const { as } = await signIn(t, 'alice');
+    const goalId = await as.mutation(api.goals.create, { title: 'Ship it', dueAt: NOW + 3 * DAY });
+    await t.run(async (ctx) => await ctx.db.patch('goals', goalId, { callOffUntil: undefined }));
+
+    await expect(as.mutation(api.goals.update, { goalId, title: 'Ship v1' })).rejects.toThrow(
+      TERMS_LOCKED,
+    );
   });
 });

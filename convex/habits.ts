@@ -4,7 +4,7 @@ import { ConvexError, v } from 'convex/values';
 import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
-import { requireCallOffOpen, voidDeal } from './callOff';
+import { requireCallOffOpen, requireTermsOpen, voidDeal } from './callOff';
 import { newIconFields, repickIconOnRename, requireNewIcon } from './commitmentIcons';
 import { recordEndedHabit } from './endedHabits';
 import { holdEvidence } from './evidence';
@@ -718,6 +718,7 @@ export const update = authedMutation({
   handler: async (ctx, args): Promise<null> => {
     const habit = await requireOwnedHabit(ctx, args.habitId);
     await requireUnlocked(ctx, ctx.user._id);
+    requireTermsOpen(habit, args, Date.now());
     requireCommitmentText(args.title ?? habit.title, args.description);
     requireCommitmentIcon(args.icon);
 

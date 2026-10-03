@@ -28,6 +28,25 @@ export function requireCallOffOpen(
   return callOffUntil;
 }
 
+export const TERMS_LOCKED = 'The terms are locked now. They run as you signed them.';
+
+/**
+ * Refuses an edit that would change a commitment's signed wording once its
+ * call-off window has closed: the AI judges proof against the current
+ * wording, so loosening it later would rewrite the deal. Changes inside the
+ * window, and edits that leave the wording as it is (an icon), go through.
+ */
+export function requireTermsOpen(
+  commitment: Doc<'goals'> | Doc<'habits'>,
+  edit: { title?: string; description?: string | null },
+  now: number,
+): void {
+  const retitled = edit.title !== undefined && edit.title !== commitment.title;
+  const reworded =
+    edit.description !== undefined && (edit.description ?? undefined) !== commitment.description;
+  if (retitled || reworded) requireCallOffOpen(commitment, now, TERMS_LOCKED);
+}
+
 /**
  * Lets the stake go (a friend's is void: they were never told) and drops the
  * signed contract. Their heads-up was held until the window closed, and it

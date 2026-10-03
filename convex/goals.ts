@@ -4,7 +4,7 @@ import { internal } from './_generated/api';
 import type { Doc, Id } from './_generated/dataModel';
 import { internalMutation, query, type MutationCtx, type QueryCtx } from './_generated/server';
 import { recordKeptGoal } from './accomplishments';
-import { requireCallOffOpen, voidDeal } from './callOff';
+import { requireCallOffOpen, requireTermsOpen, TERMS_LOCKED, voidDeal } from './callOff';
 import { newIconFields, repickIconOnRename, requireNewIcon } from './commitmentIcons';
 import { holdEvidence } from './evidence';
 import { friendInputValidator, resolveFriend } from './friends';
@@ -454,6 +454,8 @@ export const update = authedMutation({
   handler: async (ctx, args): Promise<null> => {
     const goal = await requireOwnedGoal(ctx, args.goalId);
     await requireUnlocked(ctx, ctx.user._id);
+    const now = Date.now();
+    requireTermsOpen(goal, args, now);
     requireCommitmentText(args.title ?? goal.title, args.description);
     requireCommitmentIcon(args.icon);
 
@@ -469,6 +471,8 @@ export const update = authedMutation({
       if (goal.completedAt !== undefined) {
         throw new ConvexError('The goal is already done');
       }
+      // The deadline is part of the signed terms too.
+      requireCallOffOpen(goal, now, TERMS_LOCKED);
       requireLead(args.dueAt);
       fields.dueAt = args.dueAt;
     }
