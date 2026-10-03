@@ -31,6 +31,7 @@ type Env = {
   readonly CONVEX_CLOUD_URL: string;
   readonly CONVEX_SITE_URL: string;
   readonly ANTE_DEV_OVERRIDES: string | undefined;
+  readonly CHARGING_PAUSED: string | undefined;
   readonly CLERK_JWT_ISSUER_DOMAIN: string;
   readonly EMAIL_DELIVERY: string | undefined;
   readonly EMAIL_FROM: string | undefined;

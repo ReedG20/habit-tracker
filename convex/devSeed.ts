@@ -9,24 +9,25 @@ import { localDay, requireDevOverrides } from './lib/lockout';
  * Developer tool: fills a signed-in user's account with a believable month of
  * habits, a goal, money on the line and one kept habit, for App Store and
  * marketing screenshots. Wipes their habits, goals, stakes, contracts and
- * accomplishments first. Dev deployments only:
+ * accomplishments and milestones first. Dev deployments only:
  *
  *   bunx convex run devSeed:screenshots '{"email":"you@example.com"}'
  */
 
+/** A loose scribble rather than a legible name: anyone's signature, nobody's in particular. */
 const SIGNATURE = {
   width: 300,
   height: 96,
   strokes: [
-    'M18,70 Q22,30 30,22 Q38,16 40,30 Q40,44 26,50 Q40,52 48,72 Q50,78 56,70',
-    'M62,60 Q70,52 76,56 Q78,62 68,64 Q62,66 66,72 Q72,76 82,66',
-    'M90,60 Q98,52 104,56 Q106,62 96,64 Q90,66 94,72 Q100,76 110,66',
-    'M138,52 Q126,50 122,62 Q120,74 132,70 Q140,64 142,40 Q144,24 146,30 Q144,56 148,72 Q152,78 170,64',
-    'M176,58 Q210,48 250,52 Q270,54 284,48',
+    'M16,66 Q30,30 46,52 Q58,72 74,46 Q86,26 100,50 Q112,72 130,44 Q146,22 160,54 Q170,76 192,50 Q214,28 236,52 Q252,68 284,40',
+    'M200,72 Q236,66 270,70',
   ],
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** The line every money contract ends with (`contract-text.ts` `withAuthorization`). */
+const AUTHORIZATION = { text: ' I’m 18 or older, and I authorize Ante to make this charge.' };
 
 export const screenshots = internalMutation({
   args: { email: v.string() },
@@ -95,6 +96,7 @@ export const screenshots = internalMutation({
         { text: ', every day. If I miss a day, ' },
         { text: '$50 is charged to my card', strong: true },
         { text: '.' },
+        AUTHORIZATION,
       ],
       signature: SIGNATURE,
     });
@@ -208,6 +210,7 @@ export const screenshots = internalMutation({
         { text: '. If I miss a day, ' },
         { text: '$100 is charged to my card', strong: true },
         { text: '.' },
+        AUTHORIZATION,
       ],
       signature: SIGNATURE,
     });
@@ -322,6 +325,12 @@ async function wipe(ctx: MutationCtx, userId: Id<'users'>) {
     .withIndex('by_user_and_seen_and_achieved', (q) => q.eq('userId', userId))
     .take(500);
   for (const row of accomplishments) await ctx.db.delete('accomplishments', row._id);
+  // Left over from earlier runs, they'd pop up over Today.
+  const milestones = await ctx.db
+    .query('milestones')
+    .withIndex('by_user_and_seen_and_reached', (q) => q.eq('userId', userId))
+    .take(500);
+  for (const row of milestones) await ctx.db.delete('milestones', row._id);
 }
 
 /** Pro like `subscriptions.devGrantPro`, but a paid, renewing year rather than a trial. */

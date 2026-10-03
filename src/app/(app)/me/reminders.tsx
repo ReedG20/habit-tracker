@@ -34,6 +34,7 @@ import {
 import { pickPreviewSubject, previewPushes } from '@/data/reminder-preview';
 import { useNow } from '@/hooks/use-now';
 import { useTheme } from '@/hooks/use-theme';
+import { useSessionUserId } from '@/hooks/use-signed-in-session';
 import { endOfDay, todayKey } from '@/lib/dates';
 import { canNotify, useNotificationPermission } from '@/lib/notifications';
 
@@ -86,7 +87,9 @@ export default function RemindersScreen() {
   const theme = useTheme();
   const now = useNow();
   const permission = useNotificationPermission();
-  const saved = useQuery(api.reminders.settings);
+  // Waits for the session's `users` row, which a first sign-in writes a moment after mounting.
+  const sessionUserId = useSessionUserId();
+  const saved = useQuery(api.reminders.settings, sessionUserId === null ? 'skip' : {});
   const habits = useQuery(api.habits.list, { today: todayKey() });
   const goals = useQuery(api.goals.list);
   const sendTest = useMutation(api.push.sendTest);

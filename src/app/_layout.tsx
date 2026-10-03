@@ -136,7 +136,7 @@ function RootNavigator() {
         <Stack.Screen name="pro" options={{ presentation: 'fullScreenModal' }} />
         <Stack.Screen
           name="preferences"
-          options={{ ...sheetScreenOptions, sheetAllowedDetents: [0.22] }}
+          options={{ ...sheetScreenOptions, sheetAllowedDetents: [0.5] }}
         />
         {/* Making a commitment takes over the screen: no tabs, no swipe away mid-contract. */}
         <Stack.Screen name="new" options={{ presentation: 'fullScreenModal' }} />

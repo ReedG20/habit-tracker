@@ -8,7 +8,7 @@ import { ThemedText } from './themed-text';
 import { GoogleIcon } from '@/constants/icons';
 import { PillRadius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { track } from '@/lib/analytics';
+import { captureError, track } from '@/lib/analytics';
 
 /** Google's native SDK only ships for iOS and Android. */
 const SUPPORTED = Platform.OS === 'ios' || Platform.OS === 'android';
@@ -39,6 +39,7 @@ export function GoogleSignInButton() {
 
       // Both codes mean the user backed out of the Google sheet.
       if (code !== 'SIGN_IN_CANCELLED' && code !== '-5') {
+        captureError(error, 'google sign in');
         Alert.alert('Could not sign in with Google', describe(error));
       }
     } finally {
@@ -65,8 +66,10 @@ export function GoogleSignInButton() {
   );
 }
 
+/** Clerk's own message when it has one (it's written for people); never a raw native exception. */
 function describe(error: unknown): string {
-  return error instanceof Error ? error.message : 'Please try again.';
+  const clerk = (error as { errors?: { longMessage?: string; message?: string }[] }).errors?.[0];
+  return clerk?.longMessage ?? clerk?.message ?? 'Check your connection and try again.';
 }
 
 const styles = StyleSheet.create({

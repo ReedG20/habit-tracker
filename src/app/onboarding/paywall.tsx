@@ -1,7 +1,7 @@
 import { useConvexAuth, useMutation, useQuery } from 'convex/react';
-import { Redirect } from 'expo-router';
+import { Redirect, router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ActionButton } from '@/components/action-button';
 import { Icon } from '@/components/icon';
@@ -24,6 +24,7 @@ import {
 } from '@/components/commitment/draft';
 import { draftCallOffUntil } from '@/data/call-off';
 import { commitmentNoun, freshDueAt } from '@/data/onboarding';
+import { useSignOut } from '@/hooks/use-sign-out';
 import { useSessionUserId } from '@/hooks/use-signed-in-session';
 import { useSignContract, type ContractTarget } from '@/hooks/use-sign-contract';
 import { captureError, track } from '@/lib/analytics';
@@ -60,6 +61,7 @@ export default function OnboardingPaywallScreen() {
   const signContract = useSignContract();
   const devOverrides = useQuery(api.lockouts.devOverrides, showDevTools ? {} : 'skip');
   const devGrantPro = useMutation(api.subscriptions.devGrantPro);
+  const signOut = useSignOut();
 
   // Read once: the draft doesn't change on this screen.
   const [draft] = useState<CommitmentDraft | null>(() => getOnboarding().draft);
@@ -244,6 +246,32 @@ export default function OnboardingPaywallScreen() {
           }
         />
       ) : null}
+
+      {phase === 'offer' || phase === 'failed' ? (
+        // Not subscribing still has to leave a way out of the account (App Review 5.1.1(v)).
+        <View style={styles.exits}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              void signOut().catch((error: unknown) => captureError(error, 'sign out'));
+            }}
+            hitSlop={Spacing.two}
+            style={({ pressed }) => pressed && styles.pressed}>
+            <ThemedText type="small" themeColor="textSecondary">
+              Sign out
+            </ThemedText>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push('/onboarding/delete-account')}
+            hitSlop={Spacing.two}
+            style={({ pressed }) => pressed && styles.pressed}>
+            <ThemedText type="small" themeColor="textSecondary">
+              Delete account
+            </ThemedText>
+          </Pressable>
+        </View>
+      ) : null}
     </OnboardingScreen>
   );
 }
@@ -251,6 +279,15 @@ export default function OnboardingPaywallScreen() {
 const styles = StyleSheet.create({
   failed: {
     gap: Spacing.three,
+  },
+  exits: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Spacing.four,
+    paddingVertical: Spacing.three,
+  },
+  pressed: {
+    opacity: 0.7,
   },
   proHeader: {
     gap: Spacing.one,

@@ -2,7 +2,8 @@ import { env } from '../_generated/server';
 
 /**
  * Nearby places for a location check-in, from Google Places API (New) Nearby
- * Search: two calls per check-in (the close circle and the large-area one).
+ * Search: the close circle first, and the large-area search only when that
+ * doesn't settle it (`locationProofs.analyze`), so most check-ins cost one call.
  * The field mask stays within the Nearby Search Pro SKU (names, types,
  * coordinates, short address): nothing here needs ratings or hours.
  *
@@ -77,42 +78,44 @@ const LARGE_AREA_TYPES = [
 const LARGE_AREA_RADIUS_M = 1500;
 const LARGE_AREA_RESULTS = 10;
 
-/**
- * Everything labeled right around the user, plus any large area (park,
- * campus) they could be inside, closest first so the model (and the reason
- * it writes) sees the likeliest match on top. The wider search is best
- * effort: if it fails, the close one still stands.
- */
-export async function searchNearby(coords: Coords): Promise<NearbyPlace[]> {
+function requireKey(): string {
   const apiKey = env.GOOGLE_PLACES_API_KEY;
   if (apiKey === undefined || apiKey.length === 0) {
     throw new Error('GOOGLE_PLACES_API_KEY is not set on this deployment');
   }
+  return apiKey;
+}
+
+/** Everything labeled right around the user, closest first. */
+export async function searchClose(coords: Coords): Promise<NearbyPlace[]> {
   const center = { latitude: coords.latitude, longitude: coords.longitude };
+  return await nearbySearch(requireKey(), coords, {
+    maxResultCount: MAX_RESULTS,
+    rankPreference: 'DISTANCE',
+    locationRestriction: { circle: { center, radius: searchRadius(coords.accuracy) } },
+  });
+}
 
-  const [close, wide] = await Promise.allSettled([
-    nearbySearch(apiKey, coords, {
-      maxResultCount: MAX_RESULTS,
-      rankPreference: 'DISTANCE',
-      locationRestriction: { circle: { center, radius: searchRadius(coords.accuracy) } },
-    }),
-    nearbySearch(apiKey, coords, {
-      includedTypes: LARGE_AREA_TYPES,
-      maxResultCount: LARGE_AREA_RESULTS,
-      rankPreference: 'DISTANCE',
-      locationRestriction: { circle: { center, radius: LARGE_AREA_RADIUS_M } },
-    }),
-  ]);
-  if (close.status === 'rejected') throw close.reason;
-  if (wide.status === 'rejected') console.warn('Large-area search failed', wide.reason);
+/** Large areas (park, campus) the user could be inside, though their listed centre is far off. */
+export async function searchLargeAreas(coords: Coords): Promise<NearbyPlace[]> {
+  const center = { latitude: coords.latitude, longitude: coords.longitude };
+  const places = await nearbySearch(requireKey(), coords, {
+    includedTypes: LARGE_AREA_TYPES,
+    maxResultCount: LARGE_AREA_RESULTS,
+    rankPreference: 'DISTANCE',
+    locationRestriction: { circle: { center, radius: LARGE_AREA_RADIUS_M } },
+  });
+  return places.map((place) => ({ ...place, largeArea: true }));
+}
 
+/**
+ * The close places plus any large area not already among them, closest first
+ * so the model (and the reason it writes) sees the likeliest match on top.
+ */
+export function withLargeAreas(close: NearbyPlace[], large: NearbyPlace[]): NearbyPlace[] {
   const byId = new Map<string, NearbyPlace>();
-  for (const place of close.value) byId.set(place.id, place);
-  if (wide.status === 'fulfilled') {
-    for (const place of wide.value) {
-      if (!byId.has(place.id)) byId.set(place.id, { ...place, largeArea: true });
-    }
-  }
+  for (const place of close) byId.set(place.id, place);
+  for (const place of large) if (!byId.has(place.id)) byId.set(place.id, place);
   return [...byId.values()].sort((a, b) => a.distanceM - b.distanceM);
 }
 

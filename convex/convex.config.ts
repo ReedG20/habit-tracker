@@ -119,6 +119,14 @@ const app = defineApp({
      *   bunx convex env set MIN_IOS_BUILD 42
      */
     MIN_IOS_BUILD: v.optional(v.string()),
+    /**
+     * The emergency brake on automatic charges. `on` holds every off-session
+     * charge (`stripe.chargeStake`): the stake stays `charging` and is tried
+     * again hourly, so nothing is dropped, and charges resume once it's unset.
+     * For a bug that charges people wrongly:
+     *   bunx convex env set CHARGING_PAUSED on
+     */
+    CHARGING_PAUSED: v.optional(v.string()),
   },
 });
 

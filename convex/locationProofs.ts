@@ -6,7 +6,13 @@ import { components, internal } from './_generated/api';
 import type { Id } from './_generated/dataModel';
 import { internalAction } from './_generated/server';
 import { authedMutation } from './lib/customFunctions';
-import { searchNearby, searchRadius, type NearbyPlace } from './lib/places';
+import {
+  searchClose,
+  searchLargeAreas,
+  searchRadius,
+  withLargeAreas,
+  type NearbyPlace,
+} from './lib/places';
 import { requireCanProve } from './lib/proof';
 import { EXPIRE_AFTER_MS, judgeText, verdictSchema } from './lib/vision';
 
@@ -129,11 +135,8 @@ export const analyze = internalAction({
     let placeId: string | undefined;
 
     try {
-      const places = await searchNearby(args.coords);
-      if (places.length === 0) {
-        status = 'rejected';
-        reason = NO_PLACES_REASON;
-      } else {
+      /** Asks the model about these places, recording its verdict; true when it approves. */
+      const judge = async (places: NearbyPlace[]): Promise<boolean> => {
         const output = await judgeText({
           systemPrompt: SYSTEM_PROMPT,
           schema: locationVerdictSchema,
@@ -144,6 +147,28 @@ export const analyze = internalAction({
         status = output.verdict === 'approve' ? 'approved' : 'rejected';
         reason = output.reason;
         placeId = status === 'approved' ? matched?.id : undefined;
+        return status === 'approved';
+      };
+
+      // The close circle settles most check-ins in one Places call.
+      const close = await searchClose(args.coords);
+      const approved = close.length > 0 && (await judge(close));
+
+      // Only a miss pays for the wider search: a park or campus is listed at
+      // its centre, often outside the close circle. Best effort: if it fails,
+      // the close verdict stands.
+      if (!approved) {
+        const large = await searchLargeAreas(args.coords).catch((error: unknown) => {
+          console.warn('Large-area search failed', error);
+          return [];
+        });
+        const all = withLargeAreas(close, large);
+        if (all.length > close.length) {
+          await judge(all);
+        } else if (close.length === 0) {
+          status = 'rejected';
+          reason = NO_PLACES_REASON;
+        }
       }
     } catch (error: unknown) {
       console.error('Location verification failed', error);

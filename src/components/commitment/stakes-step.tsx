@@ -1,6 +1,6 @@
 import { useQuery } from 'convex/react';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Linking, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
 import { friendName, proofAction } from './contract-text';
@@ -42,6 +42,7 @@ import { useStakePayment } from '@/hooks/use-stake-payment';
 import { captureError, track } from '@/lib/analytics';
 import { describeClock, describeWeekSpan, formatDueAt, todayKey } from '@/lib/dates';
 import { cardLabel, formatCents } from '@/lib/money';
+import { TERMS_URL } from '@/lib/support';
 import { userErrorMessage } from '@/lib/user-errors';
 
 /**
@@ -307,6 +308,21 @@ export function StakesStep({
         ) : null}
 
         <WhatHappens steps={whatHappens(draft, raise, callOffUntil)} />
+
+        {draft.stakeKind === 'money' && !stuckOnMoney ? (
+          // The charge authorization, where the card is asked for (App Review and Stripe both want it said).
+          <ThemedText type="small" themeColor="textSecondary">
+            {`By tapping “${needsCard ? `Put ${formatCents(draft.amountCents)} on it` : 'Next: sign it'}”, you confirm you’re 18 or older and authorize Ante to charge your card ${formatCents(draft.amountCents)} if you miss, as set out in the `}
+            <ThemedText
+              type="small"
+              themeColor="primary"
+              accessibilityRole="link"
+              onPress={() => void Linking.openURL(TERMS_URL)}>
+              Terms
+            </ThemedText>
+            . Nobody is paid out: Ante keeps what’s charged.
+          </ThemedText>
+        ) : null}
 
         {noteFor(draft) === null ? null : <Note>{noteFor(draft)}</Note>}
       </Animated.View>

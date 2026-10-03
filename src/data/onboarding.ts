@@ -161,7 +161,7 @@ const suggestions: Record<Exclude<FocusArea, 'other'>, Record<CommitmentKind, Su
     habit: [
       { title: 'Read 10 pages', proof: 'The page I finished on, page number in view' },
       {
-        title: 'Practise a language for 15 minutes',
+        title: 'Practice a language for 15 minutes',
         proof: 'A screenshot of today’s finished lesson',
       },
     ],
