@@ -1,7 +1,7 @@
 # App Store listing
 
 What's entered in App Store Connect for app `6814632907`, kept here so the next
-version starts from it. App Review notes live in `docs/deploy.md`.
+version starts from it. App Review notes live in `docs/app-review-reply.txt`.
 
 Framing rule: Ante is a **commitment contract** app. Lead with habits, proof
 and following through; describe money plainly as a charge the user sets for
@@ -78,9 +78,15 @@ themselves. Never use bet, wager, odds, win, jackpot, pot or "ante up".
 commitment (the contract being signed); photo proof with its verdict; the
 stake options (all four kinds visible); a Kept screen; the calendar on Me.
 
-**App Review Information:** sign-in required **off** (Sign in with Apple
-works for the reviewer); contact Reed Grenager, support@useanteapp.com; notes
-from `docs/deploy.md`; the money-flow video as the attachment.
+**App Review Information:**
+
+- Sign-in required is **on**, with the Google demo account review@useanteapp.com.
+  The password is only in App Store Connect. Sign in with Apple also works for
+  the reviewer.
+- Contact: Reed Grenager, support@useanteapp.com.
+- Notes come from `docs/app-review-reply.txt`.
+- The attachment is the review recording, `app-flows-recording.mov`. Only one
+  file fits, so its two takes are joined; see `docs/review-recording.md`.
 
 **Release:** manually release this version.
 
