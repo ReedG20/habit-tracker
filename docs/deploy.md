@@ -552,46 +552,8 @@ closed. So the app sends people to us first:
       Apple the user consented (`customerConsented`).
 
 **App Review notes** (App Store Connect → the version → App Review
-Information → Notes; attach the money-flow video there too):
-
-> Ante is a habit and goal tracker built on commitment contracts. A user
-> writes down a habit or goal, how they'll prove it (a photo, a location
-> check-in or a timer), and what happens if they don't follow through, then
-> signs it with their finger.
->
-> STAKES. Each commitment has one consequence: tell a friend (we email someone
-> they name), lock out (their habits freeze for a few days), just their word,
-> or money. With money, the user sets the amount ($1–$50 per commitment, at
-> most $250 across all of them) and saves their card through Stripe. Nothing
-> is charged then. If they miss, that amount is charged once to their own card.
->
-> - It is a penalty the user sets for themselves, not a wager or a game: there
->   is no chance, no prize and no payout to anyone, and the outcome is
->   entirely in the user's hands.
-> - The charge buys and unlocks nothing in the app. Ante Pro, the
->   subscription that unlocks the app, is sold only through In-App Purchase.
-> - Ante holds no money for users, sends money to no one, and doesn't lend.
-> - Money stakes are for adults: the user confirms they're 18 or older and
->   signs a contract that authorizes the charge, next to a link to the Terms.
-> - A user's first missed stake is forgiven once. Any charge can be contested
->   in the app ("Something wrong with this charge?") within 120 days, and
->   refunds go back to the card.
->
-> HOW TO REVIEW
->
-> 1. Sign in with Apple.
-> 2. Subscribe to Ante Pro (sandbox). The yearly plan has a 7-day free trial.
-> 3. Make a habit or goal. To try a stake without a card, pick "Tell a friend"
->    or "Just my word". A money stake asks for a real card because Stripe runs
->    in live mode; nothing is charged when it's saved. The attached video
->    shows the whole money flow: setting it, a miss, the loss screen and
->    contesting the charge.
->
-> AI. Commitment names, proof photos and check-in places are checked by
-> Google's Gemini model through OpenRouter. The app asks before anything is
-> sent ("Use AI to help?" and "Let AI check your proof?"), and it can be
-> switched off in Me → Preferences.
->
-> Account deletion: Me → Delete account, or "Delete account" on the
-> subscription screen during sign-up. Support: support@useanteapp.com,
-> Me → Contact support, https://useanteapp.com/support.
+Information → Notes) are kept in `docs/app-review-reply.txt`, verbatim, so the
+next version starts from them. They answer the seven questions in Apple's 2.1
+"Information Needed" request of 2026-10-03, which asked for the answers in a
+reply and in Notes. Notes allow 4000 characters. The attachment is the review
+recording; `docs/review-recording.md` describes how it was made.

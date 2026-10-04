@@ -1,0 +1,31 @@
+1. SCREEN RECORDING
+Attached (app-flows-recording.mov): an iPhone on iOS 27.0.1, TestFlight build 1.0.0 (15). It starts at launch and shows, on a new account: onboarding, registration, the Ante Pro paywall (each plan's title, length and price, with Terms of Use and Privacy Policy links), subscribing, a photo proof, signing out and back in, and account deletion (Me → Delete account). The second part shows a money stake set, missed, charged ($1, live Stripe, refunded afterwards) and contested in the app.
+There is no user-generated content shared between users (no feed, profiles, messaging or comments), so there is nothing to report or block.
+
+2. PURPOSE AND AUDIENCE
+Ante is a habit and goal tracker for adults who mean to follow through but don't. A user writes a habit or goal as a short contract: what they'll do, how they'll prove it (a photo, a location check-in or a timer), and one consequence if they don't: an email to a friend they name, a few days' lockout of their habits, just their word, or an amount of money they choose. Commitment contracts are a proven way to close the gap between intention and action; Ante makes them simple and fair.
+
+3. HOW TO REVIEW
+Sign in with Apple, or tap "Continue with Google" and use the demo account above. Subscribe to Ante Pro (sandbox). Tap + to make a habit or goal. To try a stake without a card, pick "Tell a friend" or "Just my word". A money stake asks for a real card because Stripe runs in live mode; nothing is charged when it's saved. No sample files are needed.
+Account deletion is in Me → Delete account, and on the paywall during sign-up. Support: support@useanteapp.com or Me → Contact support.
+
+4. EXTERNAL SERVICES
+- Clerk: sign-in (Apple, Google)
+- Convex: backend and database
+- Apple In-App Purchase, via RevenueCat: Ante Pro
+- Stripe: saving cards and charging missed money stakes
+- OpenRouter (Google Gemini): AI wording help and proof checks, only after the user agrees; can be switched off in Me → Preferences
+- Google Places: location check-ins
+- Resend: emails to a named friend
+- Apple Push Notification service, via Expo: reminders
+- PostHog: product analytics
+
+5. REGIONS
+Available in the US, Canada, UK, Australia and New Zealand, and works the same in each. One difference: money stakes are always set and charged in US dollars.
+
+6. REGULATION
+Ante isn't in a regulated industry and needs no license. A money stake is not gambling: there is no chance, no prize and no payout to anyone, and the outcome is entirely in the user's hands. Ante holds no user funds, sends money to no one and doesn't lend; a missed stake is one charge to the user's own card, which they authorized when signing, processed by Stripe. Money stakes are for adults: the user confirms they're 18 or older. A first miss is forgiven once, and any charge can be contested in the app within 120 days. There is no protected third-party material.
+
+7. IN-APP PURCHASE
+Ante Pro is an auto-renewing subscription that unlocks the app (up to 10 habits and 6 goals, every kind of proof and stake): Monthly $7.99, or Yearly $49.99 with a 7-day free trial. The paywall appears after the first commitment is signed in onboarding, and later from Me or the Ante Pro card on Today. Restore Purchases is on the paywall.
+Money stakes are not In-App Purchase: a stake buys and unlocks nothing; it is a penalty the user sets for themselves, charged only if they miss.
